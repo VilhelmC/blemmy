@@ -284,8 +284,10 @@ function renderMastheadIdentity(basics: CVBasics): HTMLElement {
 // ─── Page 1 portrait cell ─────────────────────────────────────────────────────
 
 function renderPortraitCell(basics: CVBasics): HTMLElement {
+	const base = import.meta.env.BASE_URL ?? '/';
+	const portraitSrc = `${base}portrait-placeholder.svg`;
 	const img = h('img', {
-		src:              '/portrait-bw.jpg',
+		src:              portraitSrc,
 		alt:              basics.name,
 		class:            'cv-portrait',
 		id:               'cv-portrait-img',
@@ -297,7 +299,13 @@ function renderPortraitCell(basics: CVBasics): HTMLElement {
 
 	return h('div', { id: 'cv-p1-portrait-cell', class: 'cv-p1-portrait-cell' },
 		h('div', { class: 'cv-header-block' },
-			h('div', { class: 'cv-portrait-wrap' }, img),
+			h('div', { class: 'cv-portrait-wrap' },
+				img,
+				h('span', {
+					class:     'cv-portrait-upload-hint',
+					'aria-hidden': 'true',
+				}, 'Upload photo'),
+			),
 		),
 	);
 }
@@ -394,7 +402,7 @@ function renderSimPlaceholder(): HTMLElement {
 	return h('div', { class: 'sim-placeholder' },
 		h('p', {}, 'Interactive simulation — ',
 			h('a', {
-				href:   'https://github.com/vilhelm',
+				href:   'https://github.com/VilhelmC/blemmy',
 				class:  'sim-link',
 				target: '_blank',
 				rel:    'noopener noreferrer',

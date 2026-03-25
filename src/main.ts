@@ -162,10 +162,10 @@ function aboutBodyNodes(): Node[] {
 		document.createTextNode('Repository: '),
 		Object.assign(document.createElement('a'), {
 			className: 'cv-about-modal__repo-link',
-			href: 'https://github.com/vilhelm',
+			href: 'https://github.com/VilhelmC/blemmy',
 			target: '_blank',
 			rel: 'noopener noreferrer',
-			textContent: 'github.com/vilhelm',
+			textContent: 'github.com/VilhelmC/blemmy',
 		}),
 	);
 	const diagram = document.createElement('figure');
