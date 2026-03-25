@@ -1,0 +1,591 @@
+/* ============================================================
+   cv-print-surface.css
+   Screen-only: with html.cv-print-surface + .cv-shell.cv-print-preview,
+   mirrors print.css for WYSIWYG. Shared masthead/portrait rules live in
+   cv-print-parity.css (@media print + @media screen preview).
+   ============================================================ */
+
+@media screen {
+	/*
+	 * Root must match print.css (html, body 10pt): tokens use rem, so without
+	 * this, preview masthead/body are ~16px-based and PDF is 10pt-based →
+	 * different row heights, portrait gap vs masthead slack.
+	 */
+	html.cv-print-surface {
+		font-size:   10pt !important;
+		line-height: 1.4 !important;
+	}
+
+	html.cv-print-surface body {
+		font-family: 'DM Sans', system-ui, sans-serif !important;
+		font-size:   10pt !important;
+		line-height: 1.4 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview,
+	html.cv-print-surface .cv-shell.cv-print-preview * {
+		hyphens:             none !important;
+		-webkit-hyphens:     none !important;
+		hyphenate-character: '' !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview {
+		/* font-size on html drives rem; keep shell in sync for any em children */
+		font-size:   inherit;
+		line-height: inherit;
+		--color-ink-bg:      #ffffff;
+		--color-ink:         #0A0A0A;
+		--color-ink-black:   #0A0A0A;
+		--color-ink-dark:    #1A1A1A;
+		--color-ink-mid:     #505050;
+		--color-ink-muted:   #888888;
+		--color-teal-mid:    #404040;
+		--color-teal-light:  #707070;
+		--color-teal-deep:   #1A1A1A;
+		--color-sidebar-text:      #ffffff;
+		--color-sidebar-muted:     #ffffff66;
+		--color-sidebar-muted-2:   #ffffff80;
+		--color-sidebar-muted-3:   #ffffff8c;
+		--color-sidebar-muted-4:   #ffffffb3;
+		--color-sidebar-muted-5:   #ffffffc7;
+		--color-sidebar-muted-6:   #ffffffd1;
+		--color-sidebar-muted-7:   #ffffff73;
+		--color-sidebar-muted-8:   #fffffff2;
+		--color-sidebar-border:    #ffffff40;
+		background: transparent;
+		color:      var(--color-ink-black);
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-card {
+		background:    transparent !important;
+		box-shadow:    none !important;
+		border-radius: 0 !important;
+		width:         210mm !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview [data-cv-interactive] {
+		display: none !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar .cv-name,
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar .cv-label {
+		color: #ffffff !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-page {
+		width:            210mm !important;
+		height:           297mm !important;
+		min-height:       297mm !important;
+		position:         relative;
+		overflow:         hidden;
+		display:          flex !important;
+		flex-direction:   column !important;
+	}
+
+	/* JS: intrinsic merged height (see global.css comment). */
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-page.cv-layout-measure-intrinsic {
+		height:       auto !important;
+		min-height:   0 !important;
+		overflow:     visible !important;
+		display:      block !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-page.cv-layout-measure-intrinsic
+		.cv-grid {
+		height:             auto !important;
+		min-height:         0 !important;
+		flex:               none !important;
+		grid-template-rows: auto !important;
+		align-items:        start !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-page-1.cv-layout-measure-intrinsic
+		.cv-grid {
+		grid-template-rows: auto auto auto !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-page-2.cv-layout-measure-intrinsic
+		.cv-grid {
+		grid-template-rows: auto auto !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-page-2 {
+		display: none !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-page-1-body-footer:not(:empty),
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-page-2-body-footer:not(:empty) {
+		flex-shrink:           0 !important;
+		display:               grid !important;
+		grid-template-columns: repeat(
+			var(--cv-footer-cols, auto-fit),
+			minmax(0, 1fr)
+		) !important;
+		column-gap:            5mm !important;
+		row-gap:               0 !important;
+		align-items:           start !important;
+		padding:               2.5mm var(--print-main-padding-inline, 8.5mm) 3mm var(--print-main-padding-inline, 8.5mm) !important;
+		border-top:            0.4pt solid rgba(0,0,0,0.12) !important;
+	}
+
+	/* Work pool and section wrappers. */
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-work-pool {
+		display: none !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview [data-work-section] {
+		display:        flex !important;
+		flex-direction: column !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card[data-cv-sidebar-mm='54']
+		#cv-page-1
+		.cv-grid,
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card[data-cv-sidebar-mm='54']
+		#cv-page-2
+		.cv-grid {
+		grid-template-columns: var(--cv-sidebar-width-override, 54mm) 1fr !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card[data-cv-sidebar-mm='48']
+		#cv-page-1
+		.cv-grid,
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card[data-cv-sidebar-mm='48']
+		#cv-page-2
+		.cv-grid {
+		grid-template-columns: var(--cv-sidebar-width-override, 48mm) 1fr !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-grid {
+		grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width-single)) 1fr !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		.cv-sidebar
+		> div:not(.cv-sidebar-tail-spacer) {
+		padding: var(--print-sidebar-padding-single) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-main {
+		padding: var(--print-main-padding-single) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .section-label {
+		margin-bottom: 2mm !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .education-block {
+		padding-bottom: 3mm !important;
+		margin-bottom:  3mm !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		.cv-sidebar
+		.cv-name,
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		#cv-page-1-masthead
+		.cv-name {
+		font-size: 16pt !important;
+	}
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		.cv-sidebar
+		.cv-label,
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		#cv-page-1-masthead
+		.cv-label {
+		font-size: 6pt !important;
+		margin-top: 0.5mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .section-label {
+		font-size: 4.5pt !important;
+		margin-bottom: 1.2mm !important;
+		letter-spacing: 0.12em !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-header-block {
+		gap: 1.8mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .contact-list {
+		gap: 1mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .contact-item {
+		font-size: clamp(
+			4.35pt,
+			calc(2.5pt + 4.6cqi),
+			6pt
+		) !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .education-block {
+		padding-bottom: 2mm !important;
+		margin-bottom:  2mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .edu-degree {
+		font-size: 7.5pt !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .edu-institution,
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .edu-area,
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .edu-dates {
+		font-size: 6pt !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .edu-score {
+		font-size: 5pt !important;
+		padding: 0.4mm 1.2mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .skill-category-label {
+		font-size: 5pt !important;
+		margin-bottom: 0.8mm !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .skill-tag {
+		font-size: 5.5pt !important;
+		padding: 0.35mm 1.2mm !important;
+		margin: 0.3mm 0.3mm 0.3mm 0 !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .language-item {
+		font-size: 6pt !important;
+		padding: 0.5mm 0 !important;
+	}
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-sidebar .language-fluency {
+		font-size: 5.5pt !important;
+	}
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		.cv-sidebar
+		> div:not(.cv-sidebar-tail-spacer) {
+		padding-top: 2.5mm !important;
+		padding-bottom: 2.5mm !important;
+	}
+		html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page
+		#cv-sidebar-1
+		> div:first-child {
+		padding-top: 2.5mm !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-grid {
+		display:               grid !important;
+		grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr !important;
+		min-height:            0 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-page-1 .cv-grid {
+		grid-template-rows:  auto minmax(0, 1fr) auto !important;
+		flex:                  1 1 auto !important;
+		height:                100% !important;
+		align-items:           stretch !important;
+		align-content:         stretch !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-page-2 .cv-grid {
+		grid-template-rows:  minmax(0, 1fr) auto !important;
+		flex:                  1 1 auto !important;
+		height:                100% !important;
+		align-items:           stretch !important;
+		align-content:         stretch !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar {
+		padding:         0 !important;
+		display:         flex !important;
+		flex-direction:  column !important;
+		justify-content: flex-start !important;
+		align-items:     stretch !important;
+		gap:             var(--print-sidebar-stack-gap) !important;
+		min-height:      0 !important;
+		overflow:        hidden !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-sidebar-1 {
+		gap: calc(
+			var(--print-sidebar-stack-gap) +
+			var(--cv-slack-gap-p1-sidebar, 0px) +
+			var(--cv-align-gap-p1-sidebar, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-sidebar-2 {
+		gap: calc(
+			var(--print-sidebar-stack-gap) +
+			var(--cv-slack-gap-p2-sidebar, 0px) +
+			var(--cv-align-gap-p2-sidebar, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-sidebar-1,
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-sidebar-2 {
+		box-sizing:     border-box !important;
+		padding-bottom: var(--print-sidebar-column-tail) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card.cv-density-3
+		.cv-sidebar {
+		gap: 2.5mm !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card.cv-density-3
+		#cv-sidebar-1 {
+		gap: calc(2.5mm + var(--cv-slack-gap-p1-sidebar, 0px) + var(--cv-align-gap-p1-sidebar, 0px)) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card.cv-density-3
+		#cv-sidebar-2 {
+		gap: calc(2.5mm + var(--cv-slack-gap-p2-sidebar, 0px) + var(--cv-align-gap-p2-sidebar, 0px)) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-sidebar-1
+		> div:only-child {
+		display:        flex !important;
+		flex-direction: column !important;
+		row-gap:        var(--cv-slack-gap-p1-sidebar-inner, 0px) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-sidebar-2
+		> div:only-child {
+		display:        flex !important;
+		flex-direction: column !important;
+		row-gap:        var(--cv-slack-gap-p2-sidebar-inner, 0px) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-main-1
+		> div:only-child {
+		display:        flex !important;
+		flex-direction: column !important;
+		row-gap:        var(--cv-slack-gap-p1-main-inner, 0px) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-main-2
+		> div:only-child {
+		display:        flex !important;
+		flex-direction: column !important;
+		row-gap:        var(--cv-slack-gap-p2-main-inner, 0px) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-card.cv-density-3
+		.skills-wrapper {
+		gap: 2.2mm !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-sidebar
+		> div:not(.cv-sidebar-tail-spacer) {
+		padding: var(--print-sidebar-padding) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-sidebar-1 > div:first-child {
+		padding-top: 2.5mm !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-page-1-masthead.cv-masthead-collapsed {
+		display: none !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar .contact-list {
+		container-type: inline-size !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar .contact-item {
+		font-size: clamp(
+			4.75pt,
+			calc(2.85pt + 3.9cqi),
+			7.25pt
+		) !important;
+		letter-spacing: -0.02em !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-header-block {
+		display:        flex !important;
+		flex-direction: column !important;
+		gap:            var(--print-gap-header) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-portrait-wrap {
+		margin-left:   calc(-1 * var(--print-sidebar-pad-inline-start)) !important;
+		margin-right:  calc(-1 * var(--print-sidebar-pad-inline-end)) !important;
+		width:         calc(
+			100% + var(--print-sidebar-pad-inline-start) +
+			var(--print-sidebar-pad-inline-end)
+		) !important;
+		aspect-ratio:  4 / 5 !important;
+		height:        auto !important;
+		padding:       0 !important;
+		position:      relative !important;
+		overflow:      hidden !important;
+		box-sizing:    border-box !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-portrait {
+		position:    absolute !important;
+		inset:       0 !important;
+		width:       100% !important;
+		height:      100% !important;
+		display:     block !important;
+		object-fit:  cover !important;
+		border-radius: 0 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-single-page .cv-portrait-wrap {
+		margin-left:  calc(-1 * var(--print-sidebar-single-pad-inline-start)) !important;
+		margin-right: calc(-1 * var(--print-sidebar-single-pad-inline-end)) !important;
+		width:        calc(
+			100% + var(--print-sidebar-single-pad-inline-start) +
+			var(--print-sidebar-single-pad-inline-end)
+		) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		#cv-p1-portrait-cell
+		.cv-portrait-wrap {
+		margin-left:   0 !important;
+		margin-right:  0 !important;
+		width:         100% !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-main {
+		padding:         var(--print-main-padding) !important;
+		display:         flex !important;
+		flex-direction:  column !important;
+		justify-content: flex-start !important;
+		align-items:     stretch !important;
+		gap:             var(--print-main-stack-gap) !important;
+		min-height:      0 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-main-1 {
+		gap: calc(
+			var(--print-main-stack-gap) + var(--cv-slack-gap-p1-main, 0px) +
+			var(--cv-align-gap-p1-main, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview #cv-main-2 {
+		gap: calc(
+			var(--print-main-stack-gap) + var(--cv-slack-gap-p2-main, 0px) +
+			var(--cv-align-gap-p2-main, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-sidebar-tail-spacer {
+		display:     block !important;
+		box-sizing:  border-box !important;
+		flex:        0 0 0 !important;
+		flex-shrink: 0 !important;
+		min-height:  0 !important;
+		height:      0 !important;
+		overflow:    hidden !important;
+		width:       100% !important;
+		margin:      0 !important;
+		padding:     0 !important;
+		border:      none !important;
+		pointer-events: none !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-main .section-label {
+		margin-bottom: var(--print-main-section-label-mb) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-main
+		.experience-block
+		+ .experience-block {
+		padding-top: var(--print-experience-sep) !important;
+		margin-top:  var(--print-experience-sep) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page.cv-fill-1
+		#cv-main-1 {
+		gap: calc(
+			var(--print-fill-main-gap-1) + var(--cv-slack-gap-p1-main, 0px) +
+			var(--cv-align-gap-p1-main, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page.cv-fill-2
+		#cv-main-1 {
+		gap: calc(
+			var(--print-fill-main-gap-2) + var(--cv-slack-gap-p1-main, 0px) +
+			var(--cv-align-gap-p1-main, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface
+		.cv-shell.cv-print-preview
+		.cv-single-page.cv-fill-3
+		#cv-main-1 {
+		gap: calc(
+			var(--print-fill-main-gap-3) + var(--cv-slack-gap-p1-main, 0px) +
+			var(--cv-align-gap-p1-main, 0px)
+		) !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-main > div,
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-sidebar > div {
+		flex-shrink: 0 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview .cv-main > div + div {
+		margin-top:  0 !important;
+		padding-top: 0 !important;
+	}
+
+	html.cv-print-surface .cv-shell.cv-print-preview a {
+		text-decoration: none !important;
+		color:           inherit !important;
+	}
+}

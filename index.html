@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="description" content="Blemmy — content-first documents and precision layout" />
+
+	<title>Blemmy</title>
+	<meta property="og:type" content="website" />
+
+	<!-- Font preconnect — reduces FOUT on first load -->
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+	<!--
+		Dark mode: runs synchronously before first paint to prevent
+		flash-of-light-mode. Must be inline here (not deferred).
+	-->
+	<script>
+		(function () {
+			document.documentElement.classList.add('cv-booting');
+			const stored = localStorage.getItem('theme');
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			if (stored === 'dark' || (!stored && prefersDark)) {
+				document.documentElement.classList.add('dark');
+			}
+			// Activate print-surface immediately if applicable
+			const q = new URLSearchParams(location.search);
+			const pdf = q.get('cv-pdf') === '1';
+			if (pdf || localStorage.getItem('cv-view-mode') === 'print') {
+				document.documentElement.classList.add('cv-print-surface');
+			}
+			if (q.get('cv-embed') === '1') {
+				document.documentElement.classList.add('cv-embed-pdf');
+			}
+			// Share view: set initial scale before first paint to avoid
+			// load-time overflow on narrow screens.
+			(function () {
+				var path = window.location.pathname || '';
+				var isSharePath = /\/share\/[^/]+/.test(path);
+				var isShareQuery = q.has('cv-share');
+				if (!isSharePath && !isShareQuery) {
+					return;
+				}
+				var base = Math.round((210 / 25.4) * 96);
+				var vw = (window.visualViewport && window.visualViewport.width)
+					? window.visualViewport.width
+					: window.innerWidth;
+				var available = Math.max(Math.floor(vw) - 12, 280);
+				var scale = Math.min(1, available / base);
+				document.documentElement.style
+					.setProperty('--cv-share-scale', String(scale));
+			})();
+			// OAuth return in named popup (GitHub / Google): see OAUTH_POPUP_NAME_PREFIX in cv-cloud.ts.
+			(function () {
+				var prefix = 'cv-oauth-';
+				if (typeof window.name !== 'string' || window.name.substring(0, prefix.length) !== prefix) {
+					return;
+				}
+				var sp = new URLSearchParams(window.location.search);
+				var code = sp.get('code');
+				var isCallback = (code && code.length >= 10)
+					|| sp.has('error')
+					|| sp.has('error_description');
+				if (!isCallback) {
+					return;
+				}
+				var html = document.documentElement;
+				html.classList.remove('cv-booting');
+				html.classList.add('cv-oauth-popup-shell');
+				document.title = 'Sign in';
+			})();
+		})();
+	</script>
+	<style>
+		html.cv-booting, html.cv-booting body {
+			background: #f5f4ef;
+			margin: 0;
+			min-height: 100%;
+		}
+		html.dark.cv-booting, html.dark.cv-booting body {
+			background: #111;
+		}
+		html.cv-booting #cv-root {
+			visibility: hidden;
+		}
+		#cv-boot-splash {
+			position: fixed;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			gap: 0.6rem;
+			font-family: 'DM Sans', sans-serif;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: #5c5c5c;
+			background: transparent;
+			z-index: 9999;
+		}
+		html.dark #cv-boot-splash {
+			color: #a8a8a8;
+		}
+		#cv-boot-splash[hidden] {
+			display: none !important;
+		}
+		/* OAuth callback popup: splash hidden before paint (class from head script). */
+		html.cv-oauth-popup-shell #cv-boot-splash {
+			display: none !important;
+		}
+		html.cv-oauth-popup-shell,
+		html.cv-oauth-popup-shell body {
+			margin: 0;
+			min-height: 100%;
+			background: #f5f4ef;
+		}
+		html.dark.cv-oauth-popup-shell,
+		html.dark.cv-oauth-popup-shell body {
+			background: #111;
+		}
+		.cv-boot-splash__dot {
+			width: 0.5rem;
+			height: 0.5rem;
+			border-radius: 999px;
+			background: currentColor;
+			opacity: 0.55;
+			animation: cvBootPulse 1s ease-in-out infinite;
+		}
+		@keyframes cvBootPulse {
+			0%, 100% { transform: scale(0.8); opacity: 0.35; }
+			50% { transform: scale(1); opacity: 0.9; }
+		}
+	</style>
+</head>
+<body>
+	<div id="cv-boot-splash" aria-live="polite">
+		<div class="cv-boot-splash__dot"></div>
+		<div>Preparing CV layout</div>
+	</div>
+	<!--
+		Everything is rendered by src/main.ts.
+		Body is intentionally empty — no flash of unstyled content
+		because the dark-mode and print-surface classes are set above.
+	-->
+	<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

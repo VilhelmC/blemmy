@@ -1,0 +1,30 @@
+{
+	"name": "blemmy",
+	"version": "2.0.1",
+	"description": "Content-driven document system with a precision layout engine — Vite + TypeScript",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"pdf": "npm run build && node scripts/build-cv-pdf.mjs",
+		"typecheck": "tsc --noEmit",
+		"test:layout": "npm run build && node scripts/evaluate-layout-engine.mjs",
+		"test:layout-recalc": "npm run build && node scripts/test-layout-recalc.mjs",
+		"test:layout-audit": "npm run build && node scripts/audit-layout-edit-sequences.mjs",
+		"test:layout-determinism": "npm run build && node scripts/test-layout-determinism.mjs",
+		"test:layout-edit-pass": "npm run build && node scripts/test-layout-edit-pass-stability.mjs",
+		"test:unit": "vitest run --pool=forks --maxWorkers=100%",
+		"gdpr:retention-cleanup": "node scripts/run-retention-cleanup.mjs"
+	},
+	"devDependencies": {
+		"typescript": "^5.4.5",
+		"vite": "^5.2.11",
+		"vitest": "^4.1.1"
+	},
+	"dependencies": {
+		"@supabase/supabase-js": "^2.100.0",
+		"mammoth": "^1.12.0",
+		"puppeteer": "^22.8.2"
+	}
+}

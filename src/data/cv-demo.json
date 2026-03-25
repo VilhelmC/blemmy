@@ -1,0 +1,111 @@
+{
+	"meta": {
+		"lastUpdated": "2026-03-25",
+		"version": "1.0",
+		"language": "en"
+	},
+	"basics": {
+		"name": "Alex Meridian",
+		"label": "Computational Designer · Software Engineer · M.Arch",
+		"email": "alex@meridian.design",
+		"phone": "+1 415 000 0000",
+		"location": "San Francisco, CA",
+		"nationality": "Canadian",
+		"born": "1990-06-15",
+		"summary": "Designer and engineer working at the boundary of computation, fabrication, and built form. Seven years building parametric design tools and data pipelines for large-scale architectural practices; the last three increasingly focused on the software layer — TypeScript, WebGL, and the systems that let non-programmers author complex geometry. Comfortable in the gap between a sketch and a deployed product."
+	},
+	"work": [
+		{
+			"company": "Forma Studio",
+			"position": "Principal Engineer — Design Technology",
+			"startDate": "2022",
+			"endDate": "Present",
+			"summary": "Technical lead for a 12-person design technology unit embedded across three studio offices.",
+			"highlights": [
+				"Platform: Designed and shipped a parametric massing tool used on six live projects totalling 2.4 M sq ft — reduced early-stage iteration time from weeks to hours.",
+				"Leadership: Grew the team from 3 to 12; introduced sprint cadence, code review culture, and a shared component library that cut new-tool delivery time by 40%.",
+				"Research: Led an R&D collaboration with UC Berkeley on generative structural optimisation; co-authored a paper accepted at ACADIA 2024.",
+				"Infrastructure: Migrated geometry pipeline from Rhino/Grasshopper scripts to a versioned TypeScript API, eliminating a class of reproducibility failures that had blocked two competition submissions."
+			],
+			"tags": ["technical", "leadership", "research", "computational"]
+		},
+		{
+			"company": "Meridian Geometry Lab",
+			"position": "Founder · Independent Consultant",
+			"startDate": "2020",
+			"endDate": "2022",
+			"summary": "Independent practice providing computational design and software development services to architectural and engineering firms.",
+			"highlights": [
+				"Clients: Delivered bespoke parametric tools and facade automation scripts for eight practices across North America and Northern Europe.",
+				"Open source: Published three Grasshopper plugins with a combined 4,200 downloads; maintained community forums and documentation.",
+				"Revenue: Grew annual revenue from zero to $180k in 18 months, entirely through referrals and conference presence."
+			],
+			"tags": ["technical", "strategy", "computational", "design"]
+		},
+		{
+			"company": "Thornfield & Partners",
+			"position": "Senior Computational Designer",
+			"startDate": "2017",
+			"endDate": "2020",
+			"highlights": [
+				"Fabrication: Developed a curtain wall panelisation system for a 44-storey tower; coordinated with the fabricator to reduce panel count by 18% without changing the facade geometry.",
+				"Automation: Wrote Dynamo scripts that automated drawing production for a residential portfolio — saved an estimated 800 drafter-hours across the studio annually.",
+				"Mentorship: Ran monthly lunch-and-learns on computational design for a cohort of 20 architects; built internal wiki that persisted after my departure."
+			],
+			"tags": ["design", "technical", "computational"]
+		},
+		{
+			"company": "Studio Varga Eklund",
+			"position": "Architectural Designer",
+			"startDate": "2014",
+			"endDate": "2017",
+			"highlights": [
+				"Competition: Core team member on an invited competition entry for a 90,000 m² cultural centre — project reached final shortlist of four.",
+				"Visualisation: Produced all project renderings and animations in-house using Rhino and V-Ray; eliminated a $60k/year external visualisation retainer.",
+				"BIM: Led the studio's migration from 2D CAD to Revit across a live hospital extension project; documented the process as a case study presented at an industry forum."
+			],
+			"tags": ["design", "academic", "technical"]
+		}
+	],
+	"education": [
+		{
+			"institution": "Harvard Graduate School of Design",
+			"area": "Architecture",
+			"degree": "Master of Architecture (M.Arch II)",
+			"startDate": "2012",
+			"endDate": "2014",
+			"highlights": [
+				"Thesis: 'Latent Tectonics' — a generative system for producing structurally rational shell geometries from voxel input fields. Awarded the Thesis Prize.",
+				"Teaching: Teaching assistant for the core computation sequence (GSD 6338) for two consecutive semesters."
+			],
+			"tags": ["academic", "research", "computational"]
+		},
+		{
+			"institution": "University of Waterloo",
+			"area": "Architecture",
+			"degree": "Bachelor of Architectural Studies",
+			"startDate": "2007",
+			"endDate": "2012",
+			"score": "GPA 3.9 / 4.0 — Dean's Honour List",
+			"highlights": [
+				"Exchange: Year-long exchange at TU Delft Faculty of Architecture; studio focus on large-scale urban infrastructure.",
+				"Award: Waterloo Architecture Medal — awarded to the graduating student with the highest combined academic and studio performance."
+			],
+			"tags": ["academic", "design"]
+		}
+	],
+	"skills": {
+		"programming": ["TypeScript", "Python", "Rust", "WebGL / Three.js", "React", "Node.js", "SQL"],
+		"design_bim": ["Rhino 3D", "Grasshopper", "Revit", "Dynamo", "Figma", "V-Ray", "Blender"],
+		"strategic": ["Design Technology Strategy", "Team Leadership", "Research & Publication", "Workshop Facilitation", "Open Source"]
+	},
+	"languages": [
+		{ "language": "English",  "fluency": "Native" },
+		{ "language": "French",   "fluency": "Fluent" },
+		{ "language": "German",   "fluency": "Conversational" },
+		{ "language": "Mandarin", "fluency": "Basic" }
+	],
+	"personal": {
+		"interests": "Long-distance trail running, amateur radio (callsign VA3AMX), contributing to open source geometry libraries, and an ongoing project to procedurally generate plausible city plans."
+	}
+}

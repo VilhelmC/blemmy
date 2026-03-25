@@ -1,0 +1,4 @@
+# This directory holds generated layout diagnostic reports.
+# The reports themselves are git-ignored (see root .gitignore → docs/reports/).
+# They are produced by the npm run test:layout* scripts and are not
+# meaningful to version — they reflect the current machine's render output.

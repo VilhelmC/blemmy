@@ -1,0 +1,55 @@
+                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
+
+ Copyright (C) 2026 Vilhelm Carlström
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+---
+
+## Scope
+
+This licence applies to the following layout engine source files, regardless
+of their physical location within the repository:
+
+  - src/lib/cv-layout-engine.ts
+  - src/lib/cv-candidate.ts
+  - src/lib/cv-align.ts
+  - src/lib/cv-column-slack.ts
+  - src/lib/cv-profile.ts
+  - src/lib/cv-layout-snapshot.ts
+  - src/lib/layout-audit.ts
+
+All other files in this repository are licensed under the MIT licence.
+See the root `LICENSE` file.
+
+---
+
+## Commercial Licensing
+
+If you wish to use the Blemmy layout engine in a proprietary product or
+service without complying with the AGPL terms — that is, without releasing
+your modifications under the AGPL — a commercial licence is available.
+
+Contact: vilhelm.carlstrom@gmail.com
+
+As the copyright holder, Vilhelm Carlström retains the right to grant
+commercial licences independently of the AGPL terms above.
+
+---
+
+## Full AGPL v3 Text
+
+The full text of the GNU Affero General Public License v3.0 is available at:
+https://www.gnu.org/licenses/agpl-3.0.txt
