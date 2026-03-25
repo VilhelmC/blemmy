@@ -285,7 +285,7 @@ function renderMastheadIdentity(basics: CVBasics): HTMLElement {
 
 function renderPortraitCell(basics: CVBasics): HTMLElement {
 	const base = import.meta.env.BASE_URL ?? '/';
-	const portraitSrc = `${base}portrait-placeholder.svg`;
+	const portraitSrc = `${base}blemmy.png`;
 	const img = h('img', {
 		src:              portraitSrc,
 		alt:              basics.name,

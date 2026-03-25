@@ -38,6 +38,8 @@ import { hashCvForAudit, layoutAuditLog } from '@lib/layout-audit';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const EDIT_DRAFT_KEY   = 'cv-edit-draft';
+const DEFAULT_PORTRAIT_SRC =
+	`${import.meta.env.BASE_URL ?? '/'}blemmy.png`;
 const PORTRAIT_KEY     = 'cv-portrait';
 const EDIT_ACTIVE_ATTR = 'data-cv-editing';
 
@@ -1310,7 +1312,7 @@ export function activateEditMode(
 		clearPortrait: () => {
 			clearPortrait();
 			const imgEl = document.getElementById('cv-portrait-img') as HTMLImageElement | null;
-			if (imgEl) { imgEl.src = '/portrait-bw.jpg'; }
+			if (imgEl) { imgEl.src = DEFAULT_PORTRAIT_SRC; }
 		},
 	};
 }
