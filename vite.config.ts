@@ -4,6 +4,19 @@ import { resolve }      from 'path';
 function normalizedBase(): string {
 	const raw = process.env.CV_BASE_URL?.trim();
 	if (!raw) { return '/'; }
+
+	// GitHub Pages custom domains often map the site to `/` (no repo subpath).
+	// Using relative assets (`./`) makes the build work both at `/` and
+	// at `/repo-name/`.
+	if (raw === '.' || raw === './') { return './'; }
+	if (raw.startsWith('./')) {
+		return raw.endsWith('/') ? raw : `${raw}/`;
+	}
+	if (raw.startsWith('/')) {
+		return raw.endsWith('/') ? raw : `${raw}/`;
+	}
+
+	// Treat a bare folder name like "blemmy" as an absolute subpath.
 	const withLeading = raw.startsWith('/') ? raw : `/${raw}`;
 	return withLeading.endsWith('/') ? withLeading : `${withLeading}/`;
 }
