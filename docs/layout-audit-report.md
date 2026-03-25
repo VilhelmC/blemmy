@@ -11,14 +11,14 @@
 
 Captured evidence:
 
-- `docs/layout-audit-trace.json`
-- `docs/layout-determinism-report.json`
-- `docs/layout-recalc-diagnostics.json`
+- `docs/reports/layout-audit-trace.json`
+- `docs/reports/layout-determinism-report.json`
+- `docs/reports/layout-recalc-diagnostics.json`
 
 ## Findings
 
 1. Determinism across repeated identical-state replays is stable:
-   - `docs/layout-determinism-report.json` reports `inconsistent: []`.
+   - `docs/reports/layout-determinism-report.json` reports `inconsistent: []`.
 2. Hide -> unhide previously left residual default visibility state in data:
    - roundtrip did not always restore byte-equivalent data shape.
    - this could alter candidate ordering/selection under ties.
@@ -58,7 +58,7 @@ Captured evidence:
 
 - `scripts/test-layout-determinism.mjs`
   - replays captured states 3x each and verifies stable winner metadata.
-  - outputs `docs/layout-determinism-report.json`.
+  - outputs `docs/reports/layout-determinism-report.json`.
 
 - `package.json` scripts:
   - `test:layout-audit`
@@ -72,7 +72,7 @@ Captured evidence:
 - Before: scored candidate ties relied only on combined score.
 - After: deterministic multi-key tie-break ordering ensures stable winner pick.
 - Determinism replay after fixes: no inconsistent winner metadata across all
-  audited steps (`docs/layout-determinism-report.json`).
+  audited steps (`docs/reports/layout-determinism-report.json`).
 
 ## Residual Risks / Follow-ups
 

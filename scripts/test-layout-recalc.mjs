@@ -18,7 +18,7 @@ import { spawnSync } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const distDir = join(root, 'dist');
-const docsDir = join(root, 'docs');
+const docsDir = join(root, 'docs', 'reports');
 const reportPath = join(docsDir, 'layout-recalc-diagnostics.json');
 
 const MIME = {

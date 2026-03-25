@@ -2,7 +2,7 @@
  * audit-layout-edit-sequences.mjs
  *
  * Runs reproducible edit-mode scenarios and captures layout metadata/state.
- * Output: docs/layout-audit-trace.json
+ * Output: docs/reports/layout-audit-trace.json
  */
 import { createServer } from 'http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'fs';
@@ -13,7 +13,7 @@ import { spawnSync } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const distDir = join(root, 'dist');
-const docsDir = join(root, 'docs');
+const docsDir = join(root, 'docs', 'reports');
 const reportPath = join(docsDir, 'layout-audit-trace.json');
 const baseData = JSON.parse(readFileSync(join(root, 'src', 'data', 'cv-demo.json'), 'utf8'));
 

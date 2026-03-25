@@ -6,7 +6,7 @@
  * - Builds and serves /dist
  * - Runs placeholder-content scenarios in parallel
  * - Captures engine outcome (1-page vs 2-page) and whitespace tails (mm)
- * - Writes a JSON report to docs/layout-eval-report.json
+ * - Writes a JSON report to docs/reports/layout-eval-report.json
  */
 
 import { createServer } from 'http';
@@ -19,7 +19,7 @@ import { cpus } from 'os';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const distDir = join(root, 'dist');
-const docsDir = join(root, 'docs');
+const docsDir = join(root, 'docs', 'reports');
 const reportPath = join(docsDir, 'layout-eval-report.json');
 const baseData = JSON.parse(readFileSync(join(root, 'src', 'data', 'cv-demo.json'), 'utf8'));
 

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const distDir = join(root, 'dist');
-const docsDir = join(root, 'docs');
+const docsDir = join(root, 'docs', 'reports');
 const tracePath = join(docsDir, 'layout-audit-trace.json');
 const reportPath = join(docsDir, 'layout-determinism-report.json');
 
@@ -85,7 +85,9 @@ function key(meta) {
 
 async function run() {
 	if (!existsSync(tracePath)) {
-		throw new Error('Missing docs/layout-audit-trace.json. Run audit-layout-edit-sequences first.');
+		throw new Error(
+			'Missing docs/reports/layout-audit-trace.json. Run audit-layout-edit-sequences first.',
+		);
 	}
 	const trace = JSON.parse(readFileSync(tracePath, 'utf8'));
 	const snapshots = (trace.trace ?? [])
