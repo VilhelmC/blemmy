@@ -19,6 +19,10 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      # CI never runs the PDF script; skipping the browser download avoids
+      # flaky postinstall timeouts and saves disk on ubuntu-latest.
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

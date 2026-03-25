@@ -189,6 +189,9 @@ npm run pdf
 # Builds the site, serves it, captures via Puppeteer → dist/cv.pdf
 ```
 
+CI sets `PUPPETEER_SKIP_DOWNLOAD` so `npm ci` does not fetch Chromium. For local
+`npm run pdf`, use a normal `npm install`, or run `npx puppeteer browsers install chrome` if Puppeteer cannot find a browser.
+
 The PDF is generated from the same HTML as the web view, using `@media print`. What you see in Print Preview is what you get in the PDF.
 
 ---
