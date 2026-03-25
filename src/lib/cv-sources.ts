@@ -1,13 +1,13 @@
 /**
- * Registered CV JSON sources. Add a file under `src/data/` and an entry here.
+ * Registered CV JSON sources. Add a file under `src/data/` (and whitelist in
+ * `.gitignore` if needed) plus an entry in `CV_PROFILES`.
  */
 
 import type { CVData } from '@cv/cv';
 
 import defaultRaw from '../data/cv-demo.json';
-import byensRaw from '../data/cv-ByensByggerådgivning.json';
 
-export type CvProfileId = 'default' | 'byens';
+export type CvProfileId = 'default';
 
 export interface CvProfileEntry {
 	id:    CvProfileId;
@@ -27,12 +27,6 @@ export const CV_PROFILES: CvProfileEntry[] = [
 		label: 'General',
 		path:  '/',
 		data:  asCvData(defaultRaw),
-	},
-	{
-		id:    'byens',
-		label: 'Byens Byggerådgivning',
-		path:  '/cv/byens',
-		data:  asCvData(byensRaw),
 	},
 ];
 

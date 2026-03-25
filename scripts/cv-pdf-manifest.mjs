@@ -4,5 +4,4 @@
  */
 export const PDF_EXPORTS = [
 	{ urlSuffix: '/?cv-pdf=1', file: 'cv.pdf' },
-	{ urlSuffix: '/cv/byens/?cv-pdf=1', file: 'cv-byens.pdf' },
 ];
