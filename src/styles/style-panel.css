@@ -1,0 +1,411 @@
+/* ─── Blemmy style panel ─────────────────────────────────────────────────────
+   Injected by: src/renderer/style-panel.ts
+   Lives inside #cv-prefs-panel / .cv-prefs-inner
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Divider between layout prefs and style section */
+.cv-prefs-divider {
+	border: none;
+	border-top: 1px solid var(--color-ink-border);
+	margin: 0.75rem 0 0.5rem;
+}
+
+.blemmy-style-section {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.6rem;
+}
+
+.blemmy-style-section .cv-prefs-heading {
+	margin-bottom: 0.1rem;
+}
+
+.blemmy-style-sub-label {
+	font-size:      0.6rem;
+	font-weight:    600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color:          var(--color-ink-muted);
+	margin:         0 0 0.35rem;
+}
+
+/* ── Colour swatches ───────────────────────────────────────────── */
+
+.blemmy-style-colour-row {
+	display:     flex;
+	align-items: center;
+	gap:         1rem;
+}
+
+.blemmy-style-swatch-wrap {
+	display:        flex;
+	flex-direction: column;
+	align-items:    center;
+	gap:            0.3rem;
+	position:       relative;
+}
+
+.blemmy-style-swatch-label {
+	font-size:      0.6rem;
+	letter-spacing: 0.05em;
+	color:          var(--color-ink-muted);
+}
+
+.blemmy-style-swatch {
+	width:         2rem;
+	height:        2rem;
+	border-radius: 50%;
+	background:    var(--swatch-color, #1a1a1a);
+	border:        2px solid var(--color-ink-border);
+	cursor:        pointer;
+	padding:       0;
+	transition:    transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.blemmy-style-swatch:hover {
+	transform:  scale(1.1);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--swatch-color, #1a1a1a) 30%, transparent);
+}
+
+.blemmy-style-popover {
+	position:      absolute;
+	top:           calc(100% + 0.35rem);
+	left:          50%;
+	transform:     translateX(-50%);
+	width:         12rem;
+	padding:       0.6rem;
+	border:        1px solid var(--color-ink-border);
+	border-radius: 4px;
+	background:    var(--color-ink-bg, #fff);
+	box-shadow:    0 6px 20px rgba(0, 0, 0, 0.14);
+	z-index:       10;
+}
+
+.blemmy-style-popover--align-right {
+	left: auto;
+	right: 0;
+	transform: none;
+}
+
+.blemmy-style-popover--align-left {
+	left: 0;
+	right: auto;
+	transform: none;
+}
+
+.blemmy-style-popover--drop-up {
+	top: auto;
+	bottom: calc(100% + 0.35rem);
+}
+
+.blemmy-style-hsv-row {
+	display:               grid;
+	grid-template-columns: 1.5rem 1fr;
+	align-items:           center;
+	gap:                   0.5rem;
+	font-size:             0.6rem;
+	color:                 var(--color-ink-muted);
+	margin-bottom:         0.34rem;
+}
+
+.blemmy-style-sv-area {
+	position:      relative;
+	width:         100%;
+	height:        7rem;
+	margin-bottom: 0.45rem;
+	border:        1px solid var(--color-ink-border);
+	border-radius: 3px;
+	background-color: var(--hue-color, #ff0000);
+	background:
+		linear-gradient(to top, #000, transparent),
+		linear-gradient(to right, #fff, var(--hue-color, #ff0000));
+	cursor: crosshair;
+}
+
+.blemmy-style-sv-handle {
+	position:      absolute;
+	width:         0.75rem;
+	height:        0.75rem;
+	transform:     translate(-50%, -50%);
+	border:        2px solid #fff;
+	border-radius: 50%;
+	background:    transparent;
+	box-shadow:    0 0 0 1px rgba(0, 0, 0, 0.3);
+	pointer-events: none;
+}
+
+.blemmy-style-hsv-row:last-child {
+	margin-bottom: 0;
+}
+
+.blemmy-style-hsv-row--hex {
+	grid-template-columns: 1.5rem 1fr;
+}
+
+.blemmy-style-hsv-slider {
+	width: 100%;
+	accent-color: var(--color-sidebar);
+}
+
+.blemmy-style-hex-input {
+	width:         100%;
+	border:        1px solid var(--color-ink-border);
+	border-radius: 0.28rem;
+	padding:       0.2rem 0.32rem;
+	font-size:     0.62rem;
+	font-family:   ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	background:    transparent;
+	color:         var(--color-ink);
+}
+
+.blemmy-style-rgb-row {
+	display:               grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap:                   0.35rem;
+}
+
+.blemmy-style-rgb-cell {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.16rem;
+	font-size:      0.54rem;
+	color:          var(--color-ink-muted);
+}
+
+.blemmy-style-rgb-input {
+	width:         100%;
+	border:        1px solid var(--color-ink-border);
+	border-radius: 0.28rem;
+	padding:       0.16rem 0.25rem;
+	font-size:     0.58rem;
+	background:    transparent;
+	color:         var(--color-ink);
+}
+
+.blemmy-style-reset-accents {
+	font-size:      0.6rem;
+	color:          var(--color-ink-muted);
+	background:     none;
+	border:         none;
+	cursor:         pointer;
+	padding:        0.2rem 0.4rem;
+	border-radius:  0.2rem;
+	margin-top:     1rem;
+	align-self:     flex-end;
+	letter-spacing: 0.03em;
+}
+
+.blemmy-style-reset-accents:hover {
+	color:      var(--color-ink);
+	background: var(--color-ink-border);
+}
+
+/* ── Font grids ────────────────────────────────────────────────── */
+
+.blemmy-style-fonts {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.4rem;
+}
+
+.blemmy-style-font-row {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.3rem;
+}
+
+.blemmy-style-font-row-label {
+	font-size:      0.6rem;
+	letter-spacing: 0.05em;
+	color:          var(--color-ink-muted);
+}
+
+.blemmy-style-font-grid {
+	display:   flex;
+	flex-wrap: wrap;
+	gap:       0.4rem;
+}
+
+.blemmy-style-font-card {
+	display:         flex;
+	flex-direction:  column;
+	align-items:     flex-start;
+	justify-content: center;
+	gap:             0.28rem;
+	width:           5.15rem;
+	height:          3.8rem;
+	border:          1.5px solid var(--color-ink-border);
+	border-radius:   0.3rem;
+	background:      transparent;
+	cursor:          pointer;
+	padding:         0.32rem 0.38rem;
+	transition:      border-color 0.12s ease, background 0.12s ease;
+	text-align:      left;
+	position:        relative;
+}
+
+.blemmy-style-font-card:hover {
+	border-color: var(--color-ink-mid);
+	background:   color-mix(in srgb, var(--color-ink) 4%, transparent);
+}
+
+.blemmy-style-font-card--selected {
+	border-color: var(--color-sidebar);
+	background:   color-mix(in srgb, var(--color-sidebar) 8%, transparent);
+}
+
+.blemmy-style-font-specimen {
+	font-size:   0.95rem;
+	font-weight: 500;
+	line-height: 1.15;
+	color:       var(--color-ink);
+	letter-spacing: 0.005em;
+}
+
+.blemmy-style-font-name {
+	font-size:      0.56rem;
+	letter-spacing: 0.02em;
+	color:          var(--color-ink-muted);
+	text-align:     left;
+	line-height:    1.2;
+	font-family:    'DM Sans', sans-serif; /* UI chrome — always DM Sans */
+	max-width:      100%;
+}
+
+.blemmy-style-font-card::after {
+	content: attr(data-font-tip);
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 0.3rem);
+	transform: translateX(-50%);
+	background: var(--color-ink-bg, #fff);
+	color: var(--color-ink);
+	border: 1px solid var(--color-ink-border);
+	border-radius: 3px;
+	padding: 0.16rem 0.32rem;
+	font-size: 0.56rem;
+	white-space: nowrap;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.1s ease;
+	font-family: var(--font-tip-family, 'DM Sans', sans-serif);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.blemmy-style-font-card:hover::after {
+	opacity: 1;
+}
+
+/* ── Print sidebar toggle ───────────────────────────────────────── */
+
+.blemmy-style-section-row {
+	display:         flex;
+	justify-content: space-between;
+	align-items:     center;
+}
+
+.blemmy-style-section-label {
+	font-size:  0.68rem;
+	color:      var(--color-ink-muted);
+}
+
+.blemmy-style-print-toggle {
+	display: flex;
+	gap:     0.25rem;
+}
+
+.blemmy-style-print-btn {
+	font-size:      0.6rem;
+	font-family:    'DM Sans', sans-serif;
+	padding:        0.22rem 0.5rem;
+	border:         1px solid var(--color-ink-border);
+	border-radius:  0.2rem;
+	background:     transparent;
+	color:          var(--color-ink-muted);
+	cursor:         pointer;
+	letter-spacing: 0.02em;
+	transition:     background 0.1s ease, border-color 0.1s ease;
+}
+
+.blemmy-style-print-btn:hover {
+	border-color: var(--color-ink-mid);
+	color:        var(--color-ink);
+}
+
+.blemmy-style-print-btn--active {
+	background:   var(--color-sidebar);
+	border-color: var(--color-sidebar);
+	color:        #fff;
+}
+
+/* ── Presets strip ─────────────────────────────────────────────── */
+
+.blemmy-style-presets-row {
+	display:         flex;
+	justify-content: space-between;
+	align-items:     center;
+	gap:             0.5rem;
+}
+
+.blemmy-style-presets {
+	display:   flex;
+	flex-wrap: wrap;
+	gap:       0.4rem;
+}
+
+.blemmy-style-preset-dot {
+	width:         1.4rem;
+	height:        1.4rem;
+	border-radius: 50%;
+	background:    var(--preset-color, #1a1a1a);
+	border:        2px solid transparent;
+	cursor:        pointer;
+	padding:       0;
+	transition:    transform 0.1s ease, border-color 0.1s ease;
+}
+
+.blemmy-style-preset-dot:hover {
+	transform: scale(1.15);
+}
+
+.blemmy-style-preset-dot--active {
+	border-color: var(--color-ink);
+	transform:    scale(1.1);
+}
+
+/* ── Reset button ──────────────────────────────────────────────── */
+
+.blemmy-style-reset {
+	align-self:     flex-start;
+	font-size:      0.62rem;
+	color:          var(--color-ink-muted);
+	background:     none;
+	border:         none;
+	cursor:         pointer;
+	padding:        0;
+	letter-spacing: 0.02em;
+	font-family:    'DM Sans', sans-serif;
+}
+
+.blemmy-style-reset:hover {
+	color: var(--color-ink);
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────── */
+
+.dark .blemmy-style-font-card {
+	border-color: #333;
+}
+
+.dark .blemmy-style-font-card:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .blemmy-style-font-card--selected {
+	border-color: var(--color-sidebar);
+	background:   color-mix(in srgb, var(--color-sidebar) 15%, transparent);
+}
+
+.dark .blemmy-style-swatch {
+	border-color: #333;
+}

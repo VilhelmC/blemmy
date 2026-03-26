@@ -524,3 +524,20 @@ export function extractJsonBlock(text: string): string | null {
 	if (!match) { return null; }
 	return match[1].trim();
 }
+
+/**
+ * Extracts the first fenced ```style block from a model response.
+ * Returns the raw JSON string inside the block, or null if not found.
+ * Used to detect when the model is returning a DocumentStyle patch.
+ *
+ * The style block is a JSON object with Partial<DocumentStyle> fields.
+ * Example model output:
+ *   ```style
+ *   { "sidebarColor": "#2C3E50", "headingFont": "playfair-display" }
+ *   ```
+ */
+export function extractStyleBlock(text: string): string | null {
+	const match = text.match(/```style\s*([\s\S]*?)```/);
+	if (!match) { return null; }
+	return match[1].trim();
+}

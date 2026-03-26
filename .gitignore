@@ -37,4 +37,6 @@ Thumbs.db
 .tmp-import/
 .tmp-v201-zip/
 .tmp-blemmy-zip/
+blemmy-v2.1-style-schema/
+blemmy-v2.1-integration.md
 .vscode/settings.json

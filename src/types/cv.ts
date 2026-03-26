@@ -23,6 +23,14 @@ export interface CVBasics {
 	nationality: string;
 	born:        string;   // ISO date string e.g. "1991-10-28"
 	summary:     string;
+	/**
+	 * Optional data URL (image/jpeg, image/png, or image/webp) after upload
+	 * processing. Used in the app; cloud rows may reference {@link portraitSha256}
+	 * instead to deduplicate storage.
+	 */
+	portraitDataUrl?: string;
+	/** SHA-256 hex (64 chars) of portrait bytes; resolved via `cv_portrait_assets`. */
+	portraitSha256?: string;
 }
 
 // ─── Education ───────────────────────────────────────────────────────────────

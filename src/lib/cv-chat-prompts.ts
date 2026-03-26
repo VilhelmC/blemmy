@@ -17,6 +17,51 @@
 
 import type { CVData } from '@cv/cv';
 
+
+// ─── Style schema summary (injected when style controls are available) ─────────
+
+const STYLE_SCHEMA_SUMMARY = `
+## Document style
+
+You can change the visual style of the document by returning a \`\`\`style block
+with a JSON object containing Partial<DocumentStyle> fields.
+
+### Presets — use these names directly:
+- "Carbon"     — near-black sidebar, DM Sans (current default)
+- "Teal"       — deep teal sidebar, DM Sans
+- "Navy"       — navy sidebar, Playfair Display headings
+- "Forest"     — dark green sidebar, Cormorant Garamond headings, greyscale print
+- "Slate"      — slate blue sidebar, Work Sans — modern neutral tone
+- "Ivory"      — dark brown sidebar, warm page, EB Garamond headings
+- "Legal"      — dark navy sidebar, Libre Baskerville, greyscale print
+- "Mono Print" — dark sidebar, white outline for ink-saving print
+
+### Colours (free entry):
+- sidebarColor:   hex string e.g. "#2C3E50" — any colour, contrast auto-adjusted
+- pageBackground: hex string e.g. "#F5F3EE" — paper tone in light mode
+
+### Fonts (independent):
+- headingFont: "dm-sans" | "playfair-display" | "cormorant-garamond" | "libre-baskerville" | "eb-garamond"
+- bodyFont:    "dm-sans" | "work-sans" | "source-sans-3"
+- headingDistinct: true = use headingFont for headings; false = single font throughout
+
+### Print sidebar:
+- printSidebar: "color" | "grayscale" | "outline"
+
+### Response format:
+\`\`\`style
+{ "presetName": "Navy" }
+\`\`\`
+or with custom values:
+\`\`\`style
+{ "sidebarColor": "#4A1A3A", "headingFont": "cormorant-garamond", "headingDistinct": true }
+\`\`\`
+
+Only return a style block if the user has asked to change the visual style.
+Style changes are applied immediately — no page reload needed.
+`.trim();
+
+
 // ─── Layout state ─────────────────────────────────────────────────────────────
 
 export type LayoutState = {
@@ -39,145 +84,94 @@ export function readLayoutState(): LayoutState {
 	const activeFilters = data?.activeFilters ?? [];
 
 	if (!card) {
-		return { pages: 1, disposition: 'unknown', nearOverflow: false, sidebarMm: null, density: 0, activeFilters };
+		return {
+			pages: 1, disposition: 'unknown', nearOverflow: false,
+			sidebarMm: null, density: 0, activeFilters,
+		};
 	}
 
-	const pages      = card.dataset.cvPages === '2' ? 2 : 1;
-	const disp       = card.dataset.cvDisposition ?? 'unknown';
-	const sidebarRaw = card.dataset.cvSidebarMm;
-	const sidebarMm  = sidebarRaw ? parseFloat(sidebarRaw) : null;
-	const densityRaw = card.dataset.cvDensity;
-	const density    = densityRaw ? parseInt(densityRaw, 10) : 0;
-
-	// Near-overflow: layout engine sets this when content is within ~3% of A4 budget
-	const nearOverflow = card.dataset.cvNearOverflow === 'true';
-
-	return { pages, disposition: disp, nearOverflow, sidebarMm, density, activeFilters };
+	return {
+		pages:        parseInt(card.dataset.cvPages ?? '1', 10),
+		disposition:  card.dataset.cvDisposition ?? 'unknown',
+		nearOverflow: card.hasAttribute('data-cv-overflow-risk'),
+		sidebarMm:    card.dataset.cvSidebarMm
+			? parseInt(card.dataset.cvSidebarMm, 10)
+			: null,
+		density:      parseInt(card.dataset.cvDensity ?? '0', 10),
+		activeFilters,
+	};
 }
 
-// ─── Schema summary (injected into every system prompt) ──────────────────────
-
-const SCHEMA_SUMMARY = `## CV data schema (CVData JSON)
-
-The CV data is a single JSON object with the following top-level fields.
-You must return the full object when making changes — never a partial patch.
-
-\`\`\`
-{
-  meta: {
-    lastUpdated: string   // ISO date e.g. "2026-03-25"
-    version:     string
-    language:    string   // BCP-47 e.g. "en"
-  }
-  basics: {
-    name:        string
-    label:       string   // tagline, use " · " as separator
-    email:       string
-    phone:       string
-    location:    string
-    nationality: string
-    born:        string   // ISO date
-    summary:     string   // 2–4 sentences, first-person
-  }
-  work: Array<{
-    company:    string
-    position:   string
-    startDate:  string    // year e.g. "2022"
-    endDate:    string    // year or "Present"
-    summary?:   string    // optional one-line role summary
-    highlights: string[]  // "Lead: Body" format — lead is 1–3 word noun
-    tags?:      string[]  // lowercase thematic tags e.g. ["technical","research"]
-  }>
-  education: Array<{
-    institution: string
-    area:        string
-    degree:      string
-    startDate:   string
-    endDate:     string
-    score?:      string   // optional GPA / grade
-    highlights:  string[]
-    tags?:       string[]
-  }>
-  skills: {
-    programming: string[]
-    design_bim:  string[]
-    strategic:   string[]
-  }
-  languages: Array<{
-    language: string
-    fluency:  "Native" | "Fluent" | "Professional Working Proficiency" | "Conversational" | "Basic"
-  }>
-  personal: {
-    interests: string
-  }
-
-  // ── Optional fields ───────────────────────────────────────────────────────
-  visibility?: {
-    hiddenWork?:      number[]          // indices into work[] that are hidden
-    hiddenEducation?: number[]          // indices into education[] that are hidden
-    hiddenSections?:  ("skills"|"languages"|"interests"|"profile")[]
-    sidebarOrder?:    ("skills"|"languages"|"interests")[]
-    skillsOrder?:     ("programming"|"design_bim"|"strategic")[]
-  }
-  activeFilters?: string[]             // active tag filters — empty = show all
-}
-\`\`\`
-
-## Highlight format
-
-Every highlight bullet must follow "Lead: Body" format.
-- Lead: a 1–3 word skill or outcome noun (bold in the rendered CV)
-- Body: a concrete sentence. Include a measurable result where possible.
-
-Example:
-  "Platform: Designed and shipped a massing tool used on six live projects — reduced iteration time from weeks to hours."
-  NOT: "I worked on a massing tool that helped architects."
-
-## Tags
-
-Tags are lowercase strings used for role-specific filtering. Good tags:
-  technical · research · strategy · leadership · design · computational ·
-  academic · communication · finance · management
-
-Add 2–4 tags to each work and education entry. Untagged items always show.`;
-
-// ─── Layout state description ─────────────────────────────────────────────────
-
-function describeLayout(layout: LayoutState): string {
-	const lines: string[] = [];
-
-	lines.push(`## Current layout state`);
-	lines.push(`- Pages: ${layout.pages}`);
-	lines.push(`- Disposition: ${layout.disposition}`);
-	if (layout.sidebarMm !== null) {
-		lines.push(`- Sidebar width: ${layout.sidebarMm.toFixed(1)} mm`);
-	}
-	lines.push(`- Density tier: ${layout.density}`);
-	if (layout.nearOverflow) {
-		lines.push(`- ⚠️  Near overflow — content is close to the A4 page budget. Suggest trimming.`);
-	}
-	if (layout.activeFilters.length > 0) {
-		lines.push(`- Active filters: ${layout.activeFilters.join(', ')} — only tagged items matching these filters are shown`);
-	} else {
-		lines.push(`- Active filters: none — all content is visible`);
-	}
-
-	return lines.join('\n');
+// Extend Window interface to know about __CV_DATA__
+declare global {
+	interface Window { __CV_DATA__?: CVData; }
 }
 
-// ─── Main system prompt ───────────────────────────────────────────────────────
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+const SCHEMA_SUMMARY = `
+CV JSON schema (TypeScript interfaces):
+
+interface CVData {
+  meta:          { lastUpdated, version, language }
+  basics:        { name, label, email, phone, location, nationality, born, summary }
+  education:     Array<{ institution, area, degree, startDate, endDate, score?, highlights[], tags? }>
+  work:          Array<{ company, position, startDate, endDate, summary?, highlights[], tags? }>
+  skills:        { programming: string[], design_bim: string[], strategic: string[] }
+  languages:     Array<{ language, fluency }>
+  personal:      { interests }
+  visibility?:   { hiddenWork?: number[], hiddenEducation?: number[], hiddenSections?: string[] }
+  activeFilters?: string[]
+}
+
+Highlights use a "Lead: Body" format where the lead is bolded, e.g.:
+  "Predictive Modelling: Developed advanced models for the EU-funded Fungateria project."
+
+Tags are lowercase strings added to work/education items for filtering:
+  "tags": ["research", "technical", "finance"]
+
+Visibility hides items by index (hiddenWork: [1, 3] hides work items at index 1 and 3).
+activeFilters: when set, only items with at least one matching tag are shown (untagged items always show).
+`.trim();
 
 /**
- * @param sourceText  Optional uploaded background — the model may suggest CV gaps.
+ * Builds the full system prompt for a chat session.
+ * Called once when the panel opens or when the CV data changes.
+ *
+ * @param cv          The current rendered CV data
+ * @param layout      Current layout engine state
+ * @param sourceText  Optional source material (uploaded background document).
+ *                    When present, the model can suggest additions and changes
+ *                    based on information not yet on the CV.
  */
 export function buildSystemPrompt(
-	cv: CVData,
-	layout: LayoutState,
+	cv:          CVData,
+	layout:      LayoutState,
 	sourceText?: string,
 ): string {
+	const layoutSummary = [
+		`Current layout: ${layout.pages} page(s)`,
+		layout.disposition !== 'unknown' ? `disposition: ${layout.disposition}` : '',
+		layout.nearOverflow ? '⚠ near page overflow' : '',
+		layout.sidebarMm    ? `sidebar: ${layout.sidebarMm}mm` : '',
+		layout.density > 0  ? `typography density: ${layout.density}` : '',
+		layout.activeFilters.length > 0
+			? `active tag filters: ${layout.activeFilters.join(', ')}`
+			: 'no tag filters active',
+	].filter(Boolean).join(' · ');
+
+	const allTags = Array.from(new Set([
+		...cv.work.flatMap((w) => w.tags ?? []),
+		...cv.education.flatMap((e) => e.tags ?? []),
+	])).sort();
+
+	const tagsSummary = allTags.length > 0
+		? `Known tags in this CV: ${allTags.join(', ')}`
+		: 'No tags defined yet (user can add them in edit mode).';
+
+	// Source material section — included when the user has uploaded background docs
 	const sourceSection = sourceText
 		? `
-
 ## Source material (uploaded background document)
 
 The user uploaded a document as the basis for their CV. The text below may contain
@@ -188,62 +182,78 @@ that are not in either the CV or the source material.
 \`\`\`
 ${sourceText.slice(0, 12000)}${sourceText.length > 12000 ? '\n\n[… truncated]' : ''}
 \`\`\`
-`
+`.trim()
 		: '';
 
-	return `You are a professional CV writing assistant. You help users write, edit, and improve their CV.
-
-You have access to the user's complete CV data (shown below) and to the current layout state of the rendered document.
-
-## What you can do
-
-1. **Answer questions** about the CV content, layout, or how to improve it.
-2. **Suggest changes** — explain what you would change and why.
-3. **Apply changes** — return a modified version of the complete CV JSON.
-
-When applying changes, always return the complete \`CVData\` object in a fenced JSON block:
-\`\`\`json
-{ ... complete CVData ... }
-\`\`\`
-
-Do not return partial patches. Do not omit fields that are unchanged.
-Only return a JSON block if you are actually making changes.
+	return `You are a professional CV assistant with deep knowledge of CV writing, layout, and strategy. You help users improve their CV content, understand their layout, and prepare tailored versions for specific roles.
 
 ${SCHEMA_SUMMARY}
 
-${describeLayout(layout)}
+${tagsSummary}
+
+${layoutSummary}
+
+## What you can do
+
+**Answer questions** about the CV, layout, writing quality, or strategy. Be direct and specific.
+
+**Suggest improvements** to copy, structure, or emphasis. Explain your reasoning briefly.
+
+**Suggest additions from source material** — if source material is available, you can identify experiences or qualifications present in the source but missing from the CV and suggest adding them. Always ask before adding — don't apply changes without instruction.
+
+**Apply changes** — when the user asks you to modify the CV, return the COMPLETE updated JSON in a fenced code block:
+\`\`\`json
+{ ... complete CVData object ... }
+\`\`\`
+The app will validate and apply it automatically. Always return the entire CVData, not a diff. Do not truncate.
+
+**Suggest tags** — recommend tags for work/education items to help the user create filtered versions for different roles.
+
+## Guidelines
+
+- Keep bullet points in "Lead: Body" format where the lead is bolded (e.g. "Predictive Modelling: Built X...")
+- Highlights should be 1–2 lines, concrete, and outcome-focused
+- The label field uses ' · ' as a separator between parts
+- Dates use year strings (e.g. "2020", "2022")
+- When writing for a specific role, favour results and transferable skills over tasks
+- If the layout is near overflow, mention that removing or shortening content would help
+- Tags should be lowercase, short, thematic (e.g. "research", "finance", "technical")
+- Only use facts from the CV JSON or the source material — never invent
+
+${STYLE_SCHEMA_SUMMARY}
 
 ## Current CV data
-
 \`\`\`json
 ${JSON.stringify(cv, null, 2)}
-\`\`\`${sourceSection}`;
+\`\`\`
+
+${sourceSection}`.trim();
 }
 
 // ─── Starter suggestions ──────────────────────────────────────────────────────
 
+/**
+ * Context-aware starter prompts shown before the first message.
+ * Rotate based on what's interesting about the current state.
+ */
 export function buildStarterSuggestions(
-	cv: CVData,
-	layout: LayoutState,
-	hasSourceText = false,
+	cv:            CVData,
+	layout:        LayoutState,
+	hasSourceText: boolean = false,
 ): string[] {
 	const starters: string[] = [];
 
+	// Source-aware starters take priority
 	if (hasSourceText) {
 		starters.push('What\'s in my source material that isn\'t on my CV yet?');
 		starters.push('Are there any skills or experiences in my background I should add?');
 	}
 
-	if (layout.nearOverflow) {
-		starters.push('My CV is nearly full — what should I trim?');
-	}
-	if (layout.pages === 2) {
-		starters.push('Can you tighten my content to fit on one page?');
-	}
+	// Always relevant
+	starters.push('How can I make my profile summary stronger?');
+	starters.push('Which bullet points are weakest and how should I improve them?');
 
-	starters.push('Review my bullet points and suggest stronger "Lead: Body" rewrites.');
-	starters.push('Improve my summary paragraph — make it more distinctive.');
-
+	// Tag-related
 	const allTags = Array.from(new Set([
 		...cv.work.flatMap((w) => w.tags ?? []),
 		...cv.education.flatMap((e) => e.tags ?? []),
@@ -254,8 +264,17 @@ export function buildStarterSuggestions(
 		starters.push(`I'm targeting a ${layout.activeFilters.join('/')} role — what should I emphasise?`);
 	}
 
-	starters.push('Rewrite my CV for a senior design technology leadership role.');
-	starters.push('Adapt my summary for a computational research position.');
+	// Layout-related
+	if (layout.nearOverflow) {
+		starters.push('The layout is near overflow — what should I cut to fit on one page?');
+	}
+	if (layout.pages === 2) {
+		starters.push('Can you tighten my content to fit on one page?');
+	}
+
+	// Role-specific
+	starters.push('Rewrite my CV for a senior real estate investment role.');
+	starters.push('Adapt my summary for an architecture research position.');
 
 	return starters.slice(0, 4);
 }
@@ -325,6 +344,7 @@ export function buildOnboardingStarters(): string[] {
  * Used to decide whether to show onboarding starters.
  */
 export function isDefaultCvData(cv: CVData): boolean {
-	// The bundled default uses the demo persona name — if it differs, user has real data
+	// The bundled default uses this sentinel name.
 	return cv.basics.name === 'Alex Meridian';
 }
+

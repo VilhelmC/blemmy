@@ -162,6 +162,17 @@ export type CloudShareCreateResult = {
 	share: CloudShare;
 	token: string;
 };
+export type CloudStorageDocUsage = {
+	document_id: string;
+	version_bytes: number;
+	version_count: number;
+};
+export type CloudStorageUsage = {
+	quota_bytes: number;
+	used_bytes: number;
+	portrait_assets_bytes: number;
+	documents: CloudStorageDocUsage[];
+};
 export type SharedDocumentView = {
 	document_id: string;
 	document_name: string;
@@ -760,6 +771,74 @@ export async function getCurrentUser(): Promise<User | null> {
 	return data.user ?? null;
 }
 
+async function sha256HexOfUtf8String(s: string): Promise<string> {
+	const buf = new TextEncoder().encode(s);
+	const hash = await crypto.subtle.digest('SHA-256', buf);
+	const bytes = new Uint8Array(hash);
+	let hex = '';
+	for (let i = 0; i < bytes.length; i++) {
+		hex += bytes[i]!.toString(16).padStart(2, '0');
+	}
+	return hex;
+}
+
+/**
+ * Stores portrait bytes once per user+hash; returns data with
+ * `basics.portraitSha256` and without `portraitDataUrl` for JSONB rows.
+ */
+export async function stripPortablePortraitForCloud(data: CVData): Promise<CVData> {
+	const out = JSON.parse(JSON.stringify(data)) as CVData;
+	const url = out.basics.portraitDataUrl?.trim();
+	if (!url || !url.startsWith('data:image/')) {
+		return out;
+	}
+	const user = await getCurrentUser();
+	if (!user) {
+		return out;
+	}
+	const sha256 = await sha256HexOfUtf8String(url);
+	const byteLength = new Blob([url]).size;
+	const sb = getClient();
+	const { error } = await sb.from('cv_portrait_assets').upsert(
+		{
+			user_id:     user.id,
+			sha256,
+			image_data:  url,
+			byte_length: byteLength,
+		},
+		{ onConflict: 'user_id,sha256' },
+	);
+	if (error) {
+		throw new Error(error.message);
+	}
+	delete out.basics.portraitDataUrl;
+	out.basics.portraitSha256 = sha256;
+	return out;
+}
+
+/** Fetches deduped portrait for authenticated owner views. */
+export async function hydratePortablePortrait(data: CVData): Promise<CVData> {
+	const out = JSON.parse(JSON.stringify(data)) as CVData;
+	const hash = out.basics.portraitSha256?.trim().toLowerCase();
+	if (!hash || out.basics.portraitDataUrl) {
+		return out;
+	}
+	if (!/^[a-f0-9]{64}$/.test(hash)) {
+		return out;
+	}
+	const sb = getClient();
+	const { data: row, error } = await sb
+		.from('cv_portrait_assets')
+		.select('image_data')
+		.eq('sha256', hash)
+		.maybeSingle();
+	if (error || !row?.image_data) {
+		return out;
+	}
+	out.basics.portraitDataUrl = row.image_data;
+	return out;
+}
+
 export function onAuthStateChange(cb: (user: User | null) => void): () => void {
 	if (!CLOUD_ENABLED) { return () => { /* noop */ }; }
 	const { data } = getClient().auth.onAuthStateChange((_e, session) => {
@@ -790,13 +869,14 @@ export async function listDocuments(): Promise<CloudResult<CloudDocument[]>> {
 				latestByDoc.set(v.document_id, v.data as CVData);
 			}
 		}
-		return {
-			ok: true,
-			data: (docs as CloudDocument[]).map((d) => ({
-				...d,
-				latest: latestByDoc.get(d.id),
-			})),
-		};
+		const withLatest = await Promise.all(
+			(docs as CloudDocument[]).map(async (d) => {
+				const raw = latestByDoc.get(d.id);
+				const latest = raw ? await hydratePortablePortrait(raw) : undefined;
+				return { ...d, latest };
+			}),
+		);
+		return { ok: true, data: withLatest };
 	} catch (err) {
 		return { ok: false, error: toErr(err) };
 	}
@@ -809,6 +889,7 @@ export async function createDocument(
 ): Promise<CloudResult<CloudDocument>> {
 	try {
 		const dataWithLayout = withCapturedLayoutSnapshot(data);
+		const forSave = await stripPortablePortraitForCloud(dataWithLayout);
 		const sb = getClient();
 		const user = await getCurrentUser();
 		if (!user) {
@@ -824,15 +905,16 @@ export async function createDocument(
 			.from('document_versions')
 			.insert({
 				document_id: doc.id,
-				data: dataWithLayout,
+				data: forSave,
 				label: 'Initial save',
 			});
 		if (verErr) { return { ok: false, error: toErr(verErr) }; }
+		const latestHydrated = await hydratePortablePortrait(forSave);
 		return {
 			ok: true,
 			data: {
 				...(doc as CloudDocument),
-				latest: dataWithLayout,
+				latest: latestHydrated,
 			},
 		};
 	} catch (err) {
@@ -847,12 +929,13 @@ export async function saveVersion(
 ): Promise<CloudResult<CloudVersion>> {
 	try {
 		const dataWithLayout = withCapturedLayoutSnapshot(data);
+		const forSave = await stripPortablePortraitForCloud(dataWithLayout);
 		const sb = getClient();
 		const { data: row, error } = await sb
 			.from('document_versions')
 			.insert({
 				document_id: documentId,
-				data: dataWithLayout,
+				data: forSave,
 				label: label ?? null,
 			})
 			.select()
@@ -863,7 +946,12 @@ export async function saveVersion(
 			.update({ updated_at: new Date().toISOString() })
 			.eq('id', documentId);
 		if (bump.error) { return { ok: false, error: toErr(bump.error) }; }
-		return { ok: true, data: row as CloudVersion };
+		const rawRow = row as CloudVersion;
+		const hydratedData = await hydratePortablePortrait(rawRow.data as CVData);
+		return {
+			ok: true,
+			data: { ...rawRow, data: hydratedData } as CloudVersion,
+		};
 	} catch (err) {
 		return { ok: false, error: toErr(err) };
 	}
@@ -879,7 +967,14 @@ export async function listVersions(
 			.eq('document_id', documentId)
 			.order('created_at', { ascending: false });
 		if (error) { return { ok: false, error: toErr(error) }; }
-		return { ok: true, data: (data ?? []) as CloudVersion[] };
+		const rows = (data ?? []) as CloudVersion[];
+		const hydrated = await Promise.all(
+			rows.map(async (v) => ({
+				...v,
+				data: await hydratePortablePortrait(v.data as CVData),
+			})),
+		);
+		return { ok: true, data: hydrated as CloudVersion[] };
 	} catch (err) {
 		return { ok: false, error: toErr(err) };
 	}
@@ -893,7 +988,8 @@ export async function loadVersion(versionId: string): Promise<CloudResult<CVData
 			.eq('id', versionId)
 			.single();
 		if (error) { return { ok: false, error: toErr(error) }; }
-		return { ok: true, data: (data as { data: CVData }).data };
+		const raw = (data as { data: CVData }).data;
+		return { ok: true, data: await hydratePortablePortrait(raw) };
 	} catch (err) {
 		return { ok: false, error: toErr(err) };
 	}
@@ -997,6 +1093,35 @@ export async function listShares(
 			.order('created_at', { ascending: false });
 		if (error) { return { ok: false, error: toErr(error) }; }
 		return { ok: true, data: (data ?? []) as CloudShare[] };
+	} catch (err) {
+		return { ok: false, error: toErr(err) };
+	}
+}
+
+export async function getCloudStorageUsage(): Promise<CloudResult<CloudStorageUsage>> {
+	try {
+		const { data, error } = await getClient().rpc('get_cloud_storage_usage');
+		if (error) {
+			return { ok: false, error: toErr(error) };
+		}
+		const raw = (Array.isArray(data) ? data[0] : data) as
+			| Partial<CloudStorageUsage>
+			| null;
+		return {
+			ok: true,
+			data: {
+				quota_bytes: Number(raw?.quota_bytes ?? 0),
+				used_bytes: Number(raw?.used_bytes ?? 0),
+				portrait_assets_bytes: Number(raw?.portrait_assets_bytes ?? 0),
+				documents: Array.isArray(raw?.documents)
+					? raw.documents.map((d) => ({
+						document_id: String((d as CloudStorageDocUsage).document_id ?? ''),
+						version_bytes: Number((d as CloudStorageDocUsage).version_bytes ?? 0),
+						version_count: Number((d as CloudStorageDocUsage).version_count ?? 0),
+					}))
+					: [],
+			},
+		};
 	} catch (err) {
 		return { ok: false, error: toErr(err) };
 	}

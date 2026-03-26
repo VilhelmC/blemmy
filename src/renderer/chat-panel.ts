@@ -18,6 +18,7 @@
 import {
 	streamCompletion,
 	extractJsonBlock,
+	extractStyleBlock,
 	loadChatConfigMeta,
 	saveChatConfig,
 	clearChatConfig,
@@ -34,6 +35,7 @@ import {
 	type ChatMessage,
 	type ChatError,
 } from '@lib/cv-chat';
+import { applyDocumentStyle, type DocumentStyle } from '@lib/document-style';
 
 import {
 	buildSystemPrompt,
@@ -545,6 +547,7 @@ export function initChatPanel(
 				appendChunk(chunk);
 			}
 			const jsonRaw   = extractJsonBlock(fullText);
+			const styleRaw  = extractStyleBlock(fullText);
 			const autoApply = Boolean(jsonRaw);
 			if (autoApply) {
 				finalise('Prepared CV JSON and applied it automatically.', false);
@@ -559,6 +562,7 @@ export function initChatPanel(
 			} else {
 				appendMessage('system', '⚠ No JSON found in response. Try asking me to try again.');
 			}
+			if (styleRaw) { applyStylePatch(styleRaw); }
 		} catch (err) {
 			const chatErr = err as ChatError;
 			appendMessage('system', `✗ ${chatErr?.message ?? 'Generation failed.'}`);
@@ -788,6 +792,21 @@ export function initChatPanel(
 			const parsed  = JSON.parse(raw);
 			const fixed   = coerceCvPayload(parsed);
 			const newData = validateCvData(fixed);
+			const prev = window.__CV_DATA__;
+			const keepUrl = prev?.basics.portraitDataUrl;
+			if (keepUrl && !newData.basics.portraitDataUrl) {
+				newData.basics = {
+					...newData.basics,
+					portraitDataUrl: keepUrl,
+				};
+			}
+			const keepSha = prev?.basics.portraitSha256;
+			if (keepSha && !newData.basics.portraitSha256) {
+				newData.basics = {
+					...newData.basics,
+					portraitSha256: keepSha,
+				};
+			}
 			remount(newData);
 			appendMessage('system',
 				isGenerated
@@ -797,6 +816,21 @@ export function initChatPanel(
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			appendMessage('system', `✗ Could not apply changes: ${msg}`);
+		}
+	}
+
+	function applyStylePatch(raw: string): void {
+		try {
+			const patch = JSON.parse(raw) as Partial<DocumentStyle>;
+			const applied = applyDocumentStyle(patch);
+			const syncFn = (window as Window & {
+				__blemmySyncStyleUI__?: (style: DocumentStyle) => void;
+			}).__blemmySyncStyleUI__;
+			if (syncFn) { syncFn(applied); }
+			appendMessage('system', '✓ Style updated.');
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			appendMessage('system', `✗ Could not apply style: ${msg}`);
 		}
 	}
 
@@ -849,6 +883,7 @@ export function initChatPanel(
 				appendChunk(chunk);
 			}
 			const jsonRaw    = extractJsonBlock(fullText);
+			const styleRaw2  = extractStyleBlock(fullText);
 			const applyWords = ['apply', 'update', 'change', 'rewrite', 'modify', 'use this'];
 			const wantsApply = applyWords.some((w) => text.toLowerCase().includes(w));
 			const autoApply  = Boolean(jsonRaw && wantsApply);
@@ -864,6 +899,7 @@ export function initChatPanel(
 			if (jsonRaw && wantsApply) {
 				applyJson(jsonRaw);
 			}
+			if (styleRaw2) { applyStylePatch(styleRaw2); }
 
 		} catch (err) {
 			const chatErr = err as ChatError;

@@ -13,7 +13,7 @@
  * Data model:
  *   workingData   — a deep clone of the active CVData, mutated by edits.
  *                   Persisted to localStorage under 'cv-edit-draft'.
- *   portraitData  — base64 data URL stored separately under 'cv-portrait'.
+ *   Portrait       — basics.portraitDataUrl (JPEG data URL); cloud + share.
  *
  * Engine interaction:
  *   After text edits settle (debounced), the layout engine reschedules
@@ -33,14 +33,18 @@ import type {
 	CVSidebarSectionId,
 	CVSkillsCategoryId,
 } from '@cv/cv';
+import { stripPortraitForJsonExport } from '@lib/cv-json-export';
 import { hashCvForAudit, layoutAuditLog } from '@lib/layout-audit';
+import {
+	clearPortraitLocalCache,
+	processPortraitFile,
+	savePortraitLocalCache,
+} from '@lib/cv-portrait';
+import { clearLegacyPortraitStorage } from '@lib/cv-loader';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const EDIT_DRAFT_KEY   = 'cv-edit-draft';
-const DEFAULT_PORTRAIT_SRC =
-	`${import.meta.env.BASE_URL ?? '/'}blemmy.png`;
-const PORTRAIT_KEY     = 'cv-portrait';
 const EDIT_ACTIVE_ATTR = 'data-cv-editing';
 
 // ─── Deep clone ───────────────────────────────────────────────────────────────
@@ -68,33 +72,6 @@ export function loadDraft(): CVData | null {
 
 export function clearDraft(): void {
 	try { localStorage.removeItem(EDIT_DRAFT_KEY); } catch { /* ignore */ }
-}
-
-// ─── Portrait persistence ─────────────────────────────────────────────────────
-
-export function savePortrait(dataUrl: string): void {
-	try {
-		localStorage.setItem(PORTRAIT_KEY, dataUrl);
-	} catch { /* too large — silently skip */ }
-}
-
-export function loadPortrait(): string | null {
-	try { return localStorage.getItem(PORTRAIT_KEY); } catch { return null; }
-}
-
-export function clearPortrait(): void {
-	try { localStorage.removeItem(PORTRAIT_KEY); } catch { /* ignore */ }
-}
-
-/**
- * Applies any saved portrait to the CV portrait image.
- * Call this on every mount, before the layout engine runs.
- */
-export function applyPortraitIfSaved(): void {
-	const saved = loadPortrait();
-	if (!saved) { return; }
-	const img = document.getElementById('cv-portrait-img') as HTMLImageElement | null;
-	if (img) { img.src = saved; }
 }
 
 // ─── Highlight serialisation ──────────────────────────────────────────────────
@@ -229,7 +206,10 @@ function applyFieldEdit(
 // ─── JSON export ──────────────────────────────────────────────────────────────
 
 export function exportAsJson(data: CVData): void {
-	const blob  = new Blob([JSON.stringify(data, null, '\t')], { type: 'application/json' });
+	const forFile = stripPortraitForJsonExport(data);
+	const blob = new Blob([JSON.stringify(forFile, null, '\t')], {
+		type: 'application/json',
+	});
 	const url   = URL.createObjectURL(blob);
 	const a     = document.createElement('a');
 	a.href      = url;
@@ -481,41 +461,52 @@ function enableWorkItemDrag(
 
 // ─── Portrait replacement ─────────────────────────────────────────────────────
 
-function enablePortraitReplacement(): () => void {
+function enablePortraitReplacement(
+	data:     CVData,
+	onChange: (d: CVData) => void,
+	remount:  (d: CVData) => void,
+): () => void {
 	const imgEl = document.getElementById('cv-portrait-img') as HTMLImageElement | null;
 	if (!imgEl) { return () => { /* noop */ }; }
-	const img = imgEl; // narrowed non-nullable for closures
+	const img = imgEl;
 
-	const input         = document.createElement('input');
-	input.type          = 'file';
-	input.accept        = 'image/*';
+	const input = document.createElement('input');
+	input.type = 'file';
+	input.accept = 'image/*';
 	input.style.display = 'none';
 	document.body.appendChild(input);
 
-	function handleClick(): void { input.click(); }
+	function handleClick(): void {
+		input.click();
+	}
 
 	function handleChange(): void {
 		const file = input.files?.[0];
-		if (!file) { return; }
-		const reader = new FileReader();
-		reader.onload = (e) => {
-			const dataUrl = e.target?.result as string;
-			img.src = dataUrl;
-			savePortrait(dataUrl);
-		};
-		reader.readAsDataURL(file);
 		input.value = '';
+		if (!file) { return; }
+		void processPortraitFile(file)
+			.then((dataUrl) => {
+				data.basics.portraitDataUrl = dataUrl;
+				delete data.basics.portraitSha256;
+				void savePortraitLocalCache(dataUrl);
+				onChange(data);
+				remount(data);
+			})
+			.catch((err: unknown) => {
+				const msg = err instanceof Error ? err.message : String(err);
+				window.alert(msg);
+			});
 	}
 
 	img.style.cursor = 'pointer';
-	img.title        = 'Click to replace portrait';
-	img.addEventListener('click',  handleClick);
+	img.title = 'Click to replace portrait';
+	img.addEventListener('click', handleClick);
 	input.addEventListener('change', handleChange);
 
 	return () => {
 		img.style.cursor = '';
-		img.title        = '';
-		img.removeEventListener('click',  handleClick);
+		img.title = '';
+		img.removeEventListener('click', handleClick);
 		input.removeEventListener('change', handleChange);
 		document.body.removeChild(input);
 	};
@@ -1289,7 +1280,11 @@ export function activateEditMode(
 		handleDataChange(workingData);
 		remount(workingData);
 	});
-	const cleanupPortrait = enablePortraitReplacement();
+	const cleanupPortrait = enablePortraitReplacement(
+		workingData,
+		handleDataChange,
+		remount,
+	);
 
 	// ── Deactivate ────────────────────────────────────────────────────────────
 
@@ -1310,9 +1305,12 @@ export function activateEditMode(
 		exportJson:    () => exportAsJson(workingData),
 		clearDraft:    () => { clearDraft(); },
 		clearPortrait: () => {
-			clearPortrait();
-			const imgEl = document.getElementById('cv-portrait-img') as HTMLImageElement | null;
-			if (imgEl) { imgEl.src = DEFAULT_PORTRAIT_SRC; }
+			delete workingData.basics.portraitDataUrl;
+			delete workingData.basics.portraitSha256;
+			clearLegacyPortraitStorage();
+			void clearPortraitLocalCache();
+			handleDataChange(workingData);
+			remount(workingData);
 		},
 	};
 }

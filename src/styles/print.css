@@ -63,7 +63,7 @@
 		background:  var(--color-paper) !important;
 		/* No !important on color so .cv-sidebar * from global.css wins. */
 		color:       var(--color-ink-black);
-		font-family: 'DM Sans', system-ui, sans-serif !important;
+		font-family: var(--font-body) !important;
 		font-size:   10pt !important;
 		line-height: 1.4 !important;
 		-webkit-print-color-adjust: exact !important;

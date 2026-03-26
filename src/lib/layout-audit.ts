@@ -66,9 +66,25 @@ export function layoutAuditLog(event: string, payload: AuditPayload = {}): void 
 	console.info('[layout-audit]', event, payload);
 }
 
+function cvForAuditHash(cv: CVData): unknown {
+	const url = cv.basics.portraitDataUrl;
+	const sha = cv.basics.portraitSha256;
+	if (!url && !sha) {
+		return cv;
+	}
+	return {
+		...cv,
+		basics: {
+			...cv.basics,
+			...(url ? { portraitDataUrl: `[${url.length} chars]` } : {}),
+			...(sha ? { portraitSha256: '[sha256]' } : {}),
+		},
+	};
+}
+
 export function hashCvForAudit(cv: CVData | null | undefined): string {
 	if (!cv) { return 'none'; }
-	return hashAuditState(cv);
+	return hashAuditState(cvForAuditHash(cv));
 }
 
 function ensureDebugBadge(): void {

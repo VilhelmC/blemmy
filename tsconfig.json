@@ -26,6 +26,9 @@
 			],
 			"@cv/*": [
 				"src/types/*"
+			],
+			"@types/*": [
+				"src/types/*"
 			]
 		},
 		"resolveJsonModule": true,

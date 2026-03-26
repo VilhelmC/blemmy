@@ -31,6 +31,7 @@ import type {
 } from '@cv/cv';
 
 import bundledData from '@data/cv-demo.json';
+import { CV_PORTRAIT_DATA_URL_MAX_CHARS } from '@lib/cv-portrait';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 
@@ -83,8 +84,53 @@ function validateMeta(raw: unknown): CVMeta {
 	};
 }
 
+function optionalPortraitDataUrl(
+	v: unknown,
+	path: string,
+): string | undefined {
+	if (v == null || v === '') {
+		return undefined;
+	}
+	const s = assertString(v, path);
+	assert(
+		s.length <= CV_PORTRAIT_DATA_URL_MAX_CHARS,
+		`portrait data URL exceeds ${CV_PORTRAIT_DATA_URL_MAX_CHARS} characters`,
+		path,
+	);
+	assert(
+		/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(s),
+		'expected data:image/jpeg, data:image/png, or data:image/webp;base64,...',
+		path,
+	);
+	return s;
+}
+
+function optionalPortraitSha256(
+	v: unknown,
+	path: string,
+): string | undefined {
+	if (v == null || v === '') {
+		return undefined;
+	}
+	const s = assertString(v, path).trim().toLowerCase();
+	assert(
+		/^[a-f0-9]{64}$/.test(s),
+		'expected 64-character lowercase hex SHA-256',
+		path,
+	);
+	return s;
+}
+
 function validateBasics(raw: unknown): CVBasics {
 	const o = assertObject(raw, 'basics');
+	const portrait = optionalPortraitDataUrl(
+		o.portraitDataUrl,
+		'basics.portraitDataUrl',
+	);
+	const sha = optionalPortraitSha256(
+		o.portraitSha256,
+		'basics.portraitSha256',
+	);
 	return {
 		name:        assertString(o.name,        'basics.name'),
 		label:       assertString(o.label,       'basics.label'),
@@ -94,6 +140,8 @@ function validateBasics(raw: unknown): CVBasics {
 		nationality: assertString(o.nationality, 'basics.nationality'),
 		born:        assertString(o.born,        'basics.born'),
 		summary:     assertString(o.summary,     'basics.summary'),
+		...(portrait !== undefined ? { portraitDataUrl: portrait } : {}),
+		...(sha !== undefined ? { portraitSha256: sha } : {}),
 	};
 }
 
@@ -215,6 +263,29 @@ export function onCvDataChanged(fn: CvDataListener): () => void {
 	return () => { listeners.delete(fn); };
 }
 
+// ─── Legacy portrait (pre–CVData field) ─────────────────────────────────────
+
+const LEGACY_PORTRAIT_KEY = 'cv-portrait';
+
+function migrateLegacyPortraitInPlace(data: CVData): CVData {
+	try {
+		const legacy = localStorage.getItem(LEGACY_PORTRAIT_KEY);
+		if (
+			legacy &&
+			legacy.startsWith('data:image/') &&
+			legacy.length <= CV_PORTRAIT_DATA_URL_MAX_CHARS &&
+			!data.basics.portraitDataUrl
+		) {
+			data.basics.portraitDataUrl = legacy;
+			localStorage.removeItem(LEGACY_PORTRAIT_KEY);
+			saveToStorage(data);
+		}
+	} catch {
+		/* private mode / quota */
+	}
+	return data;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -222,7 +293,21 @@ export function onCvDataChanged(fn: CvDataListener): () => void {
  * Safe to call synchronously before the DOM is ready.
  */
 export function loadCvData(): CVData {
-	return loadFromStorage() ?? (bundledData as CVData);
+	const stored = loadFromStorage();
+	if (stored) {
+		return migrateLegacyPortraitInPlace(stored);
+	}
+	const clone = JSON.parse(JSON.stringify(bundledData)) as CVData;
+	return migrateLegacyPortraitInPlace(clone);
+}
+
+/** Removes pre–CVData local portrait storage (optional cleanup). */
+export function clearLegacyPortraitStorage(): void {
+	try {
+		localStorage.removeItem(LEGACY_PORTRAIT_KEY);
+	} catch {
+		/* ignore */
+	}
 }
 
 /**

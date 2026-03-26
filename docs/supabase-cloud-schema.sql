@@ -112,6 +112,177 @@ create policy "document_versions_delete_own"
 		)
 	);
 
+-- ── Portrait blobs (dedup per user + SHA-256) ───────────────────────────────
+create table if not exists public.cv_portrait_assets (
+	id uuid primary key default gen_random_uuid(),
+	user_id uuid not null references auth.users (id) on delete cascade,
+	sha256 text not null
+		check (sha256 ~ '^[a-f0-9]{64}$'),
+	image_data text not null,
+	byte_length integer not null check (byte_length > 0),
+	created_at timestamptz not null default now(),
+	unique (user_id, sha256)
+);
+
+create index if not exists cv_portrait_assets_user_idx
+	on public.cv_portrait_assets (user_id);
+
+alter table public.cv_portrait_assets enable row level security;
+
+grant select, insert, update, delete on public.cv_portrait_assets to authenticated;
+
+drop policy if exists "cv_portrait_assets_select_own" on public.cv_portrait_assets;
+create policy "cv_portrait_assets_select_own"
+	on public.cv_portrait_assets for select
+	using (user_id = (select auth.uid()));
+
+drop policy if exists "cv_portrait_assets_insert_own" on public.cv_portrait_assets;
+create policy "cv_portrait_assets_insert_own"
+	on public.cv_portrait_assets for insert
+	with check (user_id = (select auth.uid()));
+
+drop policy if exists "cv_portrait_assets_update_own" on public.cv_portrait_assets;
+create policy "cv_portrait_assets_update_own"
+	on public.cv_portrait_assets for update
+	using (user_id = (select auth.uid()))
+	with check (user_id = (select auth.uid()));
+
+drop policy if exists "cv_portrait_assets_delete_own" on public.cv_portrait_assets;
+create policy "cv_portrait_assets_delete_own"
+	on public.cv_portrait_assets for delete
+	using (user_id = (select auth.uid()));
+
+-- Per-user cloud storage (document_versions JSON + portrait assets), default 15 MiB
+create or replace function public.user_cloud_storage_bytes(p_user_id uuid)
+returns bigint
+language sql
+stable
+set search_path = public
+as $$
+	select coalesce((
+		select sum(octet_length(dv.data::text)::bigint)
+		from public.document_versions dv
+		join public.documents d on d.id = dv.document_id
+		where d.user_id = p_user_id
+	), 0::bigint) + coalesce((
+		select sum(pa.byte_length::bigint)
+		from public.cv_portrait_assets pa
+		where pa.user_id = p_user_id
+	), 0::bigint);
+$$;
+
+create or replace function public.get_cloud_storage_usage()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+	v_uid uuid := auth.uid();
+	v_quota bigint := 15 * 1024 * 1024;
+	v_used bigint := 0;
+	v_portraits bigint := 0;
+	v_docs jsonb := '[]'::jsonb;
+begin
+	if v_uid is null then
+		raise exception 'not allowed';
+	end if;
+	v_used := public.user_cloud_storage_bytes(v_uid);
+	select coalesce(sum(pa.byte_length::bigint), 0::bigint)
+	into v_portraits
+	from public.cv_portrait_assets pa
+	where pa.user_id = v_uid;
+
+	select coalesce(jsonb_agg(
+		jsonb_build_object(
+			'document_id', x.id,
+			'version_bytes', x.version_bytes,
+			'version_count', x.version_count
+		)
+		order by x.updated_at desc
+	), '[]'::jsonb)
+	into v_docs
+	from (
+		select
+			d.id,
+			d.updated_at,
+			coalesce(sum(octet_length(v.data::text)::bigint), 0::bigint) as version_bytes,
+			count(v.id)::bigint as version_count
+		from public.documents d
+		left join public.document_versions v on v.document_id = d.id
+		where d.user_id = v_uid
+		group by d.id, d.updated_at
+	) as x;
+
+	return jsonb_build_object(
+		'quota_bytes', v_quota,
+		'used_bytes', v_used,
+		'portrait_assets_bytes', v_portraits,
+		'documents', v_docs
+	);
+end;
+$$;
+
+create or replace function public.enforce_cv_portrait_asset_quota()
+returns trigger
+language plpgsql
+	set search_path = public
+as $$
+declare
+	v_quota bigint := 15 * 1024 * 1024;
+	v_total bigint;
+begin
+	v_total := public.user_cloud_storage_bytes(new.user_id) + new.byte_length;
+	if v_total > v_quota then
+		raise exception
+			'Cloud storage quota exceeded (limit % MiB). Delete old versions or portraits.',
+			(v_quota / 1048576);
+	end if;
+	return new;
+end;
+$$;
+
+drop trigger if exists cv_portrait_assets_quota_check on public.cv_portrait_assets;
+create trigger cv_portrait_assets_quota_check
+	before insert on public.cv_portrait_assets
+	for each row
+	execute function public.enforce_cv_portrait_asset_quota();
+
+create or replace function public.enforce_document_version_quota()
+returns trigger
+language plpgsql
+	set search_path = public
+as $$
+declare
+	v_user uuid;
+	v_quota bigint := 15 * 1024 * 1024;
+	v_total bigint;
+	v_add bigint;
+begin
+	select d.user_id into v_user
+	from public.documents d
+	where d.id = new.document_id
+	limit 1;
+	if v_user is null then
+		raise exception 'document not found';
+	end if;
+	v_add := octet_length(new.data::text)::bigint;
+	v_total := public.user_cloud_storage_bytes(v_user) + v_add;
+	if v_total > v_quota then
+		raise exception
+			'Cloud storage quota exceeded (limit % MiB). Delete old versions or portraits.',
+			(v_quota / 1048576);
+	end if;
+	return new;
+end;
+$$;
+
+drop trigger if exists document_versions_quota_check on public.document_versions;
+create trigger document_versions_quota_check
+	before insert on public.document_versions
+	for each row
+	execute function public.enforce_document_version_quota();
+
 -- ── GDPR-related metadata on documents ─────────────────────────────────────
 alter table public.documents
 	add column if not exists contains_personal_data boolean not null default true,
@@ -284,6 +455,9 @@ declare
 	v_share public.document_shares%rowtype;
 	v_version public.document_versions%rowtype;
 	v_doc public.documents%rowtype;
+	v_data jsonb;
+	v_phash text;
+	v_pimg text;
 begin
 	if p_token is null or length(trim(p_token)) < 16 then
 		raise exception 'invalid share token';
@@ -334,12 +508,30 @@ begin
 		raise exception 'no document version found';
 	end if;
 
+	v_data := v_version.data;
+	v_phash := v_data #>> '{basics,portraitSha256}';
+	if v_phash is not null and length(trim(v_phash)) = 64 then
+		select pa.image_data into v_pimg
+		from public.cv_portrait_assets pa
+		where pa.user_id = v_doc.user_id
+			and lower(trim(pa.sha256)) = lower(trim(v_phash))
+		limit 1;
+		if v_pimg is not null then
+			v_data := jsonb_set(
+				v_data #- '{basics,portraitSha256}',
+				'{basics,portraitDataUrl}',
+				to_jsonb(v_pimg),
+				true
+			);
+		end if;
+	end if;
+
 	return query
 	select
 		v_doc.id,
 		v_doc.name,
 		v_share.expires_at,
-		v_version.data;
+		v_data;
 end;
 $$;
 
@@ -459,6 +651,7 @@ as $$
 declare
 	v_docs jsonb;
 	v_versions jsonb;
+	v_portraits jsonb;
 	v_shares jsonb;
 	v_share_logs jsonb;
 	v_consents jsonb;
@@ -480,6 +673,11 @@ begin
 		select 1 from public.documents d
 		where d.id = v.document_id and d.user_id = p_user_id
 	);
+
+	select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb)
+	into v_portraits
+	from public.cv_portrait_assets p
+	where p.user_id = p_user_id;
 
 	select coalesce(jsonb_agg(to_jsonb(s) - 'token_hash'), '[]'::jsonb)
 	into v_shares
@@ -509,6 +707,7 @@ begin
 		'user_id', p_user_id,
 		'documents', v_docs,
 		'document_versions', v_versions,
+		'cv_portrait_assets', v_portraits,
 		'document_shares', v_shares,
 		'share_access_logs', v_share_logs,
 		'privacy_consents', v_consents,
@@ -542,6 +741,7 @@ begin
 		where user_id = p_user_id and deleted_at is null;
 		get diagnostics v_count = row_count;
 	else
+		delete from public.cv_portrait_assets where user_id = p_user_id;
 		delete from public.documents where user_id = p_user_id;
 		get diagnostics v_count = row_count;
 		delete from public.user_privacy_consents where user_id = p_user_id;
@@ -659,7 +859,17 @@ revoke all on function public.export_user_data(uuid) from public;
 revoke all on function public.delete_user_data(uuid, text) from public;
 revoke all on function public.run_retention_cleanup() from public;
 revoke all on function public.log_privacy_consent_event(text, boolean, text, text) from public;
+revoke all on function public.get_cloud_storage_usage() from public;
 
 grant execute on function public.export_user_data(uuid) to authenticated;
 grant execute on function public.delete_user_data(uuid, text) to authenticated;
 grant execute on function public.log_privacy_consent_event(text, boolean, text, text) to authenticated;
+grant execute on function public.get_cloud_storage_usage() to authenticated;
+
+-- ── Existing projects (migrations) ───────────────────────────────────────────
+-- If you already applied an older version of this file, run the blocks above
+-- that are missing locally: especially `cv_portrait_assets`, quota triggers,
+-- and the updated `resolve_document_share` / `export_user_data` /
+-- `delete_user_data` definitions. Default per-user cap is 15 MiB total
+-- (document_versions JSON + portrait assets); change the literals in
+-- `enforce_cv_portrait_asset_quota` and `enforce_document_version_quota` to tune.

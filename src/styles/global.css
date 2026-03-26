@@ -91,6 +91,9 @@ a {
 	--color-teal-deep:   #1A1A1A; /* bullet, accent on dark */
 	/* Paper (print body bg) */
 	--color-paper:       #ffffff;
+	/* Font family tokens — written by document-style.ts */
+	--font-body:         'DM Sans', system-ui, sans-serif;
+	--font-heading:      'DM Sans', system-ui, sans-serif;
 	/* Sidebar text on dark — white at various opacities (hex for PDF) */
 	--color-sidebar-text:      #ffffff;
 	--color-sidebar-muted:     #ffffff66;
@@ -1627,7 +1630,7 @@ html.cv-debug-mode .cv-sidebar > div {
 		bottom:        5rem;
 		left:          2rem;
 		width:         clamp(240px, 28vw, 300px);
-		background:    var(--color-paper, #fff);
+		background:    #ffffff;
 		border:        1px solid var(--color-ink-border);
 		border-radius: 4px;
 		box-shadow:    0 4px 24px rgba(0,0,0,0.10);
@@ -3520,14 +3523,14 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	/* Dock children must not keep their legacy fixed offsets. */
 	#cv-ui-dock-left .cv-layout-debug-toggle,
 	#cv-ui-dock-left .cv-prefs-trigger,
-	#cv-ui-dock-left .cv-cloud-dock-trigger,
 	#cv-ui-dock-left .cv-upload-btn,
 	#cv-ui-dock-left .cv-edit-btn,
 	#cv-ui-dock-left .cv-download-json-btn,
 	#cv-ui-dock-right .cv-view-mode-toggle,
 	#cv-ui-dock-right .theme-toggle,
 	#cv-ui-dock-right .print-fab,
-	#cv-ui-dock-right .cv-chat-trigger {
+	#cv-ui-dock-right .cv-chat-trigger,
+	#cv-ui-dock-right .cv-cloud-dock-trigger {
 		position: static !important;
 		left: auto !important;
 		right: auto !important;
@@ -3761,6 +3764,30 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		border-color: var(--color-ink);
 		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 22%, transparent);
 	}
+	.cv-auth-btn--oauth {
+		display:         inline-flex;
+		align-items:     center;
+		justify-content: flex-start;
+		gap:             0.5rem;
+		width:           100%;
+		box-sizing:      border-box;
+		text-align:      left;
+	}
+	/* Author `display` wins over UA `[hidden]`; keep hidden state real. */
+	.cv-auth-btn--oauth[hidden],
+	.cv-auth-policy[hidden] {
+		display: none !important;
+	}
+	.cv-auth-oauth-icon {
+		flex-shrink: 0;
+		width:       1.125rem;
+		height:      1.125rem;
+		display:     block;
+	}
+	.cv-auth-oauth-label {
+		flex: 1;
+		min-width: 0;
+	}
 	.dark .cv-auth-input,
 	.dark .cv-auth-btn,
 	.dark .cv-doc-btn,
@@ -3788,6 +3815,30 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	.cv-doc-row__meta {
 		font-size: 0.58rem;
 		color: var(--color-ink-muted);
+	}
+	.cv-doc-quota {
+		display: flex;
+		flex-direction: column;
+		gap: 0.22rem;
+		margin-top: 0.3rem;
+		margin-bottom: 0.2rem;
+	}
+	.cv-doc-quota__text {
+		margin: 0;
+		font-size: 0.58rem;
+		color: var(--color-ink-muted);
+	}
+	.cv-doc-quota__bar {
+		height: 0.3rem;
+		border-radius: 999px;
+		background: var(--color-ink-border);
+		overflow: hidden;
+	}
+	.cv-doc-quota__fill {
+		display: block;
+		height: 100%;
+		background: color-mix(in srgb, var(--color-ink) 40%, transparent);
+		transition: width 0.2s ease;
 	}
 	.cv-auth-intro,
 	.cv-auth-field-hint {
@@ -4407,3 +4458,41 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	}
 }
 
+
+
+/* v2.1 font token overrides — CV document content only, UI chrome excluded */
+#cv-shell,
+#cv-shell .cv-card {
+	font-family: var(--font-body);
+}
+#cv-shell h1,
+#cv-shell h2,
+#cv-shell h3,
+#cv-shell h4,
+#cv-shell .cv-name,
+#cv-shell .section-label,
+#cv-shell .entry-company {
+	font-family: var(--font-heading) !important;
+}
+#cv-shell .cv-label,
+#cv-shell .contact-item,
+#cv-shell .contact-link,
+#cv-shell .entry-position,
+#cv-shell .entry-dates,
+#cv-shell .entry-summary,
+#cv-shell .entry-highlights,
+#cv-shell .entry-highlights li,
+#cv-shell .highlight-lead,
+#cv-shell .edu-degree,
+#cv-shell .edu-institution,
+#cv-shell .edu-area,
+#cv-shell .edu-dates,
+#cv-shell .edu-score,
+#cv-shell .skill-category-label,
+#cv-shell .skill-tag,
+#cv-shell .language-item,
+#cv-shell .language-name,
+#cv-shell .language-fluency,
+#cv-shell .cv-summary {
+	font-family: var(--font-body) !important;
+}

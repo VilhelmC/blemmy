@@ -5,6 +5,7 @@ import {
 	createShare,
 	createDocument,
 	deleteDocument,
+	getCloudStorageUsage,
 	listDocuments,
 	listShares,
 	listVersions,
@@ -12,6 +13,7 @@ import {
 	renameDocument,
 	revokeShare,
 	type CloudDocument,
+	type CloudStorageUsage,
 	type CloudShare,
 	type CloudVersion,
 } from '@lib/cv-cloud';
@@ -64,6 +66,12 @@ export function initDocumentPanel(
 	}
 	const list = h('div', { id: 'cv-doc-list' });
 	const status = h('p', { id: 'cv-doc-status', class: 'cv-doc-status', hidden: '' });
+	const quotaWrap = h('div', { id: 'cv-doc-quota', class: 'cv-doc-quota', hidden: '' });
+	const quotaText = h('p', { class: 'cv-doc-quota__text' });
+	const quotaBar = h('div', { class: 'cv-doc-quota__bar' },
+		h('span', { class: 'cv-doc-quota__fill', style: 'width:0%' }),
+	);
+	quotaWrap.append(quotaText, quotaBar);
 	const newBtn = h(
 		'button',
 		{
@@ -84,8 +92,9 @@ export function initDocumentPanel(
 		},
 		'Save now',
 	);
-	mount.append(status, newBtn, saveBtn, list);
+	mount.append(status, newBtn, saveBtn, quotaWrap, list);
 	let docs: CloudDocument[] = [];
+	let usageByDoc = new Map<string, number>();
 	let authed = false;
 	function setStatus(text: string, isErr = false): void {
 		status.textContent = text;
@@ -98,6 +107,28 @@ export function initDocumentPanel(
 		if (d < 3600) { return `${Math.floor(d / 60)}m`; }
 		if (d < 86400) { return `${Math.floor(d / 3600)}h`; }
 		return `${Math.floor(d / 86400)}d`;
+	}
+	function fmtBytes(bytes: number): string {
+		if (bytes <= 0) { return '0 B'; }
+		if (bytes < 1024) { return `${bytes} B`; }
+		if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
+		return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	}
+	function renderQuota(usage: CloudStorageUsage | null): void {
+		if (!usage || usage.quota_bytes <= 0) {
+			quotaWrap.hidden = true;
+			return;
+		}
+		const pctRaw = (usage.used_bytes / usage.quota_bytes) * 100;
+		const pct = Math.max(0, Math.min(100, pctRaw));
+		quotaText.textContent =
+			`Storage ${pct.toFixed(1)}% (${fmtBytes(usage.used_bytes)} / ` +
+			`${fmtBytes(usage.quota_bytes)})`;
+		const fill = quotaBar.querySelector('.cv-doc-quota__fill') as HTMLElement | null;
+		if (fill) {
+			fill.style.width = `${pct}%`;
+		}
+		quotaWrap.hidden = false;
 	}
 	async function openDoc(doc: CloudDocument): Promise<void> {
 		if (!doc.latest) { setStatus('No versions for document', true); return; }
@@ -203,7 +234,11 @@ export function initDocumentPanel(
 			});
 			row.append(
 				openBtn,
-				h('span', { class: 'cv-doc-row__meta' }, rel(doc.updated_at)),
+				h(
+					'span',
+					{ class: 'cv-doc-row__meta' },
+					`${rel(doc.updated_at)} · ${fmtBytes(usageByDoc.get(doc.id) ?? 0)}`,
+				),
 				shareBtn,
 				historyBtn,
 				renameBtn,
@@ -410,6 +445,7 @@ export function initDocumentPanel(
 	async function refreshDocs(): Promise<void> {
 		if (!authed) {
 			list.innerHTML = '';
+			quotaWrap.hidden = true;
 			list.appendChild(
 				h('p', { class: 'cv-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),
 			);
@@ -417,6 +453,16 @@ export function initDocumentPanel(
 		}
 		const res = await listDocuments();
 		if (!res.ok) { setStatus(res.error.message, true); return; }
+		const usageRes = await getCloudStorageUsage();
+		if (usageRes.ok) {
+			usageByDoc = new Map(
+				usageRes.data.documents.map((d) => [d.document_id, d.version_bytes]),
+			);
+			renderQuota(usageRes.data);
+		} else {
+			usageByDoc = new Map();
+			renderQuota(null);
+		}
 		docs = res.data;
 		renderDocs();
 	}
@@ -441,6 +487,7 @@ export function initDocumentPanel(
 		if (!user) {
 			closeDocument();
 			setSyncIndicator?.('', '');
+			quotaWrap.hidden = true;
 			list.innerHTML = '';
 			list.appendChild(
 				h('p', { class: 'cv-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),

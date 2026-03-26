@@ -6,6 +6,7 @@ import '@styles/global.css';
 import '@styles/print.css';
 import '@styles/cv-print-surface.css';
 import '@styles/cv-print-parity.css';
+import '@styles/style-panel.css';
 
 import {
 	bootstrapOAuthFromUrl,
@@ -18,6 +19,10 @@ import { toggleFilter, extractAllTags } from '@lib/cv-filter';
 import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/layout-audit';
 import { canonicalSharePath, shareTokenFromLocationParts } from '@lib/share-link-url';
 import { applyLayoutSnapshotToDom } from '@lib/cv-layout-snapshot';
+import {
+	loadPortraitLocalCache,
+	savePortraitLocalCache,
+} from '@lib/cv-portrait';
 import { syncFilterBar }                from '@renderer/cv-renderer';
 import type { CVData }                  from '@cv/cv';
 
@@ -535,6 +540,9 @@ function mount(cv: CVData): void {
 	if (engineCleanup) { engineCleanup(); engineCleanup = null; }
 
 	window.__CV_DATA__ = cv;
+	if (cv.basics.portraitDataUrl) {
+		void savePortraitLocalCache(cv.basics.portraitDataUrl);
+	}
 
 	const root = renderCV(cv);
 	document.body.insertBefore(root, document.body.firstChild);
@@ -737,6 +745,18 @@ async function boot(): Promise<void> {
 			initialData,
 			loaded.changes.map((c) => ({ ...c })),
 		);
+	}
+	if (!initialData.basics.portraitDataUrl) {
+		const cachedPortrait = await loadPortraitLocalCache();
+		if (cachedPortrait) {
+			initialData = {
+				...initialData,
+				basics: {
+					...initialData.basics,
+					portraitDataUrl: cachedPortrait,
+				},
+			};
+		}
 	}
 	mount(initialData);
 	const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);

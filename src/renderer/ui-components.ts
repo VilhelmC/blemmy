@@ -28,10 +28,12 @@ import {
 	type AlternativesReadyDetail,
 	type AlternativeOption,
 } from '@lib/cv-prefs';
+import { rehydrateStyle, type DocumentStyle } from '@lib/document-style';
 
 import {
 	uploadCvData,
 	clearUploadedCvData,
+	clearLegacyPortraitStorage,
 	hasUploadedData,
 } from '@lib/cv-loader';
 
@@ -39,11 +41,11 @@ import {
 	activateEditMode,
 	loadDraft,
 	clearDraft,
-	clearPortrait,
-	applyPortraitIfSaved,
 	type EditModeInstance,
 } from '@renderer/cv-editor';
+import { buildStyleSection } from '@renderer/style-panel';
 
+import { stripPortraitForJsonExport } from '@lib/cv-json-export';
 import { CLOUD_ENABLED } from '@lib/cv-cloud';
 import { initBeforeUnloadGuard } from '@lib/cv-sync';
 import { initChatPanel } from '@renderer/chat-panel';
@@ -419,6 +421,10 @@ function buildPreferencesPanel(): { panel: HTMLElement; trigger: HTMLElement } {
 	);
 
 	const resetBtn = h('button', { id: 'cv-prefs-reset', class: 'cv-prefs-reset', type: 'button' }, 'Reset defaults');
+	const { el: styleSection, syncUI: syncStyleUI } = buildStyleSection();
+	(window as Window & {
+		__blemmySyncStyleUI__?: (style: DocumentStyle) => void;
+	}).__blemmySyncStyleUI__ = syncStyleUI;
 
 	const inner = h('div', { class: 'cv-prefs-inner' },
 		h('p', { class: 'cv-prefs-heading' }, 'Layout preferences'),
@@ -426,6 +432,8 @@ function buildPreferencesPanel(): { panel: HTMLElement; trigger: HTMLElement } {
 		affinityRow,
 		pageRow,
 		resetBtn,
+		h('hr', { class: 'cv-prefs-divider' }),
+		styleSection,
 	);
 
 	const panel = h('div', {
@@ -805,7 +813,7 @@ function initUploadButton(
 			if (confirmed) {
 				clearUploadedCvData();
 				clearDraft();
-				clearPortrait();
+				clearLegacyPortraitStorage();
 				showStatus('Reverted to default CV data.', 'ok');
 				setTimeout(hideStatus, 3000);
 			}
@@ -1169,10 +1177,10 @@ function buildEditToolbar(): HTMLElement {
 	);
 }
 
-function initCloudSyncDrawer(
-	remount: (data: CVData) => void,
-	triggerDock: HTMLElement,
-): { onDataChange: (data: CVData) => void } {
+function initCloudSyncDrawer(remount: (data: CVData) => void): {
+	onDataChange: (data: CVData) => void;
+	cloudTrigger: HTMLButtonElement;
+} {
 	const drawer = h('div', {
 		id:           'cv-cloud-drawer',
 		class:        'cv-side-panel cv-cloud-drawer no-print',
@@ -1239,7 +1247,6 @@ function initCloudSyncDrawer(
 	if (!CLOUD_ENABLED) {
 		cloudTrigger.hidden = true;
 	}
-	triggerDock.appendChild(cloudTrigger);
 
 	let drawerOpen = false;
 
@@ -1320,7 +1327,7 @@ function initCloudSyncDrawer(
 		if (e.key === 'Escape' && drawerOpen) { closeDrawer(); }
 	});
 
-	return { onDataChange: docApi.onDataChange };
+	return { onDataChange: docApi.onDataChange, cloudTrigger };
 }
 
 // ─── Top-level init ───────────────────────────────────────────────────────────
@@ -1353,7 +1360,7 @@ export function initUIComponents(
 	document.body.appendChild(panel);
 	leftDock.appendChild(trigger);
 
-	const docPanelApi = initCloudSyncDrawer(remount, rightDock);
+	const docPanelApi = initCloudSyncDrawer(remount);
 
 	// Upload/Download JSON + status
 	const uploadBtn = buildUploadButton();
@@ -1376,15 +1383,16 @@ export function initUIComponents(
 	rightDock.appendChild(fab);
 	document.body.appendChild(modal);
 
-	// Theme toggle
+	// Theme toggle, chat, cloud — circular dock controls grouped together
 	rightDock.appendChild(buildThemeToggle());
 
-	// Chat panel
 	const { panel: chatPanel, toggle: chatTrigger } = initChatPanel(remount);
 	document.body.appendChild(chatPanel);
 	rightDock.appendChild(chatTrigger);
+	rightDock.appendChild(docPanelApi.cloudTrigger);
 	chatPanel.appendChild(buildRecentChangesPanel());
 
+	rehydrateStyle();
 	initBeforeUnloadGuard();
 
 	// ── Wire up event listeners ───────────────────────────────────────────────
@@ -1402,7 +1410,10 @@ export function initUIComponents(
 	dlBtn.addEventListener('click', () => {
 		const data = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
 		if (!data) { return; }
-		const blob = new Blob([JSON.stringify(data, null, '\t')], { type: 'application/json' });
+		const forFile = stripPortraitForJsonExport(data);
+		const blob = new Blob([JSON.stringify(forFile, null, '\t')], {
+			type: 'application/json',
+		});
 		const url  = URL.createObjectURL(blob);
 		const a    = document.createElement('a');
 		a.href     = url;
@@ -1490,8 +1501,5 @@ export function initUIComponents(
 		}
 	});
 
-	// Apply any saved portrait on every layout (survives page refresh)
-	applyPortraitIfSaved();
-	window.addEventListener('cv-layout-applied', applyPortraitIfSaved);
 }
 
