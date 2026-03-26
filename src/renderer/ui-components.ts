@@ -44,6 +44,10 @@ import {
 	type EditModeInstance,
 } from '@renderer/cv-editor';
 import { buildStyleSection } from '@renderer/style-panel';
+import { initReviewPanel } from '@renderer/review-panel';
+import { initReviewOverlay, updateOverlay } from '@renderer/review-overlay';
+import type { CVReview, ContentPath } from '@cv/cv-review';
+import { applyCommentOps } from '@lib/cv-review';
 
 import { stripPortraitForJsonExport } from '@lib/cv-json-export';
 import { CLOUD_ENABLED } from '@lib/cv-cloud';
@@ -1378,6 +1382,66 @@ export function initUIComponents(
 	leftDock.appendChild(buildHistoryControls());
 	leftDock.appendChild(buildEditButton());
 
+	// v2.2 Review panel + overlay
+	const reviewInst = initReviewPanel({
+		getReview: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__?.review,
+		setReview: (r: CVReview) => {
+			const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
+			if (d) { d.review = r; }
+		},
+		getData: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__,
+	});
+	document.body.appendChild(reviewInst.panel);
+	leftDock.appendChild(reviewInst.toggle);
+	initReviewOverlay((path) => { reviewInst.open(path); });
+	window.addEventListener('cv-layout-applied', () => {
+		const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
+		if (d?.review) { updateOverlay(d.review); }
+	});
+	(window as Window & { __blemmyApplyReviewOps__?: typeof applyCommentOps }).__blemmyApplyReviewOps__ = applyCommentOps;
+	(window as Window & { __blemmySyncReview__?: (r: CVReview) => void }).__blemmySyncReview__ = (r) => {
+		reviewInst.syncReview(r);
+		updateOverlay(r);
+	};
+	const shellEl = document.getElementById('cv-shell');
+	function toContentPath(raw: string): ContentPath {
+		const parts = raw.split('.');
+		let out = '';
+		for (const part of parts) {
+			if (/^\d+$/.test(part)) {
+				out += `[${part}]`;
+				continue;
+			}
+			out += out ? `.${part}` : part;
+		}
+		return out as ContentPath;
+	}
+	function resolveClickedPath(target: HTMLElement): ContentPath | null {
+		const fieldHost = target.closest<HTMLElement>('[data-cv-field]');
+		const fieldPath = fieldHost?.dataset.cvField?.trim();
+		if (fieldPath) { return toContentPath(fieldPath); }
+		const workEl = target.closest<HTMLElement>('.experience-block');
+		const workIdx = workEl?.dataset.workIdx ?? workEl?.dataset.workIdx;
+		if (workIdx && /^\d+$/.test(workIdx)) {
+			return `work[${workIdx}]` as ContentPath;
+		}
+		const eduField = target
+			.closest<HTMLElement>('.education-block')
+			?.querySelector<HTMLElement>('[data-cv-field^="education."]')
+			?.dataset.cvField;
+		if (eduField) { return toContentPath(eduField).replace(/(\.\w+)+$/, '') as ContentPath; }
+		return null;
+	}
+	shellEl?.addEventListener('click', (event) => {
+		if (!document.documentElement.classList.contains('blemmy-review-mode')) { return; }
+		const target = event.target as HTMLElement | null;
+		if (!target) { return; }
+		const path = resolveClickedPath(target);
+		if (!path) { return; }
+		event.preventDefault();
+		reviewInst.open(path);
+	});
+
 	// Print button + modal
 	const { fab, modal } = buildPrintButton();
 	rightDock.appendChild(fab);
@@ -1501,5 +1565,74 @@ export function initUIComponents(
 		}
 	});
 
+}
+
+export function initSharedReviewComponents(autoOpen = false): void {
+	const leftDock = h('div', {
+		id: 'cv-share-review-dock',
+		class: 'cv-ui-dock no-print',
+	});
+	document.body.appendChild(leftDock);
+	const reviewInst = initReviewPanel({
+		getReview: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__?.review,
+		setReview: (r: CVReview) => {
+			const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
+			if (d) { d.review = r; }
+		},
+		getData: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__,
+	});
+	document.body.appendChild(reviewInst.panel);
+	leftDock.appendChild(reviewInst.toggle);
+	initReviewOverlay((path) => { reviewInst.open(path); });
+	window.addEventListener('cv-layout-applied', () => {
+		const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
+		if (d?.review) { updateOverlay(d.review); }
+	});
+	const shellEl = document.getElementById('cv-shell');
+	function toContentPath(raw: string): ContentPath {
+		const parts = raw.split('.');
+		let out = '';
+		for (const part of parts) {
+			if (/^\d+$/.test(part)) {
+				out += `[${part}]`;
+				continue;
+			}
+			out += out ? `.${part}` : part;
+		}
+		return out as ContentPath;
+	}
+	function resolveClickedPath(target: HTMLElement): ContentPath | null {
+		const fieldHost = target.closest<HTMLElement>('[data-cv-field]');
+		const fieldPath = fieldHost?.dataset.cvField?.trim();
+		if (fieldPath) { return toContentPath(fieldPath); }
+		const workEl = target.closest<HTMLElement>('.experience-block');
+		const workIdx = workEl?.dataset.workIdx ?? workEl?.dataset.workIdx;
+		if (workIdx && /^\d+$/.test(workIdx)) {
+			return `work[${workIdx}]` as ContentPath;
+		}
+		const eduField = target
+			.closest<HTMLElement>('.education-block')
+			?.querySelector<HTMLElement>('[data-cv-field^="education."]')
+			?.dataset.cvField;
+		if (eduField) {
+			return toContentPath(eduField).replace(/(\.\w+)+$/, '') as ContentPath;
+		}
+		return null;
+	}
+	shellEl?.addEventListener('click', (event) => {
+		if (!document.documentElement.classList.contains('blemmy-review-mode')) { return; }
+		const target = event.target as HTMLElement | null;
+		if (!target) { return; }
+		const path = resolveClickedPath(target);
+		if (!path) { return; }
+		event.preventDefault();
+		reviewInst.open(path);
+	});
+	const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
+	if (d?.review) {
+		reviewInst.syncReview(d.review);
+		updateOverlay(d.review);
+	}
+	if (autoOpen) { reviewInst.open(); }
 }
 

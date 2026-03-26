@@ -1,0 +1,563 @@
+/* ─── Blemmy review mode ─────────────────────────────────────────────────────
+   Overlay indicators, panel, hover highlights, toggle button.
+   Imported via src/main.ts → import '@styles/review-mode.css'
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Toggle button ────────────────────────────────────────────────────────── */
+
+.blemmy-review-toggle {
+	position:       relative;
+	display:        flex;
+	align-items:    center;
+	justify-content: center;
+	width:          2rem;
+	height:         2rem;
+	border-radius:  50%;
+	border:         1px solid var(--color-ink-border);
+	background:     transparent;
+	color:          var(--color-ink-muted);
+	cursor:         pointer;
+	font-size:      0.9rem;
+	transition:     background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.blemmy-review-toggle:hover {
+	border-color: var(--color-ink-mid);
+	color:        var(--color-ink);
+}
+
+.blemmy-review-toggle--active {
+	background:   var(--color-sidebar);
+	border-color: var(--color-sidebar);
+	color:        #fff;
+}
+
+/* Open comment count badge */
+.blemmy-review-toggle::after {
+	content:         attr(data-count);
+	display:         none;
+	position:        absolute;
+	top:             -0.3rem;
+	right:           -0.3rem;
+	min-width:       1rem;
+	height:          1rem;
+	padding:         0 0.18rem;
+	background:      #D97706;
+	color:           #fff;
+	border-radius:   999px;
+	font-size:       0.55rem;
+	font-weight:     700;
+	line-height:     1rem;
+	text-align:      center;
+	font-family:     'DM Sans', sans-serif;
+	pointer-events:  none;
+}
+
+.blemmy-review-toggle[data-count]:not([data-count=""])::after {
+	display: block;
+}
+
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
+
+.blemmy-review-overlay {
+	position:       absolute;
+	inset:          0;
+	pointer-events: none;
+	z-index:        90;
+}
+
+/* ── Indicator dots ──────────────────────────────────────────────────────── */
+
+.blemmy-review-dot {
+	position:        absolute;
+	width:           1.1rem;
+	height:          1.1rem;
+	border-radius:   50%;
+	border:          2px solid #fff;
+	cursor:          pointer;
+	pointer-events:  auto;
+	display:         flex;
+	align-items:     center;
+	justify-content: center;
+	font-size:       0.52rem;
+	font-weight:     700;
+	color:           #fff;
+	font-family:     'DM Sans', sans-serif;
+	box-shadow:      0 1px 4px rgba(0,0,0,0.22);
+	transition:      transform 0.1s ease;
+	z-index:         91;
+}
+
+.blemmy-review-dot:hover {
+	transform: scale(1.2);
+}
+
+.blemmy-review-dot--open     { background: #D97706; } /* amber */
+.blemmy-review-dot--flagged  { background: #DC2626; } /* red */
+.blemmy-review-dot--resolved { background: #16A34A; opacity: 0.55; }
+
+/* ── Hover highlight on annotated elements ───────────────────────────────── */
+
+.blemmy-review-highlight {
+	outline:        2px solid rgba(217, 119, 6, 0.45) !important;
+	outline-offset: 2px !important;
+	border-radius:  2px;
+}
+
+/* Review mode: subtle hover state on all annotatable CV elements */
+.blemmy-review-mode .cv-shell .experience-block:hover,
+.blemmy-review-mode .cv-shell .edu-block:hover,
+.blemmy-review-mode .cv-shell .highlight-list li:hover,
+.blemmy-review-mode .cv-shell .cv-name:hover,
+.blemmy-review-mode .cv-shell .masthead-label:hover,
+.blemmy-review-mode .cv-shell [data-cv-field]:hover {
+	background:     rgba(217, 119, 6, 0.06);
+	border-radius:  2px;
+	cursor:         cell;
+}
+
+/* ── Review panel ────────────────────────────────────────────────────────── */
+
+.blemmy-review-panel {
+	position:       fixed;
+	top:            0;
+	right:          0;
+	width:          320px;
+	height:         100vh;
+	background:     var(--color-ink-bg);
+	border-left:    1px solid var(--color-ink-border);
+	display:        flex;
+	flex-direction: column;
+	z-index:        200;
+	overflow:       hidden;
+}
+
+.blemmy-review-panel[hidden] {
+	display: none !important;
+}
+
+/* Match chat/edit behavior on wider screens: side drawer shifts CV shell. */
+@media screen and (min-width: 901px) {
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) {
+		--cv-main-review-scale: min(1, calc((100vw - 344px - 2rem) / 794));
+		padding-right: 344px !important;
+		box-sizing: border-box;
+		overflow-x: hidden;
+	}
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) #cv-root,
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-shell,
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-ui-deck {
+		width: 100% !important;
+		max-width: min(900px, calc(100vw - 344px - 2rem)) !important;
+		box-sizing: border-box;
+	}
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-shell,
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-ui-deck {
+		margin-inline: auto !important;
+		min-width: 0 !important;
+	}
+	/*
+	 * Print preview is fixed 210mm by design. Match share-view strategy:
+	 * scale the fixed-width stage instead of forcing fluid child widths.
+	 */
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#cv-shell.cv-print-preview {
+		zoom: var(--cv-main-review-scale);
+		transform-origin: top center;
+	}
+	@supports not (zoom: 1) {
+		html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+		#cv-shell.cv-print-preview {
+			transform: scale(var(--cv-main-review-scale));
+			transform-origin: top center;
+		}
+	}
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#cv-shell:not(.cv-print-preview) #cv-card {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box;
+		overflow-x: clip;
+	}
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#cv-shell:not(.cv-print-preview) #cv-page-1,
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#cv-shell:not(.cv-print-preview) #cv-page-2 {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box;
+		overflow-x: clip;
+	}
+	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#cv-shell:not(.cv-print-preview) .cv-page .cv-grid {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box;
+	}
+}
+
+html.cv-share-readonly #cv-share-review-dock {
+	position: fixed;
+	left: 1rem;
+	bottom: 1rem;
+	z-index: 230;
+}
+
+@media screen and (min-width: 901px) {
+	html.cv-share-readonly body:has(#blemmy-review-panel:not([hidden])) {
+		padding-right: 344px !important;
+		box-sizing: border-box;
+	}
+	html.cv-share-readonly body:has(#blemmy-review-panel:not([hidden]))
+	.cv-share-stage {
+		margin-left: auto;
+		margin-right: auto;
+	}
+}
+
+@media screen and (max-width: 900px) {
+	html {
+		--cv-review-panel-h: min(48dvh, 20rem);
+	}
+	.blemmy-review-panel {
+		width: 100vw;
+		height: var(--cv-review-panel-h);
+		top: auto;
+		bottom: 0;
+		right: 0;
+		left: auto;
+		border-left: none;
+		border-top: 1px solid var(--color-ink-border);
+	}
+	body:has(#blemmy-review-panel:not([hidden])) {
+		padding-bottom: calc(var(--cv-review-panel-h) + 0.8rem) !important;
+	}
+	body:has(#blemmy-review-panel:not([hidden])) .cv-shell {
+		margin-right: 0 !important;
+	}
+	html.cv-share-readonly #cv-share-review-dock {
+		bottom: 0.6rem;
+		left: 0.6rem;
+	}
+}
+
+.blemmy-review-panel__header {
+	display:         flex;
+	align-items:     center;
+	gap:             0.5rem;
+	padding:         0.75rem 1rem;
+	border-bottom:   1px solid var(--color-ink-border);
+	flex-shrink:     0;
+}
+
+.blemmy-review-panel__heading {
+	font-size:      0.72rem;
+	font-weight:    600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color:          var(--color-ink-muted);
+	margin:         0;
+	flex:           1;
+	font-family:    'DM Sans', sans-serif;
+}
+
+.blemmy-review-panel__close {
+	width:       1.5rem;
+	height:      1.5rem;
+	border:      none;
+	background:  none;
+	color:       var(--color-ink-muted);
+	cursor:      pointer;
+	font-size:   1.1rem;
+	line-height: 1;
+	border-radius: 0.2rem;
+	padding:     0;
+	display:     flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.blemmy-review-panel__close:hover { color: var(--color-ink); background: var(--color-ink-border); }
+
+.blemmy-review-panel__add {
+	font-size:      0.62rem;
+	padding:        0.22rem 0.5rem;
+	border:         1px solid var(--color-ink-border);
+	border-radius:  0.2rem;
+	background:     transparent;
+	color:          var(--color-ink-muted);
+	cursor:         pointer;
+	font-family:    'DM Sans', sans-serif;
+	white-space:    nowrap;
+}
+
+.blemmy-review-panel__add:hover { border-color: var(--color-sidebar); color: var(--color-sidebar); }
+
+.blemmy-review-panel__show-resolved {
+	font-size:   0.6rem;
+	color:       var(--color-ink-muted);
+	cursor:      pointer;
+	white-space: nowrap;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-panel__body {
+	flex:       1;
+	overflow-y: auto;
+	padding:    0.75rem 1rem;
+	display:    flex;
+	flex-direction: column;
+	gap:        0.75rem;
+}
+
+.blemmy-review-panel__empty {
+	font-size:  0.72rem;
+	color:      var(--color-ink-muted);
+	text-align: center;
+	padding:    2rem 0;
+	margin:     0;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-panel__back {
+	background:  none;
+	border:      none;
+	color:       var(--color-ink-muted);
+	font-size:   0.62rem;
+	cursor:      pointer;
+	padding:     0 0 0.5rem;
+	text-align:  left;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-panel__back:hover { color: var(--color-ink); }
+
+/* ── Comment item ────────────────────────────────────────────────────────── */
+
+.blemmy-review-item {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.35rem;
+	padding:        0.65rem 0.75rem;
+	border:         1px solid var(--color-ink-border);
+	border-radius:  0.3rem;
+	background:     var(--color-ink-bg);
+}
+
+.blemmy-review-item--resolved {
+	opacity: 0.55;
+}
+
+.blemmy-review-item__meta {
+	display:     flex;
+	align-items: center;
+	gap:         0.4rem;
+}
+
+.blemmy-review-item__dot {
+	width:        0.5rem;
+	height:       0.5rem;
+	border-radius: 50%;
+	flex-shrink:  0;
+}
+
+.blemmy-review-item__dot--open     { background: #D97706; }
+.blemmy-review-item__dot--flagged  { background: #DC2626; }
+.blemmy-review-item__dot--resolved { background: #16A34A; }
+
+.blemmy-review-item__author {
+	font-size:   0.62rem;
+	font-weight: 600;
+	color:       var(--color-ink-dark);
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-item__date {
+	font-size:  0.58rem;
+	color:      var(--color-ink-muted);
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-item__path {
+	margin-left: auto;
+	font-size:   0.56rem;
+	color:       var(--color-ink-muted);
+	background:  none;
+	border:      none;
+	cursor:      pointer;
+	padding:     0;
+	font-family: ui-monospace, monospace;
+	text-decoration: underline dotted;
+	white-space: nowrap;
+	max-width:   120px;
+	overflow:    hidden;
+	text-overflow: ellipsis;
+}
+
+.blemmy-review-item__path:hover { color: var(--color-ink); }
+
+.blemmy-review-item__body {
+	font-size:  0.72rem;
+	color:      var(--color-ink);
+	margin:     0;
+	line-height: 1.4;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-item__body--flagged  { color: #DC2626; }
+.blemmy-review-item__body--resolved { text-decoration: line-through; }
+
+.blemmy-review-item__replies {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.25rem;
+	padding-left:   0.75rem;
+	border-left:    2px solid var(--color-ink-border);
+}
+
+.blemmy-review-item__reply {
+	font-size:  0.65rem;
+	color:      var(--color-ink-mid);
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-item__reply-author {
+	font-weight: 600;
+	margin-right: 0.3rem;
+}
+
+.blemmy-review-item__actions {
+	display:     flex;
+	align-items: center;
+	gap:         0.4rem;
+	margin-top:  0.15rem;
+}
+
+.blemmy-review-item__reply-input {
+	flex:         1;
+	font-size:    0.65rem;
+	padding:      0.22rem 0.4rem;
+	border:       1px solid var(--color-ink-border);
+	border-radius: 0.2rem;
+	background:   transparent;
+	color:        var(--color-ink);
+	font-family:  'DM Sans', sans-serif;
+}
+
+.blemmy-review-item__reply-input:focus {
+	outline:      none;
+	border-color: var(--color-ink-mid);
+}
+
+.blemmy-review-item__action-btn {
+	font-size:    0.6rem;
+	padding:      0.18rem 0.4rem;
+	border:       1px solid var(--color-ink-border);
+	border-radius: 0.2rem;
+	background:   transparent;
+	color:        var(--color-ink-muted);
+	cursor:       pointer;
+	font-family:  'DM Sans', sans-serif;
+	white-space:  nowrap;
+}
+
+.blemmy-review-item__action-btn:hover            { border-color: var(--color-ink-mid); color: var(--color-ink); }
+.blemmy-review-item__action-btn--resolve:hover   { border-color: #16A34A; color: #16A34A; }
+.blemmy-review-item__action-btn--delete          { margin-left: auto; }
+.blemmy-review-item__action-btn--delete:hover    { border-color: #DC2626; color: #DC2626; }
+
+/* ── New comment form ────────────────────────────────────────────────────── */
+
+.blemmy-review-form {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.5rem;
+}
+
+.blemmy-review-form__label {
+	font-size:      0.62rem;
+	font-weight:    600;
+	color:          var(--color-ink-muted);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	margin:         0;
+	font-family:    'DM Sans', sans-serif;
+}
+
+.blemmy-review-form__path-label {
+	font-size:  0.6rem;
+	color:      var(--color-ink-muted);
+	margin:     0;
+	font-family: 'DM Sans', sans-serif;
+}
+
+.blemmy-review-form__path-input,
+.blemmy-review-form__textarea {
+	font-size:    0.7rem;
+	padding:      0.35rem 0.5rem;
+	border:       1px solid var(--color-ink-border);
+	border-radius: 0.25rem;
+	background:   transparent;
+	color:        var(--color-ink);
+	font-family:  'DM Sans', sans-serif;
+	resize:       vertical;
+}
+
+.blemmy-review-form__path-input { font-family: ui-monospace, monospace; font-size: 0.62rem; }
+
+.blemmy-review-form__path-input:focus,
+.blemmy-review-form__textarea:focus {
+	outline:      none;
+	border-color: var(--color-sidebar);
+}
+
+.blemmy-review-form__btns {
+	display: flex;
+	gap:     0.4rem;
+}
+
+.blemmy-review-form__save {
+	font-size:    0.65rem;
+	padding:      0.28rem 0.65rem;
+	background:   var(--color-sidebar);
+	color:        #fff;
+	border:       none;
+	border-radius: 0.2rem;
+	cursor:       pointer;
+	font-family:  'DM Sans', sans-serif;
+}
+
+.blemmy-review-form__save:hover { opacity: 0.88; }
+
+.blemmy-review-form__cancel {
+	font-size:    0.65rem;
+	padding:      0.28rem 0.65rem;
+	background:   transparent;
+	border:       1px solid var(--color-ink-border);
+	border-radius: 0.2rem;
+	color:        var(--color-ink-muted);
+	cursor:       pointer;
+	font-family:  'DM Sans', sans-serif;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+
+.dark .blemmy-review-panel {
+	background:  #1a1a1a;
+	border-color: #333;
+}
+
+.dark .blemmy-review-item {
+	background:  #1a1a1a;
+	border-color: #333;
+}
+
+.dark .blemmy-review-item__reply-input,
+.dark .blemmy-review-form__path-input,
+.dark .blemmy-review-form__textarea {
+	background:   #111;
+	border-color: #333;
+}

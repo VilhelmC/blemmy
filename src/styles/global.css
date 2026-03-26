@@ -4098,6 +4098,13 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		color: var(--color-ink-muted);
 		opacity: 0.9;
 	}
+	.cv-share-modal__review-opt {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.62rem;
+		color: var(--color-ink-mid);
+	}
 }
 
 @media screen {

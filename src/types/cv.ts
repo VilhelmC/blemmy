@@ -4,6 +4,8 @@
  * Every component imports from here — never from the JSON directly without typing.
  */
 
+import type { CVReview } from './cv-review';
+
 // ─── Meta ────────────────────────────────────────────────────────────────────
 
 export interface CVMeta {
@@ -172,4 +174,9 @@ export interface CVData {
 	 */
 	activeFilters?: string[];
 	layoutSnapshot?: CVLayoutSnapshot;
+	/**
+	 * Optional review annotation layer.
+	 * When present and active, review mode is available.
+	 */
+	review?: CVReview;
 }

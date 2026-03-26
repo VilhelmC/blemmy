@@ -1,3 +1,7 @@
+# Playwright artifacts
+playwright-report/
+test-results/
+.playwright/
 # ── Build outputs ────────────────────────────────────────────
 node_modules/
 dist/

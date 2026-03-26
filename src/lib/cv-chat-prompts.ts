@@ -16,6 +16,8 @@
  */
 
 import type { CVData } from '@cv/cv';
+import type { CVReview } from '@cv/cv-review';
+import { buildReviewPromptSection } from '@lib/cv-review';
 
 
 // ─── Style schema summary (injected when style controls are available) ─────────
@@ -148,6 +150,7 @@ export function buildSystemPrompt(
 	cv:          CVData,
 	layout:      LayoutState,
 	sourceText?: string,
+	review?:     CVReview,
 ): string {
 	const layoutSummary = [
 		`Current layout: ${layout.pages} page(s)`,
@@ -170,6 +173,8 @@ export function buildSystemPrompt(
 		: 'No tags defined yet (user can add them in edit mode).';
 
 	// Source material section — included when the user has uploaded background docs
+	const reviewSection = review ? buildReviewPromptSection(review) : '';
+
 	const sourceSection = sourceText
 		? `
 ## Source material (uploaded background document)
@@ -220,7 +225,7 @@ The app will validate and apply it automatically. Always return the entire CVDat
 - Tags should be lowercase, short, thematic (e.g. "research", "finance", "technical")
 - Only use facts from the CV JSON or the source material — never invent
 
-${STYLE_SCHEMA_SUMMARY}
+${reviewSection ? reviewSection + '\n\n' : ''}${STYLE_SCHEMA_SUMMARY}
 
 ## Current CV data
 \`\`\`json

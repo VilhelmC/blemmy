@@ -2,11 +2,15 @@
  * main.ts — application entry point
  */
 
+import '@styles/fonts.css';
 import '@styles/global.css';
 import '@styles/print.css';
 import '@styles/cv-print-surface.css';
 import '@styles/cv-print-parity.css';
 import '@styles/style-panel.css';
+import '@styles/review-mode.css';
+
+document.documentElement.classList.add('cv-css-ready');
 
 import {
 	bootstrapOAuthFromUrl,
@@ -23,11 +27,12 @@ import {
 	loadPortraitLocalCache,
 	savePortraitLocalCache,
 } from '@lib/cv-portrait';
+import { applyReviewWidthClamp } from '@lib/review-layout-clamp';
 import { syncFilterBar }                from '@renderer/cv-renderer';
 import type { CVData }                  from '@cv/cv';
 
 import { renderCV }           from '@renderer/cv-renderer';
-import { initUIComponents }   from '@renderer/ui-components';
+import { initUIComponents, initSharedReviewComponents }   from '@renderer/ui-components';
 import { initCvLayoutEngine } from '@lib/cv-layout-engine';
 
 declare global {
@@ -72,12 +77,27 @@ function isShareReadonlyMode(): boolean {
 	return document.documentElement.classList.contains('cv-share-readonly');
 }
 
+function isShareReviewModeEnabled(): boolean {
+	try {
+		return new URLSearchParams(location.search).get('cv-review') === '1';
+	} catch {
+		return false;
+	}
+}
+
 function setupSharedReadonlyScale(): void {
 	const baseW = Math.round((210 / 25.4) * 96);
 	const apply = (): void => {
 		const vv = window.visualViewport;
 		const viewW = vv?.width ?? window.innerWidth;
-		const availableW = Math.max(Math.floor(viewW) - 12, 280);
+		const reviewPanel = document.getElementById('blemmy-review-panel');
+		const reviewOpen = Boolean(
+			reviewPanel &&
+			!reviewPanel.hasAttribute('hidden') &&
+			window.matchMedia('(min-width: 901px)').matches,
+		);
+		const reserveRight = reviewOpen ? 344 : 0;
+		const availableW = Math.max(Math.floor(viewW) - 12 - reserveRight, 280);
 		const scale = Math.min(availableW / baseW, 1);
 		const scaledWidth = Math.max(Math.floor(baseW * scale), 280);
 		document.documentElement.style.setProperty(
@@ -92,6 +112,41 @@ function setupSharedReadonlyScale(): void {
 	apply();
 	window.addEventListener('resize', apply);
 	window.visualViewport?.addEventListener('resize', apply);
+	const observer = new MutationObserver(() => { apply(); });
+	observer.observe(document.body, {
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['hidden', 'class'],
+	});
+}
+
+function setupMainReviewWidthClamp(): void {
+	const mq = window.matchMedia('(min-width: 901px)');
+	let lastOverflowSig = '';
+	const apply = (): void => {
+		const report = applyReviewWidthClamp(document, mq.matches);
+		if (report.applied && report.overflowPx > 0) {
+			const sig = `${report.shellWidth}:${report.cardWidth}`;
+			if (sig !== lastOverflowSig) {
+				lastOverflowSig = sig;
+				console.warn('[review-layout] overflow detected', {
+					shellWidth: report.shellWidth,
+					cardWidth: report.cardWidth,
+					overflowPx: report.overflowPx,
+				});
+			}
+		}
+	};
+	apply();
+	window.addEventListener('resize', apply);
+	window.visualViewport?.addEventListener('resize', apply);
+	window.addEventListener('cv-layout-applied', apply);
+	const observer = new MutationObserver(() => { apply(); });
+	observer.observe(document.body, {
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['hidden', 'class'],
+	});
 }
 
 function mountSharedStage(banner: HTMLElement): void {
@@ -793,6 +848,7 @@ async function boot(): Promise<void> {
 		});
 		bootstrapOAuthFromUrl();
 		initUIComponents((data) => { applyData(data, true); });
+		setupMainReviewWidthClamp();
 		dispatchHistoryChanged();
 		dispatchLastChanges();
 		window.addEventListener('beforeunload', () => {
@@ -820,6 +876,10 @@ async function boot(): Promise<void> {
 		});
 		banner.append(label, copyBtn);
 		mountSharedStage(banner);
+		if (isShareReviewModeEnabled()) {
+			const isSmall = window.matchMedia('(max-width: 900px)').matches;
+			initSharedReviewComponents(!isSmall);
+		}
 	}
 	mountAboutUi(sharedMode);
 	onCvDataChanged((newData) => { applyData(newData, true); });

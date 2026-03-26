@@ -248,11 +248,15 @@ export function initDocumentPanel(
 		}
 	}
 
-	function buildShareUrl(token: string): string {
+	function buildShareUrl(token: string, reviewMode = false): string {
 		const origin = window.location.origin;
 		const base = import.meta.env.BASE_URL ?? '/';
 		const root = base.endsWith('/') ? base.slice(0, -1) : base;
-		return `${origin}${root}/share/${encodeURIComponent(token)}`;
+		const url = new URL(`${origin}${root}/share/${encodeURIComponent(token)}`);
+		if (reviewMode) {
+			url.searchParams.set('cv-review', '1');
+		}
+		return url.toString();
 	}
 
 	function formatShareDate(iso: string): string {
@@ -318,6 +322,11 @@ export function initDocumentPanel(
 			saveShareExpiryPref(expirySelect.value);
 		});
 		const createBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Create link');
+		const reviewModeWrap = h('label', { class: 'cv-share-modal__review-opt' },
+			h('input', { type: 'checkbox' }),
+			' Enable review mode',
+		);
+		const reviewModeCb = reviewModeWrap.querySelector('input') as HTMLInputElement;
 		const closeBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Close');
 		const listWrap = h('div', { class: 'cv-share-modal__list' });
 
@@ -375,6 +384,17 @@ export function initDocumentPanel(
 						{ class: 'cv-share-modal__copy-unavailable' },
 						'Copy unavailable',
 					);
+				const copyReviewBtn = canCopy
+					? h(
+						'button',
+						{ class: 'cv-doc-row__action', type: 'button' },
+						'Copy+Review',
+					)
+					: h(
+						'span',
+						{ class: 'cv-share-modal__copy-unavailable' },
+						'',
+					);
 				const revokeBtn = h(
 					'button',
 					{ class: 'cv-doc-row__action', type: 'button' },
@@ -392,6 +412,17 @@ export function initDocumentPanel(
 						);
 					});
 				}
+				if (canCopy && copyReviewBtn instanceof HTMLButtonElement) {
+					copyReviewBtn.addEventListener('click', async () => {
+						const token = tokenByShareId.get(share.id);
+						if (!token) { return; }
+						const copied = await copyText(buildShareUrl(token, true));
+						setDialogStatus(
+							copied ? 'Share+review link copied to clipboard.' : 'Failed to copy share+review link.',
+							!copied,
+						);
+					});
+				}
 				revokeBtn.addEventListener('click', async () => {
 					const revoked = await revokeShare(share.id);
 					if (!revoked.ok) {
@@ -401,7 +432,7 @@ export function initDocumentPanel(
 					setDialogStatus('Share link revoked.');
 					await renderShares();
 				});
-				row.append(meta, state, copyBtn, revokeBtn);
+				row.append(meta, state, copyBtn, copyReviewBtn, revokeBtn);
 				listWrap.appendChild(row);
 			}
 		}
@@ -419,7 +450,7 @@ export function initDocumentPanel(
 				setDialogStatus(created.error.message, true);
 				return;
 			}
-			const shareUrl = buildShareUrl(created.data.token);
+			const shareUrl = buildShareUrl(created.data.token, reviewModeCb.checked);
 			tokenByShareId.set(created.data.share.id, created.data.token);
 			const copied = await copyText(shareUrl);
 			setDialogStatus(
@@ -437,7 +468,7 @@ export function initDocumentPanel(
 		});
 
 		const actions = h('div', { class: 'cv-share-modal__actions' }, createBtn, closeBtn);
-		panel.append(title, statusEl, expirySelect, actions, listWrap);
+		panel.append(title, statusEl, expirySelect, reviewModeWrap, actions, listWrap);
 		overlay.appendChild(panel);
 		document.body.appendChild(overlay);
 		await renderShares();

@@ -155,6 +155,16 @@ function getLayoutElements(): LayoutEls | null {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
+const intrinsicHeightCache = new WeakMap<HTMLElement, {
+	version: number;
+	height: number;
+}>();
+let intrinsicHeightVersion = 0;
+
+function invalidateIntrinsicHeightCache(): void {
+	intrinsicHeightVersion += 1;
+}
+
 function raf2(): Promise<void> {
 	return new Promise((resolve) => {
 		requestAnimationFrame(() => { requestAnimationFrame(() => resolve()); });
@@ -217,11 +227,13 @@ function getWorkItemsDiag(): { count: number; source: 'wrapped' | 'block-fallbac
 function setSidebarWidth(card: HTMLElement, mm: number): void {
 	card.style.setProperty(SIDEBAR_WIDTH_VAR, `${mm}mm`);
 	card.dataset.cvSidebarMm = String(Math.round(mm));
+	invalidateIntrinsicHeightCache();
 }
 
 function clearSidebarWidth(card: HTMLElement): void {
 	card.style.removeProperty(SIDEBAR_WIDTH_VAR);
 	delete card.dataset.cvSidebarMm;
+	invalidateIntrinsicHeightCache();
 }
 
 // ─── Density ──────────────────────────────────────────────────────────────────
@@ -229,10 +241,12 @@ function clearSidebarWidth(card: HTMLElement): void {
 function setDensity(card: HTMLElement, level: number): void {
 	card.classList.remove('cv-density-1', 'cv-density-2', 'cv-density-3');
 	if (level >= 1 && level <= 3) { card.classList.add('cv-density-' + level); }
+	invalidateIntrinsicHeightCache();
 }
 
 function clearDensity(card: HTMLElement): void {
 	card.classList.remove('cv-density-1', 'cv-density-2', 'cv-density-3');
+	invalidateIntrinsicHeightCache();
 }
 
 // ─── Masthead DOM helpers ─────────────────────────────────────────────────────
@@ -262,6 +276,7 @@ function restoreMastheadToFull(els: LayoutEls): void {
 		masthead.contains(mastheadRight) && masthead.contains(profileCol)) {
 		masthead.insertBefore(mastheadRight, profileCol);
 	}
+	invalidateIntrinsicHeightCache();
 }
 
 function applyMastheadMode(els: LayoutEls, mode: MastheadMode): void {
@@ -272,10 +287,14 @@ function applyMastheadMode(els: LayoutEls, mode: MastheadMode): void {
 	const profileCol = document.getElementById('cv-masthead-profile-col');
 	if (hb == null) { return; }
 	if (mode === 'profile-sidebar-meta' && mastheadRight != null) {
-		hb.appendChild(mastheadRight); return;
+		hb.appendChild(mastheadRight);
+		invalidateIntrinsicHeightCache();
+		return;
 	}
 	if (mode === 'profile-main' && elProfile != null && profileCol?.contains(elProfile)) {
-		main1?.insertBefore(elProfile, main1.firstChild); return;
+		main1?.insertBefore(elProfile, main1.firstChild);
+		invalidateIntrinsicHeightCache();
+		return;
 	}
 	if (mode === 'classic') {
 		masthead.classList.add('cv-masthead-collapsed');
@@ -283,6 +302,7 @@ function applyMastheadMode(els: LayoutEls, mode: MastheadMode): void {
 		if (elProfile != null && profileCol?.contains(elProfile)) {
 			main1?.insertBefore(elProfile, main1.firstChild);
 		}
+		invalidateIntrinsicHeightCache();
 	}
 }
 
@@ -311,6 +331,7 @@ function restoreMovableToSidebar2(els: LayoutEls): void {
 		if (el) { sidebar2.appendChild(el); }
 	}
 	ensureSidebarTailSpacer(sidebar2);
+	invalidateIntrinsicHeightCache();
 }
 
 function applySectionPlacements(
@@ -329,12 +350,14 @@ function applySectionPlacements(
 		}
 	}
 	ensureSidebarTailSpacer(sidebar2);
+	invalidateIntrinsicHeightCache();
 }
 
 function setFooterCols(footer: HTMLElement | null, cols: 0 | 1 | 2 | 3): void {
 	if (!footer) { return; }
 	if (cols === 0) { footer.style.removeProperty('--cv-footer-cols'); }
 	else            { footer.style.setProperty('--cv-footer-cols', String(cols)); }
+	invalidateIntrinsicHeightCache();
 }
 
 // ─── Work item split ──────────────────────────────────────────────────────────
@@ -410,6 +433,7 @@ function applyWorkSplit(
 		}
 	}
 	applyWorkLabels(p1Count, p2Count);
+	invalidateIntrinsicHeightCache();
 
 	const capturedS1 = main1Section;
 	const capturedS2 = main2Section;
@@ -418,6 +442,7 @@ function applyWorkSplit(
 		for (const item of workItems) { capturedS2.appendChild(item); }
 		capturedS1.innerHTML = '';
 		applyWorkLabels(0, workItems.length);
+		invalidateIntrinsicHeightCache();
 	};
 }
 
@@ -438,6 +463,7 @@ function createMergeController(els: LayoutEls) {
 		removeSidebarTailSpacers(els.sidebar2);
 		ensureSidebarTailSpacer(els.sidebar1);
 		ensureSidebarTailSpacer(els.sidebar2);
+		invalidateIntrinsicHeightCache();
 	}
 
 	function merge(): void {
@@ -454,6 +480,7 @@ function createMergeController(els: LayoutEls) {
 		els.card.classList.add('cv-single-page');
 		els.page2.style.display = 'none';
 		ensureSidebarTailSpacer(els.sidebar1);
+		invalidateIntrinsicHeightCache();
 	}
 
 	return { merge, unmerge };
@@ -473,17 +500,23 @@ function fullReset(els: LayoutEls): void {
 	clearDensity(els.card);
 	els.card.classList.remove('cv-single-page');
 	els.page2.style.display = '';
+	invalidateIntrinsicHeightCache();
 }
 
 // ─── Intrinsic height ─────────────────────────────────────────────────────────
 
 function readIntrinsicGridHeightPx(page: HTMLElement): number {
+	const cached = intrinsicHeightCache.get(page);
+	if (cached?.version === intrinsicHeightVersion) {
+		return cached.height;
+	}
 	const grid = page.querySelector('.cv-grid');
 	if (!grid) { return 0; }
 	page.classList.add('cv-layout-measure-intrinsic');
 	void page.offsetHeight;
 	const h = (grid as HTMLElement).scrollHeight;
 	page.classList.remove('cv-layout-measure-intrinsic');
+	intrinsicHeightCache.set(page, { version: intrinsicHeightVersion, height: h });
 	return h;
 }
 
@@ -605,6 +638,7 @@ function clearSlackVars(els: LayoutEls): void {
 	];
 	for (const c of cols) { for (const v of vars) { c.style.removeProperty(v); } }
 	els.card.removeAttribute('data-cv-slack-fill');
+	invalidateIntrinsicHeightCache();
 }
 
 function clearAlignVars(els: LayoutEls): void {
@@ -612,6 +646,7 @@ function clearAlignVars(els: LayoutEls): void {
 	const vars = [ALIGN_VAR_P1_SIDEBAR, ALIGN_VAR_P1_MAIN, ALIGN_VAR_P2_SIDEBAR, ALIGN_VAR_P2_MAIN];
 	for (const c of cols) { for (const v of vars) { c.style.removeProperty(v); } }
 	els.card.removeAttribute('data-cv-align-applied');
+	invalidateIntrinsicHeightCache();
 }
 
 async function absorbSlackOnColumn(
@@ -627,6 +662,7 @@ async function absorbSlackOnColumn(
 			const next = enforcedGapCap(cur + (slack / gapSlots) * SLACK_GAP_FRACTION, baseGapPx);
 			if (next <= cur + 0.1) { break; }
 			col.style.setProperty(outerVar, `${next}px`);
+			invalidateIntrinsicHeightCache();
 		} else if (innerVar != null) {
 			const inner = col.firstElementChild;
 			if (!(inner instanceof HTMLElement)) { break; }
@@ -636,6 +672,7 @@ async function absorbSlackOnColumn(
 			const next = enforcedGapCap(cur + (slack / (m - 1)) * SLACK_GAP_FRACTION, baseGapPx);
 			if (next <= cur + 0.1) { break; }
 			col.style.setProperty(innerVar, `${next}px`);
+			invalidateIntrinsicHeightCache();
 		} else { break; }
 		await raf2();
 	}
@@ -665,6 +702,7 @@ function trimOnce(el: HTMLElement, props: string[]): boolean {
 		el.style.setProperty(prop, `${v * SLACK_TRIM_FACTOR}px`);
 		changed = true;
 	}
+	if (changed) { invalidateIntrinsicHeightCache(); }
 	return changed;
 }
 
@@ -723,6 +761,7 @@ async function applyAlignmentPass(els: LayoutEls): Promise<void> {
 			const room = Math.max(0, enforcedGapCap(cur + r.alignExtraSidebarPx, BASE_SIDEBAR_GAP_PX) - cur);
 			if (room > 0) {
 				sidebar.style.setProperty(sbVar, `${room}px`);
+				invalidateIntrinsicHeightCache();
 				applied = true;
 				notes.push(`${label} sb+${mmNum(room)}mm`);
 			}
@@ -732,6 +771,7 @@ async function applyAlignmentPass(els: LayoutEls): Promise<void> {
 			const room = Math.max(0, enforcedGapCap(cur + r.alignExtraMainPx, BASE_MAIN_GAP_PX) - cur);
 			if (room > 0) {
 				main.style.setProperty(mnVar, `${room}px`);
+				invalidateIntrinsicHeightCache();
 				applied = true;
 				notes.push(`${label} mn+${mmNum(room)}mm`);
 			}
@@ -741,6 +781,7 @@ async function applyAlignmentPass(els: LayoutEls): Promise<void> {
 			notes.push(`${label} safe-zone → revert`);
 			sidebar.style.removeProperty(sbVar);
 			main.style.removeProperty(mnVar);
+			invalidateIntrinsicHeightCache();
 		}
 	}
 

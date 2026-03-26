@@ -19,6 +19,7 @@ import {
 	streamCompletion,
 	extractJsonBlock,
 	extractStyleBlock,
+	extractReviewBlock,
 	loadChatConfigMeta,
 	saveChatConfig,
 	clearChatConfig,
@@ -36,6 +37,8 @@ import {
 	type ChatError,
 } from '@lib/cv-chat';
 import { applyDocumentStyle, type DocumentStyle } from '@lib/document-style';
+import type { CommentOperation, CVReview } from '@cv/cv-review';
+import { applyCommentOps } from '@lib/cv-review';
 
 import {
 	buildSystemPrompt,
@@ -563,6 +566,8 @@ export function initChatPanel(
 				appendMessage('system', '⚠ No JSON found in response. Try asking me to try again.');
 			}
 			if (styleRaw) { applyStylePatch(styleRaw); }
+			const reviewRaw2 = extractReviewBlock(fullText);
+			if (reviewRaw2) { applyReviewOps(reviewRaw2); }
 		} catch (err) {
 			const chatErr = err as ChatError;
 			appendMessage('system', `✗ ${chatErr?.message ?? 'Generation failed.'}`);
@@ -819,6 +824,24 @@ export function initChatPanel(
 		}
 	}
 
+	function applyReviewOps(raw: string): void {
+		try {
+			const ops = JSON.parse(raw) as CommentOperation[];
+			const cv  = window.__CV_DATA__;
+			if (!cv) { return; }
+			if (!cv.review) { cv.review = { version: 1, comments: [], active: true }; }
+			applyCommentOps(cv.review, ops);
+			const syncFn = (window as Window & {
+				__blemmySyncReview__?: (r: CVReview) => void;
+			}).__blemmySyncReview__;
+			if (syncFn && cv.review) { syncFn(cv.review); }
+			appendMessage('system', '\u2713 Review updated.');
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			appendMessage('system', `\u2717 Could not apply review ops: ${msg}`);
+		}
+	}
+
 	function applyStylePatch(raw: string): void {
 		try {
 			const patch = JSON.parse(raw) as Partial<DocumentStyle>;
@@ -871,7 +894,7 @@ export function initChatPanel(
 		const sysPr = looksLikeGen
 			? buildGenerateSystemPrompt()
 			: (cv
-				? buildSystemPrompt(cv, layout, sourceText ?? undefined)
+				? buildSystemPrompt(cv, layout, sourceText ?? undefined, cv?.review)
 				: buildGenerateSystemPrompt());
 
 		const { appendChunk, finalise } = appendStreamingBubble();
@@ -884,6 +907,7 @@ export function initChatPanel(
 			}
 			const jsonRaw    = extractJsonBlock(fullText);
 			const styleRaw2  = extractStyleBlock(fullText);
+			const reviewRaw   = extractReviewBlock(fullText);
 			const applyWords = ['apply', 'update', 'change', 'rewrite', 'modify', 'use this'];
 			const wantsApply = applyWords.some((w) => text.toLowerCase().includes(w));
 			const autoApply  = Boolean(jsonRaw && wantsApply);
@@ -900,6 +924,7 @@ export function initChatPanel(
 				applyJson(jsonRaw);
 			}
 			if (styleRaw2) { applyStylePatch(styleRaw2); }
+			if (reviewRaw) { applyReviewOps(reviewRaw); }
 
 		} catch (err) {
 			const chatErr = err as ChatError;

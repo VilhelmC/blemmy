@@ -541,3 +541,13 @@ export function extractStyleBlock(text: string): string | null {
 	if (!match) { return null; }
 	return match[1].trim();
 }
+
+/**
+ * Extracts the first fenced ```review block from a model response.
+ * Returns the raw JSON string (a CommentOperation[]) or null.
+ */
+export function extractReviewBlock(text: string): string | null {
+	const match = text.match(/```review\s*([\s\S]*?)```/);
+	if (!match) { return null; }
+	return match[1].trim();
+}
