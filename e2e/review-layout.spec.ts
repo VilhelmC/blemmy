@@ -31,6 +31,7 @@ async function readWidths(page: import('@playwright/test').Page): Promise<{
 async function readDebugSnapshot(page: import('@playwright/test').Page): Promise<{
 	widths: { shell: number; card: number; page1: number };
 	overflowPx: { card: number; page1: number };
+	gapPx: number;
 	mode: { printPreview: boolean; reviewModeClass: boolean };
 	panel: { hidden: boolean; ariaExpanded: string | null };
 }> {
@@ -43,15 +44,22 @@ async function readDebugSnapshot(page: import('@playwright/test').Page): Promise
 		const shellW = shell?.getBoundingClientRect().width ?? 0;
 		const cardW = card?.getBoundingClientRect().width ?? 0;
 		const page1W = page1?.getBoundingClientRect().width ?? 0;
+		const page1Rect = page1?.getBoundingClientRect();
+		const panelRect = panel?.getBoundingClientRect();
+		const gapPx = page1Rect && panelRect
+			? Math.round(panelRect.left - page1Rect.right)
+			: 0;
 		return {
 			widths: { shell: shellW, card: cardW, page1: page1W },
 			overflowPx: {
 				card: Math.max(0, Math.ceil(cardW - shellW)),
 				page1: Math.max(0, Math.ceil(page1W - shellW)),
 			},
+			gapPx,
 			mode: {
 				printPreview: Boolean(shell?.classList.contains('cv-print-preview')),
 				reviewModeClass: document.documentElement.classList.contains('blemmy-review-mode'),
+				desktopSideMode: window.matchMedia('(min-width: 901px)').matches,
 			},
 			panel: {
 				hidden: Boolean(panel?.hasAttribute('hidden')),
@@ -68,17 +76,30 @@ function expectNoOverflow(widths: { shell: number; card: number; page1: number }
 	expect(widths.page1).toBeLessThanOrEqual(widths.shell + epsilon);
 }
 
+function expectNoPanelOverlap(snapshot: {
+	gapPx: number;
+	mode: { desktopSideMode: boolean };
+	panel: { hidden: boolean };
+}): void {
+	if (snapshot.panel.hidden || !snapshot.mode.desktopSideMode) { return; }
+	expect(snapshot.gapPx).toBeGreaterThanOrEqual(0);
+}
+
 test.describe('review panel layout', () => {
 	test('web view keeps cv card within shell across resize', async ({ page }) => {
 		await page.goto('/');
 		await page.setViewportSize({ width: 1280, height: 920 });
 		await ensureReviewOpen(page);
-		expectNoOverflow(await readWidths(page));
+		const snapA = await readDebugSnapshot(page);
+		expectNoOverflow(snapA.widths);
+		expectNoPanelOverlap(snapA);
 
 		await page.setViewportSize({ width: 860, height: 920 });
 		await page.setViewportSize({ width: 1200, height: 920 });
 		await ensureReviewOpen(page);
-		expectNoOverflow(await readWidths(page));
+		const snapB = await readDebugSnapshot(page);
+		expectNoOverflow(snapB.widths);
+		expectNoPanelOverlap(snapB);
 	});
 
 	test('print view keeps cv card within shell with review panel open', async ({ page }) => {
@@ -86,12 +107,16 @@ test.describe('review panel layout', () => {
 		await page.setViewportSize({ width: 1280, height: 920 });
 		await page.getByRole('button', { name: 'Print view' }).click();
 		await ensureReviewOpen(page);
-		expectNoOverflow(await readWidths(page));
+		const snapC = await readDebugSnapshot(page);
+		expectNoOverflow(snapC.widths);
+		expectNoPanelOverlap(snapC);
 
 		await page.setViewportSize({ width: 900, height: 920 });
 		await page.setViewportSize({ width: 1180, height: 920 });
 		await ensureReviewOpen(page);
-		expectNoOverflow(await readWidths(page));
+		const snapD = await readDebugSnapshot(page);
+		expectNoOverflow(snapD.widths);
+		expectNoPanelOverlap(snapD);
 	});
 
 	test('stress: resize + mode + panel toggles never overflow shell', async ({ page }, testInfo) => {
@@ -107,14 +132,18 @@ test.describe('review panel layout', () => {
 		await page.setViewportSize({ width: 1365, height: 900 });
 		await ensureReviewOpen(page);
 		await pushTrace('initial-web-open');
-		expectNoOverflow((await readDebugSnapshot(page)).widths);
+		const initSnap = await readDebugSnapshot(page);
+		expectNoOverflow(initSnap.widths);
+		expectNoPanelOverlap(initSnap);
 
 		const widths = [1280, 1100, 980, 900, 840, 920, 1040, 1200];
 		for (const w of widths) {
 			await page.setViewportSize({ width: w, height: 900 });
 			await ensureReviewOpen(page);
 			await pushTrace(`web-resize-${w}`);
-			expectNoOverflow((await readDebugSnapshot(page)).widths);
+			const s = await readDebugSnapshot(page);
+			expectNoOverflow(s.widths);
+			expectNoPanelOverlap(s);
 		}
 
 		const reviewBtn = page.locator('#blemmy-review-toggle');
@@ -123,18 +152,24 @@ test.describe('review panel layout', () => {
 		await reviewBtn.click();
 		await ensureReviewOpen(page);
 		await pushTrace('panel-reopened');
-		expectNoOverflow((await readDebugSnapshot(page)).widths);
+		const reopened = await readDebugSnapshot(page);
+		expectNoOverflow(reopened.widths);
+		expectNoPanelOverlap(reopened);
 
 		await page.getByRole('button', { name: 'Print view' }).click();
 		await ensureReviewOpen(page);
 		await pushTrace('print-open');
-		expectNoOverflow((await readDebugSnapshot(page)).widths);
+		const printOpen = await readDebugSnapshot(page);
+		expectNoOverflow(printOpen.widths);
+		expectNoPanelOverlap(printOpen);
 
 		for (const w of [1180, 980, 860, 980, 1220]) {
 			await page.setViewportSize({ width: w, height: 900 });
 			await ensureReviewOpen(page);
 			await pushTrace(`print-resize-${w}`);
-			expectNoOverflow((await readDebugSnapshot(page)).widths);
+			const s = await readDebugSnapshot(page);
+			expectNoOverflow(s.widths);
+			expectNoPanelOverlap(s);
 		}
 
 		await testInfo.attach('review-layout-stress-trace', {
