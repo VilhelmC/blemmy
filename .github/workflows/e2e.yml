@@ -34,6 +34,9 @@ jobs:
 
       - name: Run E2E suite
         run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: dummy-anon-key-for-e2e
 
       - name: Upload Playwright report
         if: always()
