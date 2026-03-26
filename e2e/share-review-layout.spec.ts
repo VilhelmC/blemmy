@@ -7,7 +7,7 @@ function reviewUrl(): string {
 }
 
 async function mockShareResolve(page: import('@playwright/test').Page): Promise<void> {
-	const cvJsonPath = join(process.cwd(), 'src', 'data', 'cv-content.json');
+	const cvJsonPath = join(process.cwd(), 'src', 'data', 'cv-demo.json');
 	const cvData = JSON.parse(await readFile(cvJsonPath, 'utf8'));
 	await page.route('**/rpc/resolve_document_share**', async (route) => {
 		await route.fulfill({
