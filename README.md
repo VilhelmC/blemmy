@@ -299,37 +299,12 @@ For user-published documents:
 
 The embed views are read-only and intentionally hide authoring UI.
 
-### Layout search GIF for portfolio
+### Layout search in action
 
-Add a short GIF that shows candidate search and convergence through the layout
-space. Recommended placement:
+The animation below shows the layout engine iterating through candidate
+configurations before converging on the final document layout.
 
 ![Blemmy layout search demo](docs/assets/layout-search.gif)
-
-- `docs/assets/layout-search.gif`
-- Embed near the top of this README under the project summary.
-
-Markdown snippet:
-
-```markdown
-![Blemmy layout search demo](docs/assets/layout-search.gif)
-```
-
-Capture approach:
-
-- Run the app with `npm run dev`.
-- Open a representative CV case and toggle controls that trigger re-layout.
-- Record a 10 to 20 second clip and convert to GIF (for example with `ffmpeg`).
-
-Automated capture (Playwright + ffmpeg):
-
-```bash
-# keep dev server running first (npm run dev)
-npm run capture:layout-gif
-```
-
-This script warms once, measures layout settle time on refresh, records a second
-refresh, and trims output so capture starts after the loading splash disappears.
 
 ---
 
