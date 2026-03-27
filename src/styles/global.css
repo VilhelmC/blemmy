@@ -2099,6 +2099,31 @@ html.cv-embed-pdf .cv-pdf-modal {
 	display: none !important;
 }
 
+/* Portfolio/public embeds: strip interactive app chrome, keep CV content. */
+html.cv-portfolio-embed #cv-ui-dock-left-anchor,
+html.cv-portfolio-embed #cv-ui-dock-right-anchor,
+html.cv-portfolio-embed #cv-layout-status,
+html.cv-portfolio-embed #cv-upload-status,
+html.cv-portfolio-embed #cv-candidate-selector,
+html.cv-portfolio-embed #cv-edit-toolbar,
+html.cv-portfolio-embed #cv-prefs-panel,
+html.cv-portfolio-embed #cv-cloud-drawer,
+html.cv-portfolio-embed #cv-pdf-modal,
+html.cv-portfolio-embed #cv-about-modal,
+html.cv-portfolio-embed #cv-share-review-dock,
+html.cv-portfolio-embed .print-fab,
+html.cv-portfolio-embed .cv-about-corner-btn {
+	display: none !important;
+}
+
+html.cv-portfolio-embed body {
+	overflow-x: hidden;
+}
+
+html.cv-published-embed .cv-share-banner {
+	display: none !important;
+}
+
 /* ─── Sim placeholder ───────────────────────────────────────── */
 .sim-placeholder {
 	border:        1px dashed var(--color-ink-border);

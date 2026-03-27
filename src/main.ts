@@ -18,10 +18,14 @@ import {
 	resolveShareToken,
 	shouldBootMinimalOAuthPopupOnly,
 } from '@lib/cv-cloud';
+import {
+	resolveAppModeFromLocation,
+	type AppMode,
+} from '@lib/app-mode';
 import { loadCvData, onCvDataChanged } from '@lib/cv-loader';
 import { toggleFilter, extractAllTags } from '@lib/cv-filter';
 import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/layout-audit';
-import { canonicalSharePath, shareTokenFromLocationParts } from '@lib/share-link-url';
+import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
 import { applyLayoutSnapshotToDom } from '@lib/cv-layout-snapshot';
 import {
 	loadPortraitLocalCache,
@@ -47,14 +51,20 @@ declare global {
 	}
 }
 
-/** Live preview iframe: skip docks/modals so layout matches A4 only. */
-function isCvPdfEmbed(): boolean {
+const resolvedMode = resolveAppModeFromLocation(
+	window.location,
+	import.meta.env.BASE_URL ?? '/',
+);
+const frameEmbedded = (() => {
 	try {
-		return new URLSearchParams(location.search).get('cv-embed') === '1';
+		return window.self !== window.top;
 	} catch {
-		return false;
+		return true;
 	}
-}
+})();
+const appMode = (resolvedMode.mode === 'normal' && frameEmbedded)
+	? 'portfolioEmbed'
+	: resolvedMode.mode;
 
 function copyText(text: string): Promise<boolean> {
 	return navigator.clipboard.writeText(text)
@@ -62,20 +72,12 @@ function copyText(text: string): Promise<boolean> {
 		.catch(() => false);
 }
 
-function getShareTokenFromUrl(): string | null {
-	try {
-		return shareTokenFromLocationParts(
-			location.pathname,
-			location.search,
-			import.meta.env.BASE_URL ?? '/',
-		);
-	} catch {
-		return null;
-	}
-}
-
 function isShareReadonlyMode(): boolean {
 	return document.documentElement.classList.contains('cv-share-readonly');
+}
+
+function isReadonlyLikeMode(mode: AppMode): boolean {
+	return mode === 'shareReadonly' || mode === 'publishedEmbed';
 }
 
 function isShareReviewModeEnabled(): boolean {
@@ -115,7 +117,7 @@ function setupMainReviewWidthClamp(): void {
 	});
 }
 
-function setupPaperStageScale(sharedMode: boolean): void {
+function setupPaperStageScale(readonlyMode: boolean): void {
 	const baseW = Math.round((210 / 25.4) * 96);
 	const apply = (): void => {
 		const vv = window.visualViewport;
@@ -126,7 +128,7 @@ function setupPaperStageScale(sharedMode: boolean): void {
 		);
 		const shareReviewPanel = document.getElementById('blemmy-review-panel');
 		const shareReviewOpen = Boolean(
-			sharedMode &&
+			readonlyMode &&
 			shareReviewPanel &&
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
@@ -139,7 +141,7 @@ function setupPaperStageScale(sharedMode: boolean): void {
 		const fallback = Math.max(Math.floor(viewW) - 12 - reserveRight, 1);
 		const availableW = Math.max(1, fromRoot > 0 ? fromRoot : fallback);
 		const shell = document.getElementById('cv-shell');
-		const hasFixedPaperStage = sharedMode ||
+		const hasFixedPaperStage = readonlyMode ||
 			Boolean(shell?.classList.contains('cv-print-preview'));
 		const scale = hasFixedPaperStage ? Math.min(availableW / baseW, 1) : 1;
 		document.documentElement.style.setProperty(
@@ -342,6 +344,19 @@ function mountAboutUi(sharedMode: boolean): void {
 	mainBtn.textContent = 'About';
 	mainBtn.addEventListener('click', open);
 	document.body.appendChild(mainBtn);
+}
+
+function mountEmbedFooter(label: string, href: string): void {
+	const footer = document.createElement('footer');
+	footer.className = 'cv-share-footer no-print';
+	const link = document.createElement('a');
+	link.className = 'cv-share-footer__about';
+	link.href = href;
+	link.target = '_blank';
+	link.rel = 'noopener noreferrer';
+	link.textContent = label;
+	footer.appendChild(link);
+	document.body.appendChild(footer);
 }
 
 let engineCleanup: (() => void) | null = null;
@@ -778,25 +793,28 @@ async function boot(): Promise<void> {
 		bootstrapOAuthFromUrl();
 		return;
 	}
-	const shareToken = getShareTokenFromUrl();
-	const pathShareToken = shareTokenFromLocationParts(
-		location.pathname,
-		'',
-		import.meta.env.BASE_URL ?? '/',
-	);
-	const sharedMode = Boolean(shareToken);
-	if (sharedMode) {
+	const shareToken = resolvedMode.shareToken;
+	const embedToken = resolvedMode.embedToken;
+	const readonlyMode = isReadonlyLikeMode(appMode);
+	const sharedMode = appMode === 'shareReadonly';
+	const publishedEmbedMode = appMode === 'publishedEmbed';
+	const portfolioEmbedMode = appMode === 'portfolioEmbed';
+	if (readonlyMode) {
 		document.documentElement.classList.add('cv-share-readonly');
 	} else {
 		document.documentElement.classList.remove('cv-share-readonly');
 		document.documentElement.classList.remove('cv-share-host');
 	}
+	document.documentElement.classList.toggle('cv-portfolio-embed', portfolioEmbedMode);
+	document.documentElement.classList.toggle('cv-published-embed', publishedEmbedMode);
 	startUiManager();
-	setupPaperStageScale(sharedMode);
-	if (!sharedMode) {
+	setupPaperStageScale(readonlyMode || portfolioEmbedMode || appMode === 'pdfEmbed');
+	if (appMode === 'normal') {
 		await initPasswordlessAuthFromUrl();
 	}
-	const loaded = loadSessionState();
+	const loaded = appMode === 'normal'
+		? loadSessionState()
+		: { cv: null, changes: [], past: [], future: [] };
 	const usingSessionCv = loaded.cv != null;
 	if (usingSessionCv && loaded.past.length > 0) {
 		historyPast.push(...loaded.past.map((x) => cloneCvData(x)));
@@ -805,15 +823,22 @@ async function boot(): Promise<void> {
 		historyFuture.push(...loaded.future.map((x) => cloneCvData(x)));
 	}
 	let initialData = usingSessionCv ? loaded.cv as CVData : loadCvData();
-	if (shareToken) {
-		if (!pathShareToken) {
+	if (shareToken || embedToken) {
+		if (shareToken && appMode === 'shareReadonly' && !location.pathname.includes('/share/')) {
 			const targetPath = canonicalSharePath(
 				shareToken,
 				import.meta.env.BASE_URL ?? '/',
 			);
 			window.history.replaceState({}, '', targetPath);
 		}
-		const shared = await resolveShareToken(shareToken);
+		if (embedToken && appMode === 'publishedEmbed' && !location.pathname.includes('/embed/')) {
+			const targetPath = canonicalEmbedPath(
+				embedToken,
+				import.meta.env.BASE_URL ?? '/',
+			);
+			window.history.replaceState({}, '', targetPath);
+		}
+		const shared = await resolveShareToken((shareToken ?? embedToken) as string);
 		if (!shared.ok) {
 			mountShareError(shared.error.message);
 			return;
@@ -839,7 +864,7 @@ async function boot(): Promise<void> {
 		}
 	}
 	mount(initialData);
-	if (!sharedMode) {
+	if (!readonlyMode && !portfolioEmbedMode) {
 		mountPaperStage(false);
 	}
 	const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
@@ -847,8 +872,10 @@ async function boot(): Promise<void> {
 		window.clearTimeout(bootTimeout);
 		finishBootUi();
 	}, { once: true });
-	initLayoutAuditUi();
-	if (!isCvPdfEmbed() && !sharedMode) {
+	if (appMode === 'normal') {
+		initLayoutAuditUi();
+	}
+	if (appMode === 'normal') {
 		window.cvUndo = undoCvChange;
 		window.cvRedo = redoCvChange;
 		window.cvCanUndo = () => historyPast.length > 0;
@@ -909,8 +936,20 @@ async function boot(): Promise<void> {
 			initSharedReviewComponents(!isSmall);
 		}
 	}
-	mountAboutUi(sharedMode);
-	onCvDataChanged((newData) => { applyData(newData, true); });
+	if (publishedEmbedMode) {
+		mountPaperStage(true);
+		mountEmbedFooter('Open full shared CV', window.location.href.replace('/embed/', '/share/'));
+	}
+	if (portfolioEmbedMode) {
+		mountPaperStage(true);
+		mountEmbedFooter('Open full demo', 'https://blemmy.dev/');
+	}
+	if (!portfolioEmbedMode && !publishedEmbedMode) {
+		mountAboutUi(sharedMode);
+	}
+	if (appMode === 'normal') {
+		onCvDataChanged((newData) => { applyData(newData, true); });
+	}
 }
 
 void boot().catch((err: unknown) => {

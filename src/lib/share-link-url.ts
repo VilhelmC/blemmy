@@ -38,3 +38,44 @@ export function canonicalSharePath(
 	const prefix = basePath && basePath !== '/' ? basePath : '';
 	return `${prefix}/share/${encodeURIComponent(token)}`;
 }
+
+export function embedTokenFromPathname(
+	pathname: string,
+	baseUrl = '/',
+): string | null {
+	const basePath = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+	const normalized = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+	const withBase = basePath && basePath !== '/'
+		? normalized.startsWith(basePath)
+			? normalized.slice(basePath.length)
+			: normalized
+		: normalized;
+	const parts = withBase.split('/').filter(Boolean);
+	if (parts.length >= 2 && parts[0] === 'embed') {
+		return decodeURIComponent(parts.slice(1).join('/')).trim() || null;
+	}
+	return null;
+}
+
+export function embedTokenFromLocationParts(
+	pathname: string,
+	search: string,
+	baseUrl = '/',
+): string | null {
+	const fromPath = embedTokenFromPathname(pathname, baseUrl);
+	if (fromPath) {
+		return fromPath;
+	}
+	const params = new URLSearchParams(search);
+	const token = params.get('cv-embed-share') ?? params.get('embed');
+	return token?.trim() || null;
+}
+
+export function canonicalEmbedPath(
+	publicId: string,
+	baseUrl = '/',
+): string {
+	const basePath = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+	const prefix = basePath && basePath !== '/' ? basePath : '';
+	return `${prefix}/embed/${encodeURIComponent(publicId)}`;
+}

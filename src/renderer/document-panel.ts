@@ -1,5 +1,6 @@
 import type { CVData } from '@cv/cv';
 import { validateCvData } from '@lib/cv-loader';
+import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
 import {
 	CLOUD_ENABLED,
 	createShare,
@@ -58,6 +59,7 @@ export function initDocumentPanel(
 } {
 	const { mount, closeDrawer, setSyncIndicator } = opts;
 	const SHARE_EXPIRY_PREF_KEY = 'cv-share-expiry-days';
+	const EMBED_PUBLISH_PREF_KEY = 'cv-embed-publish-doc-map';
 	if (!CLOUD_ENABLED) {
 		mount.appendChild(
 			h('p', { class: 'cv-cloud-drawer__muted' }, 'Cloud docs disabled (.env not configured).'),
@@ -250,13 +252,19 @@ export function initDocumentPanel(
 
 	function buildShareUrl(token: string, reviewMode = false): string {
 		const origin = window.location.origin;
-		const base = import.meta.env.BASE_URL ?? '/';
-		const root = base.endsWith('/') ? base.slice(0, -1) : base;
-		const url = new URL(`${origin}${root}/share/${encodeURIComponent(token)}`);
+		const url = new URL(canonicalSharePath(token, import.meta.env.BASE_URL ?? '/'), origin);
 		if (reviewMode) {
 			url.searchParams.set('cv-review', '1');
 		}
 		return url.toString();
+	}
+
+	function buildEmbedUrl(token: string): string {
+		const origin = window.location.origin;
+		return new URL(
+			canonicalEmbedPath(token, import.meta.env.BASE_URL ?? '/'),
+			origin,
+		).toString();
 	}
 
 	function formatShareDate(iso: string): string {
@@ -299,6 +307,35 @@ export function initDocumentPanel(
 		}
 	}
 
+	function loadEmbedDocMap(): Record<string, boolean> {
+		try {
+			const raw = localStorage.getItem(EMBED_PUBLISH_PREF_KEY);
+			if (!raw) { return {}; }
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const out: Record<string, boolean> = {};
+			for (const [k, v] of Object.entries(parsed)) {
+				if (typeof v === 'boolean') { out[k] = v; }
+			}
+			return out;
+		} catch {
+			return {};
+		}
+	}
+
+	function isEmbedPublished(documentId: string): boolean {
+		return loadEmbedDocMap()[documentId] === true;
+	}
+
+	function saveEmbedPublished(documentId: string, enabled: boolean): void {
+		const map = loadEmbedDocMap();
+		map[documentId] = enabled;
+		try {
+			localStorage.setItem(EMBED_PUBLISH_PREF_KEY, JSON.stringify(map));
+		} catch {
+			/* noop */
+		}
+	}
+
 	async function openShareDialog(doc: CloudDocument): Promise<void> {
 		const tokenByShareId = new Map<string, string>();
 		const overlay = h('div', { class: 'cv-share-modal' });
@@ -322,10 +359,20 @@ export function initDocumentPanel(
 			saveShareExpiryPref(expirySelect.value);
 		});
 		const createBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Create link');
+		const createEmbedBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Create embed link');
 		const reviewModeWrap = h('label', { class: 'cv-share-modal__review-opt' },
 			h('input', { type: 'checkbox' }),
 			' Enable review mode',
 		);
+		const publishEmbedWrap = h('label', { class: 'cv-share-modal__review-opt' },
+			h('input', { type: 'checkbox' }),
+			' Publish for embed',
+		);
+		const publishEmbedCb = publishEmbedWrap.querySelector('input') as HTMLInputElement;
+		publishEmbedCb.checked = isEmbedPublished(doc.id);
+		publishEmbedCb.addEventListener('change', () => {
+			saveEmbedPublished(doc.id, publishEmbedCb.checked);
+		});
 		const reviewModeCb = reviewModeWrap.querySelector('input') as HTMLInputElement;
 		const closeBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Close');
 		const listWrap = h('div', { class: 'cv-share-modal__list' });
@@ -395,6 +442,17 @@ export function initDocumentPanel(
 						{ class: 'cv-share-modal__copy-unavailable' },
 						'',
 					);
+				const copyEmbedBtn = canCopy && publishEmbedCb.checked
+					? h(
+						'button',
+						{ class: 'cv-doc-row__action', type: 'button' },
+						'Copy embed',
+					)
+					: h(
+						'span',
+						{ class: 'cv-share-modal__copy-unavailable' },
+						'',
+					);
 				const revokeBtn = h(
 					'button',
 					{ class: 'cv-doc-row__action', type: 'button' },
@@ -423,6 +481,17 @@ export function initDocumentPanel(
 						);
 					});
 				}
+				if (canCopy && publishEmbedCb.checked && copyEmbedBtn instanceof HTMLButtonElement) {
+					copyEmbedBtn.addEventListener('click', async () => {
+						const tokenForEmbed = tokenByShareId.get(share.id);
+						if (!tokenForEmbed) { return; }
+						const copied = await copyText(buildEmbedUrl(tokenForEmbed));
+						setDialogStatus(
+							copied ? 'Embed link copied to clipboard.' : 'Failed to copy embed link.',
+							!copied,
+						);
+					});
+				}
 				revokeBtn.addEventListener('click', async () => {
 					const revoked = await revokeShare(share.id);
 					if (!revoked.ok) {
@@ -432,7 +501,7 @@ export function initDocumentPanel(
 					setDialogStatus('Share link revoked.');
 					await renderShares();
 				});
-				row.append(meta, state, copyBtn, copyReviewBtn, revokeBtn);
+				row.append(meta, state, copyBtn, copyReviewBtn, copyEmbedBtn, revokeBtn);
 				listWrap.appendChild(row);
 			}
 		}
@@ -460,6 +529,59 @@ export function initDocumentPanel(
 			await renderShares();
 		});
 
+		async function createEmbedLink(): Promise<void> {
+			if (!publishEmbedCb.checked) {
+				setDialogStatus('Enable "Publish for embed" first.', true);
+				return;
+			}
+			const days = Number(expirySelect.value);
+			if (!Number.isFinite(days) || days <= 0 || days > 365) {
+				setDialogStatus('Expiry must be between 1 and 365 days.', true);
+				return;
+			}
+			const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
+			saveShareExpiryPref(expirySelect.value);
+			const created = await createShare(doc.id, expiresAt);
+			if (!created.ok) {
+				setDialogStatus(created.error.message, true);
+				return;
+			}
+			tokenByShareId.set(created.data.share.id, created.data.token);
+			const embedUrl = buildEmbedUrl(created.data.token);
+			const copied = await copyText(embedUrl);
+			setDialogStatus(
+				copied ? 'Embed link copied to clipboard.' : `Embed URL: ${embedUrl}`,
+			);
+			setStatus('Embed link created.');
+			await renderShares();
+		}
+
+		createEmbedBtn.addEventListener('click', () => {
+			void createEmbedLink();
+		});
+
+		const rotateEmbedBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Rotate embed link');
+		rotateEmbedBtn.addEventListener('click', async () => {
+			if (!publishEmbedCb.checked) {
+				setDialogStatus('Enable "Publish for embed" first.', true);
+				return;
+			}
+			const sharesRes = await listShares(doc.id);
+			if (!sharesRes.ok) {
+				setDialogStatus(sharesRes.error.message, true);
+				return;
+			}
+			const activeShares = sharesRes.data.filter((s) => !s.revoked_at);
+			for (const share of activeShares) {
+				const revoked = await revokeShare(share.id);
+				if (!revoked.ok) {
+					setDialogStatus(revoked.error.message, true);
+					return;
+				}
+			}
+			await createEmbedLink();
+		});
+
 		closeBtn.addEventListener('click', () => { overlay.remove(); });
 		overlay.addEventListener('click', (event) => {
 			if (event.target === overlay) {
@@ -467,8 +589,21 @@ export function initDocumentPanel(
 			}
 		});
 
-		const actions = h('div', { class: 'cv-share-modal__actions' }, createBtn, closeBtn);
-		panel.append(title, statusEl, expirySelect, reviewModeWrap, actions, listWrap);
+		const actions = h('div', { class: 'cv-share-modal__actions' },
+			createBtn,
+			createEmbedBtn,
+			rotateEmbedBtn,
+			closeBtn,
+		);
+		panel.append(
+			title,
+			statusEl,
+			expirySelect,
+			reviewModeWrap,
+			publishEmbedWrap,
+			actions,
+			listWrap,
+		);
 		overlay.appendChild(panel);
 		document.body.appendChild(overlay);
 		await renderShares();

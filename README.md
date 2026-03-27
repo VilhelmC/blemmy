@@ -6,6 +6,8 @@ Edit one JSON file. The layout engine figures out the rest — one or two pages,
 
 Built as a portfolio project and practical tool. The engineering is the point.
 
+Live site: [blemmy.dev](https://blemmy.dev)
+
 > The name comes from the Blemmyes — a mythological headless people described by Herodotus and Pliny, whose faces were mounted on their chests. A creature for whom headlessness is the natural state, not a surgical act. The right analogy for headless architecture.
 
 ---
@@ -250,11 +252,84 @@ The layout engine (`src/lib/engine/`) is separately licensed under AGPL v3. This
 
 Every push to `main` deploys automatically via GitHub Actions to GitHub Pages.
 
+Production URL: [blemmy.dev](https://blemmy.dev)
+
 To use a custom domain, add a `CNAME` file to `/public/`:
 ```
 public/
 └── CNAME    ← contains your domain, e.g. blemmy.dev
 ```
+
+---
+
+## Embedding
+
+Blemmy supports read-only embeds for portfolio and published CV use cases.
+
+- Portfolio embed mode: `https://blemmy.dev/?cv-portfolio=1`
+- Published document embed mode: `https://blemmy.dev/embed/<publicId>`
+- Shared read-only link mode: `https://blemmy.dev/share/<token>`
+
+Recommended integration pattern:
+
+- Desktop: live iframe embed
+- Mobile: lightweight preview card + "Open full demo" CTA
+
+Example iframe snippet:
+
+```html
+<iframe
+  src="https://blemmy.dev/?cv-portfolio=1"
+  title="Blemmy demo"
+  loading="lazy"
+  style="width:100%;min-height:720px;border:0;"
+></iframe>
+```
+
+For user-published documents:
+
+```html
+<iframe
+  src="https://blemmy.dev/embed/YOUR_PUBLIC_ID"
+  title="Embedded CV"
+  loading="lazy"
+  style="width:100%;min-height:720px;border:0;"
+></iframe>
+```
+
+The embed views are read-only and intentionally hide authoring UI.
+
+### Layout search GIF for portfolio
+
+Add a short GIF that shows candidate search and convergence through the layout
+space. Recommended placement:
+
+![Blemmy layout search demo](docs/assets/layout-search.gif)
+
+- `docs/assets/layout-search.gif`
+- Embed near the top of this README under the project summary.
+
+Markdown snippet:
+
+```markdown
+![Blemmy layout search demo](docs/assets/layout-search.gif)
+```
+
+Capture approach:
+
+- Run the app with `npm run dev`.
+- Open a representative CV case and toggle controls that trigger re-layout.
+- Record a 10 to 20 second clip and convert to GIF (for example with `ffmpeg`).
+
+Automated capture (Playwright + ffmpeg):
+
+```bash
+# keep dev server running first (npm run dev)
+npm run capture:layout-gif
+```
+
+This script warms once, measures layout settle time on refresh, records a second
+refresh, and trims output so capture starts after the loading splash disappears.
 
 ---
 

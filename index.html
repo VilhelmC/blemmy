@@ -25,16 +25,26 @@
 			// Force print-surface on initial paint (web view toggle hidden for now)
 			const q = new URLSearchParams(location.search);
 			document.documentElement.classList.add('cv-print-surface');
-			if (q.get('cv-embed') === '1') {
+			var path = window.location.pathname || '';
+			var isPortfolioEmbed = q.get('cv-portfolio') === '1';
+			var isPdfEmbed = q.get('cv-embed') === '1';
+			var isPublishedEmbed = /\/embed\/[^/]+/.test(path) || q.has('cv-embed-share');
+			if (isPdfEmbed) {
 				document.documentElement.classList.add('cv-embed-pdf');
+			}
+			if (isPortfolioEmbed || isPublishedEmbed) {
+				document.documentElement.classList.add('cv-portfolio-embed');
+			}
+			if (isPublishedEmbed) {
+				document.documentElement.classList.add('cv-share-readonly');
+				document.documentElement.classList.add('cv-published-embed');
 			}
 			// Share view: set initial scale before first paint to avoid
 			// load-time overflow on narrow screens.
 			(function () {
-				var path = window.location.pathname || '';
 				var isSharePath = /\/share\/[^/]+/.test(path);
 				var isShareQuery = q.has('cv-share');
-				if (!isSharePath && !isShareQuery) {
+				if (!isSharePath && !isShareQuery && !isPublishedEmbed && !isPortfolioEmbed) {
 					return;
 				}
 				var base = Math.round((210 / 25.4) * 96);
