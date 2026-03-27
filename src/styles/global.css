@@ -4335,12 +4335,18 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	html:not(.cv-share-readonly) body {
 		overflow-x: clip;
 	}
+	/*
+	 * Paper fit: JS may set inline zoom on .cv-paper-stage (Chrome Android
+	 * after remount). Stylesheet stays the fallback when inline is absent.
+	 */
 	html:not(.cv-share-readonly) .cv-paper-stage:has(#cv-shell.cv-print-preview) {
 		width: var(--cv-paper-width);
 		max-width: var(--cv-paper-width);
 		margin: 0 auto;
+		box-sizing: border-box;
 		zoom: var(--cv-paper-scale);
-		transform-origin: top left;
+		transform-origin: top center;
+		overflow-x: clip;
 	}
 	@supports not (zoom: 1) {
 		/*

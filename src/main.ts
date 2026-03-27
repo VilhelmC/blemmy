@@ -117,6 +117,21 @@ function setupMainReviewWidthClamp(): void {
 	});
 }
 
+/**
+ * Layout runs at paper CSS px width; fit uses --cv-paper-scale + stage zoom/transform.
+ * `cv-layout-applied` can precede a committed frame (fonts, probes), so we refit
+ * across a couple of rAFs after any layout pass — filters, alternatives, resize, etc.
+ */
+function schedulePaperStageRefit(apply: () => void): void {
+	apply();
+	requestAnimationFrame(() => {
+		apply();
+		requestAnimationFrame(() => {
+			apply();
+		});
+	});
+}
+
 function setupPaperStageScale(readonlyMode: boolean): void {
 	const baseW = Math.round((210 / 25.4) * 96);
 	const apply = (): void => {
@@ -133,13 +148,25 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
 		const reserveRight = isDesktop && (appPanelOpen || shareReviewOpen) ? 344 : 0;
+		const horizPad = isDesktop ? 12 : 28;
+		const viewportBudget = Math.max(
+			Math.floor(viewW) - horizPad - reserveRight,
+			1,
+		);
 		const root = document.getElementById('cv-root');
-		const fromRoot =
+		const rawRoot =
 			root instanceof HTMLElement && root.clientWidth > 0
 				? root.clientWidth
 				: 0;
-		const fallback = Math.max(Math.floor(viewW) - 12 - reserveRight, 1);
-		const availableW = Math.max(1, fromRoot > 0 ? fromRoot : fallback);
+		/*
+		 * Never let "available" width exceed the visual viewport budget: after a
+		 * remount, #cv-root can report ~794px (paper intrinsic width) on some
+		 * engines, which would set --cv-paper-scale to 1 and crop on phones.
+		 */
+		const availableW = Math.max(
+			1,
+			rawRoot > 0 ? Math.min(rawRoot, viewportBudget) : viewportBudget,
+		);
 		const shell = document.getElementById('cv-shell');
 		const hasFixedPaperStage = readonlyMode ||
 			Boolean(shell?.classList.contains('cv-print-preview'));
@@ -152,11 +179,44 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			'--cv-paper-width',
 			`${baseW}px`,
 		);
+
+		const shareHtml = document.documentElement.classList.contains(
+			'cv-share-readonly',
+		);
+		const stage =
+			shell?.parentElement?.classList.contains('cv-paper-stage')
+				? shell.parentElement
+				: null;
+		const zoomSupported =
+			typeof CSS !== 'undefined' &&
+			typeof CSS.supports === 'function' &&
+			CSS.supports('zoom', '1');
+		if (stage instanceof HTMLElement) {
+			if (shareHtml || !hasFixedPaperStage) {
+				stage.style.removeProperty('zoom');
+				stage.style.removeProperty('width');
+				stage.style.removeProperty('max-width');
+			} else if (zoomSupported) {
+				/*
+				 * Chrome Android often loses stylesheet `zoom` after CV remounts
+				 * (e.g. tag filters). Inline zoom + A4 width keeps the stage scaled.
+				 */
+				stage.style.setProperty('zoom', String(scale));
+				stage.style.setProperty('width', `${baseW}px`);
+				stage.style.setProperty('max-width', `${baseW}px`);
+			} else {
+				stage.style.removeProperty('zoom');
+				stage.style.removeProperty('width');
+				stage.style.removeProperty('max-width');
+			}
+		}
 	};
 	apply();
 	window.addEventListener('resize', apply);
 	window.visualViewport?.addEventListener('resize', apply);
-	window.addEventListener('cv-layout-applied', apply);
+	window.addEventListener('cv-layout-applied', () => {
+		schedulePaperStageRefit(apply);
+	});
 	const observer = new MutationObserver(() => { apply(); });
 	observer.observe(document.body, {
 		subtree: true,
@@ -188,6 +248,15 @@ function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
 		return;
 	}
 	stage.append(shell);
+}
+
+/** Screen preview needs .cv-paper-stage so --cv-paper-scale applies after each remount. */
+function ensurePaperStageIfNeeded(): void {
+	const readonlyMode = isReadonlyLikeMode(appMode);
+	const portfolioEmbedMode = appMode === 'portfolioEmbed';
+	if (!readonlyMode && !portfolioEmbedMode) {
+		mountPaperStage(false);
+	}
 }
 
 function activateShell(shell: HTMLElement): void {
@@ -656,6 +725,16 @@ function mount(cv: CVData): void {
 		window.dispatchEvent(new Event('cv-layout-applied'));
 	}
 	persistSessionState();
+	/*
+	 * Android Chrome can measure viewport/root before the paper stage is layed
+	 * out; nudge scale application after the next frame(s).
+	 */
+	queueMicrotask(() => {
+		window.dispatchEvent(new Event('resize'));
+		requestAnimationFrame(() => {
+			window.dispatchEvent(new Event('resize'));
+		});
+	});
 }
 
 function applyData(cv: CVData, recordHistory = true): void {
@@ -864,9 +943,6 @@ async function boot(): Promise<void> {
 		}
 	}
 	mount(initialData);
-	if (!readonlyMode && !portfolioEmbedMode) {
-		mountPaperStage(false);
-	}
 	const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
 	window.addEventListener('cv-layout-applied', () => {
 		window.clearTimeout(bootTimeout);
