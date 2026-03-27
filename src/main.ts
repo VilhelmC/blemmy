@@ -33,6 +33,7 @@ import type { CVData }                  from '@cv/cv';
 
 import { renderCV }           from '@renderer/cv-renderer';
 import { initUIComponents, initSharedReviewComponents }   from '@renderer/ui-components';
+import { startUiManager } from '@renderer/ui-manager';
 import { initCvLayoutEngine } from '@lib/cv-layout-engine';
 
 declare global {
@@ -85,41 +86,6 @@ function isShareReviewModeEnabled(): boolean {
 	}
 }
 
-function setupSharedReadonlyScale(): void {
-	const baseW = Math.round((210 / 25.4) * 96);
-	const apply = (): void => {
-		const vv = window.visualViewport;
-		const viewW = vv?.width ?? window.innerWidth;
-		const reviewPanel = document.getElementById('blemmy-review-panel');
-		const reviewOpen = Boolean(
-			reviewPanel &&
-			!reviewPanel.hasAttribute('hidden') &&
-			window.matchMedia('(min-width: 901px)').matches,
-		);
-		const reserveRight = reviewOpen ? 344 : 0;
-		const availableW = Math.max(Math.floor(viewW) - 12 - reserveRight, 280);
-		const scale = Math.min(availableW / baseW, 1);
-		const scaledWidth = Math.max(Math.floor(baseW * scale), 280);
-		document.documentElement.style.setProperty(
-			'--cv-share-scale',
-			String(scale),
-		);
-		document.documentElement.style.setProperty(
-			'--cv-share-width',
-			`${scaledWidth}px`,
-		);
-	};
-	apply();
-	window.addEventListener('resize', apply);
-	window.visualViewport?.addEventListener('resize', apply);
-	const observer = new MutationObserver(() => { apply(); });
-	observer.observe(document.body, {
-		subtree: true,
-		attributes: true,
-		attributeFilter: ['hidden', 'class'],
-	});
-}
-
 function setupMainReviewWidthClamp(): void {
 	const mq = window.matchMedia('(min-width: 901px)');
 	let lastOverflowSig = '';
@@ -149,16 +115,77 @@ function setupMainReviewWidthClamp(): void {
 	});
 }
 
-function mountSharedStage(banner: HTMLElement): void {
+function setupPaperStageScale(sharedMode: boolean): void {
+	const baseW = Math.round((210 / 25.4) * 96);
+	const apply = (): void => {
+		const vv = window.visualViewport;
+		const viewW = vv?.width ?? window.innerWidth;
+		const isDesktop = window.matchMedia('(min-width: 901px)').matches;
+		const appPanelOpen = Boolean(
+			document.querySelector('.cv-side-panel:not([hidden])'),
+		);
+		const shareReviewPanel = document.getElementById('blemmy-review-panel');
+		const shareReviewOpen = Boolean(
+			sharedMode &&
+			shareReviewPanel &&
+			!shareReviewPanel.hasAttribute('hidden'),
+		);
+		const reserveRight = isDesktop && (appPanelOpen || shareReviewOpen) ? 344 : 0;
+		const root = document.getElementById('cv-root');
+		const fromRoot =
+			root instanceof HTMLElement && root.clientWidth > 0
+				? root.clientWidth
+				: 0;
+		const fallback = Math.max(Math.floor(viewW) - 12 - reserveRight, 1);
+		const availableW = Math.max(1, fromRoot > 0 ? fromRoot : fallback);
+		const shell = document.getElementById('cv-shell');
+		const hasFixedPaperStage = sharedMode ||
+			Boolean(shell?.classList.contains('cv-print-preview'));
+		const scale = hasFixedPaperStage ? Math.min(availableW / baseW, 1) : 1;
+		document.documentElement.style.setProperty(
+			'--cv-paper-scale',
+			String(scale),
+		);
+		document.documentElement.style.setProperty(
+			'--cv-paper-width',
+			`${baseW}px`,
+		);
+	};
+	apply();
+	window.addEventListener('resize', apply);
+	window.visualViewport?.addEventListener('resize', apply);
+	window.addEventListener('cv-layout-applied', apply);
+	const observer = new MutationObserver(() => { apply(); });
+	observer.observe(document.body, {
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['hidden', 'class'],
+	});
+}
+
+function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
 	const shell = document.getElementById('cv-shell');
 	if (!(shell instanceof HTMLElement) || !shell.parentElement) {
-		document.body.appendChild(banner);
+		if (banner) { document.body.appendChild(banner); }
+		return;
+	}
+	const existingStage = shell.parentElement;
+	if (existingStage.classList.contains('cv-paper-stage')) {
+		if (banner && banner.parentElement !== existingStage) {
+			existingStage.insertBefore(banner, shell);
+		}
 		return;
 	}
 	const stage = document.createElement('div');
-	stage.className = 'cv-share-stage';
+	stage.className = sharedMode
+		? 'cv-paper-stage cv-share-stage'
+		: 'cv-paper-stage';
 	shell.parentElement.insertBefore(stage, shell);
-	stage.append(banner, shell);
+	if (banner) {
+		stage.append(banner, shell);
+		return;
+	}
+	stage.append(shell);
 }
 
 function activateShell(shell: HTMLElement): void {
@@ -763,11 +790,12 @@ async function boot(): Promise<void> {
 	const sharedMode = Boolean(shareToken);
 	if (sharedMode) {
 		document.documentElement.classList.add('cv-share-readonly');
-		setupSharedReadonlyScale();
 	} else {
 		document.documentElement.classList.remove('cv-share-readonly');
 		document.documentElement.classList.remove('cv-share-host');
 	}
+	startUiManager();
+	setupPaperStageScale(sharedMode);
 	if (!sharedMode) {
 		await initPasswordlessAuthFromUrl();
 	}
@@ -814,6 +842,9 @@ async function boot(): Promise<void> {
 		}
 	}
 	mount(initialData);
+	if (!sharedMode) {
+		mountPaperStage(false);
+	}
 	const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
 	window.addEventListener('cv-layout-applied', () => {
 		window.clearTimeout(bootTimeout);
@@ -875,7 +906,7 @@ async function boot(): Promise<void> {
 			});
 		});
 		banner.append(label, copyBtn);
-		mountSharedStage(banner);
+		mountPaperStage(true, banner);
 		if (isShareReviewModeEnabled()) {
 			const isSmall = window.matchMedia('(max-width: 900px)').matches;
 			initSharedReviewComponents(!isSmall);

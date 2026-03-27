@@ -1177,19 +1177,37 @@ h1, h2, h3, h4 {
 		transition: background-color 0.2s ease;
 	}
 
+	#cv-root {
+		width:       100%;
+		max-width:   100%;
+		min-width:   0;
+		box-sizing: border-box;
+	}
+
 	.cv-shell {
 		max-width:     900px;
+		width:         100%;
+		min-width:     0;
 		margin-inline: auto;
 		background:    transparent;
+		box-sizing:    border-box;
 	}
 	.cv-ui-deck {
 		max-width:     900px;
+		width:         100%;
+		min-width:     0;
 		margin-inline: auto;
 		background:    transparent;
+		box-sizing:    border-box;
 	}
+	/*
+	 * Screen UI must stay within the viewport; only the shell/paper is A4-wide.
+	 * A fixed 210mm deck clips filters + layout alternatives on narrow screens.
+	 */
 	#cv-root:has(#cv-shell.cv-print-preview) .cv-ui-deck {
-		width: 210mm;
-		max-width: 210mm;
+		width:     100%;
+		max-width: min(210mm, 100%);
+		min-width: 0;
 	}
 
 	.cv-card {
@@ -1222,8 +1240,15 @@ h1, h2, h3, h4 {
 
 	.print-fab {
 		position:         fixed;
-		bottom:           2rem;
-		right:            2rem;
+		bottom:           calc(
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+			var(--cv-vv-bottom) +
+			(3rem * var(--cv-ui-zoom-comp))
+		);
+		right:            calc(
+			var(--cv-vv-right) +
+			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+		);
 		background-color: var(--color-sidebar);
 		color:            white;
 		font-family:      'DM Sans', sans-serif;
@@ -1237,15 +1262,19 @@ h1, h2, h3, h4 {
 		box-shadow:       0 2px 12px rgba(0,0,0,0.2);
 		transition:       transform 0.15s ease, box-shadow 0.15s ease;
 		z-index:          100;
+		transform-origin: right bottom;
+		--cv-print-fab-lift: 0px;
+		transform: scale(var(--cv-ui-zoom-comp))
+			translateY(var(--cv-print-fab-lift));
 	}
 
 	.print-fab:hover {
-		transform:  translateY(-1px);
+		--cv-print-fab-lift: -1px;
 		box-shadow: 0 4px 20px rgba(0,0,0,0.25);
 	}
 
 	/* Dark mode toggle button */
-	.theme-toggle {
+	.theme-toggle:not(.cv-dock-btn) {
 		position:         fixed;
 		bottom:           2rem;
 		right:            10rem;
@@ -1264,11 +1293,11 @@ h1, h2, h3, h4 {
 		z-index:          100;
 	}
 
-	.theme-toggle:hover {
+	.theme-toggle:not(.cv-dock-btn):hover {
 		border-color: var(--color-ink-muted);
 	}
 
-	.cv-view-mode-toggle {
+	.cv-view-mode-toggle:not(.cv-dock-btn) {
 		position:        fixed;
 		bottom:          2rem;
 		right:           15rem;
@@ -1287,7 +1316,7 @@ h1, h2, h3, h4 {
 		white-space:     nowrap;
 	}
 
-	.cv-view-mode-toggle:hover {
+	.cv-view-mode-toggle:not(.cv-dock-btn):hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink-mid);
 	}
@@ -1752,13 +1781,17 @@ html.cv-debug-mode .cv-sidebar > div {
 /* ─── Candidate selector ────────────────────────────────────────────────────── */
 @media screen {
 	.cv-candidate-selector {
-		display:         flex;
-		align-items:     center;
-		gap:             0.75rem;
-		padding:         0.55rem 0 0.65rem;
-		margin:          0 0 0.5rem;
-		font-family:     'DM Sans', sans-serif;
-		flex-wrap:       wrap;
+		display:                 grid;
+		grid-template-columns:   minmax(0, 1fr);
+		gap:                     0.45rem;
+		padding:                 0.55rem 0 0.65rem;
+		margin:                  0 0 0.5rem;
+		font-family:             'DM Sans', sans-serif;
+		width:                   100%;
+		max-width:               100%;
+		min-width:               0;
+		box-sizing:              border-box;
+		overflow:                visible;
 	}
 
 	.cv-candidate-selector__label {
@@ -1767,28 +1800,54 @@ html.cv-debug-mode .cv-sidebar > div {
 		letter-spacing: 0.18em;
 		text-transform: uppercase;
 		color:          var(--color-ink-muted);
-		white-space:    nowrap;
-		flex-shrink:    0;
+		min-width:      0;
+		max-width:      100%;
+		line-height:    1.25;
+		white-space:    normal;
+		overflow-wrap:  anywhere;
+		justify-self:   start;
 	}
 
 	.cv-candidate-options {
-		display:    flex;
-		gap:        0.4rem;
-		flex-wrap:  wrap;
+		display:         flex;
+		flex-flow:       row wrap;
+		gap:             0.4rem;
+		width:           100%;
+		min-width:       0;
+		max-width:       100%;
+		justify-self:    stretch;
+		overflow:        visible;
+		box-sizing:      border-box;
+		align-items:     flex-start;
+		align-content:   flex-start;
+		justify-content: flex-start;
+		height:          auto !important;
+		max-height:      none !important;
 	}
 
 	.cv-candidate-option {
-		padding:        0.3rem 0.75rem;
-		border:         1px solid var(--color-ink-border);
-		border-radius:  2rem;
-		background:     transparent;
-		font-family:    'DM Sans', sans-serif;
-		font-size:      0.65rem;
-		font-weight:    400;
-		color:          var(--color-ink-mid);
-		cursor:         pointer;
-		transition:     border-color 0.12s, background 0.12s, color 0.12s;
-		white-space:    nowrap;
+		box-sizing:      border-box;
+		display:         inline-flex;
+		justify-content: center;
+		align-items:     center;
+		padding:         0.3rem 0.75rem;
+		border:          1px solid var(--color-ink-border);
+		border-radius:   2rem;
+		background:      transparent;
+		font-family:     'DM Sans', sans-serif;
+		font-size:       0.65rem;
+		font-weight:     400;
+		color:           var(--color-ink-mid);
+		cursor:          pointer;
+		transition:      border-color 0.12s, background 0.12s, color 0.12s;
+		white-space:     normal;
+		overflow-wrap:   anywhere;
+		word-break:      break-word;
+		/* Flex default min-width:auto prevents wrap/shrink vs overflow-x:clip on body. */
+		flex:            0 1 auto;
+		min-width:       0;
+		max-width:       100%;
+		max-inline-size: 100%;
 	}
 	.cv-candidate-option:hover {
 		border-color: var(--color-ink-muted);
@@ -1802,6 +1861,41 @@ html.cv-debug-mode .cv-sidebar > div {
 	}
 	.cv-candidate-option__inner {
 		pointer-events: none;
+		min-width:      0;
+		overflow-wrap:  anywhere;
+		word-break:     break-word;
+		text-align:     center;
+	}
+
+	.cv-candidate-selector--s {
+		gap: 0.32rem;
+	}
+	.cv-candidate-selector--s .cv-candidate-selector__label {
+		font-size: 0.56rem;
+		letter-spacing: 0.14em;
+	}
+	.cv-candidate-selector--s .cv-candidate-options {
+		gap: 0.28rem;
+	}
+	.cv-candidate-selector--s .cv-candidate-option {
+		font-size: 0.6rem;
+		padding: 0.22rem 0.56rem;
+	}
+
+	.cv-candidate-selector--m .cv-candidate-options {
+		gap: 0.34rem;
+	}
+	.cv-candidate-selector--m .cv-candidate-option {
+		font-size: 0.63rem;
+		padding: 0.26rem 0.64rem;
+	}
+
+	.cv-candidate-selector--l .cv-candidate-options {
+		gap: 0.4rem;
+	}
+	.cv-candidate-selector--l .cv-candidate-option {
+		font-size: 0.65rem;
+		padding: 0.3rem 0.75rem;
 	}
 }
 
@@ -2063,7 +2157,7 @@ html.cv-embed-pdf .cv-pdf-modal {
 
 /* ─── Edit button + toolbar ─────────────────────────────────────────────────── */
 @media screen {
-	.cv-edit-btn {
+	.cv-edit-btn:not(.cv-dock-btn) {
 		position:      fixed;
 		bottom:        2rem;
 		left:          18.5rem;
@@ -2081,8 +2175,8 @@ html.cv-embed-pdf .cv-pdf-modal {
 		z-index:       101;
 		transition:    border-color 0.12s, background 0.12s, color 0.12s;
 	}
-	.cv-edit-btn:hover,
-	.cv-edit-btn--active {
+	.cv-edit-btn:not(.cv-dock-btn):hover,
+	.cv-edit-btn:not(.cv-dock-btn).cv-edit-btn--active {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
@@ -2263,7 +2357,7 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 		top:            0;
 		right:          0;
 		bottom:         0;
-		width:          240px;
+		width:          var(--cv-panel-w);
 		background:     var(--color-paper, #fff);
 		border-left:    1px solid var(--color-ink-border);
 		display:        flex;
@@ -2501,13 +2595,17 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 /* ─── Tag filter bar ─────────────────────────────────────────────────────────── */
 @media screen {
 	.cv-filter-bar {
-		display:     flex;
-		align-items: center;
-		gap:         0.5rem;
+		display:     grid;
+		grid-template-columns: 1fr;
+		gap:         0.35rem;
 		padding:     0.5rem 0 0.6rem;
 		margin:      0;
-		flex-wrap:   wrap;
 		font-family: 'DM Sans', sans-serif;
+		width:       100%;
+		max-width:   100%;
+		min-width:   0;
+		box-sizing:  border-box;
+		overflow:    visible;
 	}
 	.cv-filter-bar[hidden] { display: none; }
 
@@ -2525,6 +2623,12 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 		display:  flex;
 		gap:      0.3rem;
 		flex-wrap: wrap;
+		width:    100%;
+		min-width: 0;
+		max-width: 100%;
+		overflow: visible;
+		box-sizing: border-box;
+		align-items: flex-start;
 	}
 
 	.cv-filter-chip {
@@ -2537,7 +2641,10 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 		font-size:      0.62rem;
 		font-weight:    400;
 		cursor:         pointer;
-		white-space:    nowrap;
+		white-space:    normal;
+		overflow-wrap:  anywhere;
+		word-break:     break-word;
+		max-inline-size: 100%;
 		transition:     border-color 0.1s, background 0.1s, color 0.1s;
 	}
 	.cv-filter-chip:hover {
@@ -2660,7 +2767,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 
 /* ─── Chat trigger button ────────────────────────────────────────────────────── */
 @media screen {
-	.cv-chat-trigger {
+	.cv-chat-trigger:not(.cv-dock-btn) {
 		position:        fixed;
 		bottom:          2rem;
 		right:           6.5rem;
@@ -2678,8 +2785,8 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		z-index:         101;
 		transition:      border-color 0.15s, background 0.15s, color 0.15s;
 	}
-	.cv-chat-trigger:hover,
-	.cv-chat-trigger--open {
+	.cv-chat-trigger:not(.cv-dock-btn):hover,
+	.cv-chat-trigger:not(.cv-dock-btn).cv-chat-trigger--open {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
@@ -2688,12 +2795,116 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 
 /* ─── Chat panel ─────────────────────────────────────────────────────────────── */
 @media screen {
+	:root {
+		--cv-panel-w: 344px;
+		--cv-panel-h-mobile: min(48dvh, 20rem);
+	}
+
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop body {
+		padding-right: var(--cv-panel-w) !important;
+		box-sizing: border-box;
+		overflow-x: hidden;
+	}
+
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop #cv-root,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-shell,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-ui-deck {
+		width: 100% !important;
+		max-width: min(900px, calc(100vw - var(--cv-panel-w) - 2rem)) !important;
+		box-sizing: border-box;
+	}
+
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-shell,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-ui-deck {
+		margin-inline: auto !important;
+		min-width: 0 !important;
+	}
+
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
+	#cv-shell:not(.cv-print-preview) #cv-card,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
+	#cv-shell:not(.cv-print-preview) #cv-page-1,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
+	#cv-shell:not(.cv-print-preview) #cv-page-2,
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
+	#cv-shell:not(.cv-print-preview) .cv-page .cv-grid {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box;
+	}
+
+	.cv-side-panel {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: var(--cv-panel-w);
+		max-width: calc(100vw - 1rem);
+	}
+
+	/*
+	 * Unified right-edge docked panel definition (edit/review/assistant).
+	 * Shared geometry keeps all panel kinds aligned.
+	 */
+	.cv-unified-side-panel {
+		position: fixed !important;
+		top: 0 !important;
+		right: 0 !important;
+		bottom: 0 !important;
+		left: auto !important;
+		width: var(--cv-panel-w) !important;
+		max-width: calc(100vw - 1rem) !important;
+	}
+
+	html.cv-panel-mobile .cv-side-panel {
+		width: 100vw;
+		height: var(--cv-panel-h-mobile);
+		max-width: 100vw;
+		top: auto;
+		right: 0;
+		bottom: 0;
+		left: auto;
+		border-left: none !important;
+		border-top: 1px solid var(--color-ink-border);
+	}
+
+	html.cv-panel-mobile body {
+		padding-bottom: calc(var(--cv-panel-h-mobile) + 0.8rem) !important;
+	}
+
+	/* Mobile flow host for docked panels (pushes page down, no overlap). */
+	#cv-mobile-docked-panel-flow {
+		display: block;
+		width: min(100vw, 900px);
+		margin: 0 auto;
+	}
+	#cv-mobile-docked-panel-flow[hidden] {
+		display: none !important;
+	}
+	html.cv-mobile-docked-panel-open.cv-panel-mobile body {
+		padding-bottom: 0 !important;
+	}
+	html.cv-mobile-docked-panel-open.cv-panel-mobile .cv-unified-side-panel {
+		position: relative !important;
+		top: auto !important;
+		right: auto !important;
+		bottom: auto !important;
+		left: auto !important;
+		width: 100% !important;
+		max-width: 100% !important;
+		height: var(--cv-panel-h-mobile) !important;
+		margin: 0.45rem auto 0.85rem !important;
+		border-left: none !important;
+		border-top: 1px solid var(--color-ink-border);
+	}
+
 	.cv-chat-panel {
 		position:       fixed;
 		top:            0;
 		right:          0;
 		bottom:         0;
-		width:          340px;
+		width:          var(--cv-panel-w);
 		background:     var(--color-paper, #fff);
 		border-left:    1px solid var(--color-ink-border);
 		display:        flex;
@@ -3047,10 +3258,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	.cv-chat-send:hover    { opacity: 0.82; }
 	.cv-chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
 
-	/* When chat panel is open, shift shell left to prevent overlap */
-	body:has(.cv-chat-panel:not([hidden])) .cv-shell {
-		margin-right: 344px;
-	}
+	/* Unified panel state now handles shell width and reserve space. */
 }
 
 /* ─── Chat upload button ─────────────────────────────────────────────────────── */
@@ -3237,6 +3445,41 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 
 /* ─── Unified docked controls (v2) ─────────────────────────────────────────── */
 @media screen {
+	.cv-docked-popover {
+		position: fixed !important;
+		left: calc(
+			var(--cv-vv-left) +
+			(1rem * var(--cv-ui-zoom-comp))
+		) !important;
+		right: auto !important;
+		top: calc(
+			var(--cv-vv-top) +
+			(1rem * var(--cv-ui-zoom-comp))
+		) !important;
+		bottom: calc(
+			var(--cv-vv-bottom) +
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+			var(--cv-mobile-utility-h) +
+			(0.45rem * var(--cv-ui-zoom-comp))
+		) !important;
+		width: min(22rem, calc(100vw - 2rem)) !important;
+		max-width: min(22rem, calc(100vw - 2rem)) !important;
+		z-index: 221 !important;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+	.cv-docked-popover[hidden] {
+		display: none !important;
+		pointer-events: none !important;
+	}
+
+	#cv-prefs-panel .cv-prefs-inner,
+	#cv-cloud-drawer .cv-cloud-drawer__inner {
+		min-height: 0;
+		overflow-y: auto;
+	}
+
 	.cv-chat-panel .cv-recent-changes {
 		position: relative;
 		left: auto;
@@ -3439,28 +3682,61 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	}
 
 	:root {
+		/* Keep concrete fallback first; second line overrides when env() works. */
 		--cv-ui-dock-bottom: 1rem;
+		--cv-ui-dock-bottom: max(1rem, env(safe-area-inset-bottom));
+		--cv-ui-dock-edge: 1rem;
+		--cv-ui-dock-edge: max(1rem, env(safe-area-inset-left));
+		--cv-vv-left: 0px;
+		--cv-vv-right: 0px;
+		--cv-vv-bottom: 0px;
+		--cv-vv-top: 0px;
+		--cv-vv-width: 100vw;
+		--cv-vv-height: 100dvh;
+		--cv-vv-scale: 1;
+		--cv-ui-zoom-comp: 1;
+		--cv-paper-scale: 1;
+		--cv-paper-width: 794px;
+		--cv-dock-handle-w: 1.2rem;
+		--cv-dock-peek-gap: 6px;
+		--cv-dock-peek-handle-space-l: 24px;
+		--cv-dock-peek-handle-space-r: 24px;
+		--cv-dock-peek-slide-l: 120px;
+		--cv-dock-peek-slide-r: 120px;
+		--cv-mobile-utility-h: 0px;
 	}
 
 	.cv-history-controls {
-		display:     flex;
+		display: flex;
+		align-items: stretch;
+		gap: 0.35rem;
+	}
+
+	.cv-dock-btn {
+		height: 2.1rem;
+		padding: 0.3rem 0.68rem;
+		border: 1px solid var(--color-ink-border);
+		border-radius: 2rem;
+		background: transparent;
+		color: var(--color-ink-muted);
+		font-family: 'DM Sans', sans-serif;
+		font-size: 0.64rem;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+		white-space: nowrap;
+		display: inline-flex;
 		align-items: center;
-		gap:         0.35rem;
+		justify-content: center;
+		gap: 0.35rem;
+		transition: border-color 0.12s, color 0.12s, opacity 0.12s, background 0.12s;
+		position: relative;
+		box-sizing: border-box;
 	}
 
 	.cv-history-btn {
-		padding:       0.3rem 0.6rem;
-		border:        1px solid var(--color-ink-border);
-		border-radius: 2rem;
-		background:    transparent;
-		color:         var(--color-ink-muted);
-		font-family:   'DM Sans', sans-serif;
-		font-size:     0.6rem;
-		font-weight:   500;
-		letter-spacing: 0.04em;
-		cursor:        pointer;
-		white-space:   nowrap;
-		transition:    border-color 0.12s, color 0.12s, opacity 0.12s;
+		padding: 0.3rem 0.68rem;
+		font-size: 0.64rem;
 	}
 
 	.cv-history-btn:hover {
@@ -3493,28 +3769,158 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		cursor:  not-allowed;
 	}
 
-	#cv-ui-dock-left,
-	#cv-ui-dock-right {
-		position: fixed;
-		bottom: var(--cv-ui-dock-bottom);
-		display: flex;
-		align-items: center;
-		gap: 0.55rem;
-		z-index: 220;
-		padding: 0.35rem 0.55rem;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.68);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
-		backdrop-filter: blur(6px) saturate(115%);
-		-webkit-backdrop-filter: blur(6px) saturate(115%);
+	.cv-ui-dock__rail {
+		display:         flex;
+		align-items:     center;
+		flex-wrap:       nowrap;
+		gap:             0.55rem;
+		min-width:       0;
+		flex:            1 1 auto;
 	}
 
-	#cv-ui-dock-left { left: 1rem; }
-	#cv-ui-dock-right { right: 1rem; }
+	.cv-ui-dock__handle {
+		display:         none;
+		flex-shrink:     0;
+		align-items:     center;
+		justify-content: center;
+		box-sizing:      border-box;
+		width:           var(--cv-dock-handle-w);
+		min-width:       var(--cv-dock-handle-w);
+		min-height:      2.65rem;
+		margin:          0;
+		padding:         0;
+		border:          none;
+		border-radius:   999px;
+		background:      rgba(0, 0, 0, 0.07);
+		color:           var(--color-ink-muted);
+		font-family:     'DM Sans', sans-serif;
+		font-size:       0.75rem;
+		font-weight:     600;
+		line-height:     1;
+		cursor:          pointer;
+		box-shadow:      0 1px 5px rgba(0, 0, 0, 0.1);
+		z-index:         2;
+		-webkit-tap-highlight-color: transparent;
+	}
 
-	.dark #cv-ui-dock-left,
-	.dark #cv-ui-dock-right {
+	.dark .cv-ui-dock__handle {
+		background: rgba(255, 255, 255, 0.1);
+		color:      var(--color-ink-mid);
+	}
+
+	/*
+	 * Anchors sit at viewport edges; handles are outside the glass .cv-ui-dock
+	 * shell so they stay pinned to the edge while strips translate off-screen.
+	 */
+	.cv-ui-dock-anchor--left,
+	.cv-ui-dock-anchor--right {
+		position:       fixed;
+		top:            auto;
+		bottom:         calc(
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+			var(--cv-vv-bottom)
+		);
+		z-index:        220;
+		display:        flex;
+		align-items:    flex-end;
+		flex-wrap:      nowrap;
+		gap:            0.55rem;
+		pointer-events: none;
+		max-height:     calc(100dvh - (2 * var(--cv-ui-dock-bottom)));
+	}
+
+	.cv-ui-dock-anchor--left > *,
+	.cv-ui-dock-anchor--right > * {
+		pointer-events: auto;
+	}
+
+	.cv-ui-dock-anchor--left {
+		left:           calc(
+			var(--cv-vv-left) +
+			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+		);
+		right:          auto;
+		flex-direction: row;
+	}
+
+	.cv-ui-dock-anchor--right {
+		right:          calc(
+			var(--cv-vv-right) +
+			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+		);
+		left:           auto;
+		flex-direction: row;
+	}
+
+	.cv-ui-dock-anchor .cv-ui-dock__handle {
+		transform:        scale(var(--cv-ui-zoom-comp));
+		flex-shrink:      0;
+		align-self:       flex-end;
+	}
+
+	.cv-ui-dock-anchor--left .cv-ui-dock__handle {
+		transform-origin: left bottom;
+	}
+
+	.cv-ui-dock-anchor--right .cv-ui-dock__handle {
+		transform-origin: right bottom;
+	}
+
+	/*
+	 * Outer .cv-ui-dock: slide transform only (peek). Zoom compensation lives on
+	 * .cv-ui-dock__zoom-shell so translation is not coupled to scale().
+	 */
+	#cv-ui-dock-left,
+	#cv-ui-dock-right {
+		position:     relative;
+		left:         auto;
+		right:        auto;
+		top:          auto;
+		display:      inline-flex;
+		align-items:  flex-end;
+		flex-wrap:    nowrap;
+		flex:         0 1 auto;
+		max-height:   inherit;
+		box-sizing:   border-box;
+	}
+
+	.cv-ui-dock .cv-ui-dock__zoom-shell {
+		display:         flex;
+		align-items:     center;
+		flex-wrap:       nowrap;
+		gap:             0.55rem;
+		min-width:       0;
+		box-sizing:      border-box;
+		padding:         0.35rem 0.55rem;
+		border-radius:   999px;
+		background:      rgba(255, 255, 255, 0.68);
+		border:          1px solid rgba(0, 0, 0, 0.08);
+		box-shadow:      0 4px 18px rgba(0, 0, 0, 0.08);
+		backdrop-filter: blur(6px) saturate(115%);
+		-webkit-backdrop-filter: blur(6px) saturate(115%);
+		max-width:       calc(44vw - 1rem);
+		max-height:      calc(100dvh - (2 * var(--cv-ui-dock-bottom)));
+		overflow-y:      auto;
+		overflow-x:      hidden;
+		transform:       scale(var(--cv-ui-zoom-comp));
+	}
+
+	#cv-ui-dock-left .cv-ui-dock__zoom-shell {
+		transform-origin: left bottom;
+		max-width: calc(100vw - var(--cv-ui-dock-edge) - 50vw);
+	}
+	#cv-ui-dock-right .cv-ui-dock__zoom-shell {
+		transform-origin: right bottom;
+		max-width: calc(100vw - var(--cv-ui-dock-edge) - 50vw);
+	}
+
+	#cv-ui-dock-left .cv-dock-btn,
+	#cv-ui-dock-right .cv-dock-btn {
+		min-width: 2.1rem;
+	}
+
+	.dark #cv-ui-dock-left .cv-ui-dock__zoom-shell,
+	.dark #cv-ui-dock-right .cv-ui-dock__zoom-shell {
 		background: rgba(24, 24, 24, 0.58);
 		border-color: rgba(255, 255, 255, 0.12);
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -3524,19 +3930,64 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	#cv-ui-dock-left .cv-layout-debug-toggle,
 	#cv-ui-dock-left .cv-prefs-trigger,
 	#cv-ui-dock-left .cv-upload-btn,
-	#cv-ui-dock-left .cv-edit-btn,
 	#cv-ui-dock-left .cv-download-json-btn,
+	#cv-ui-dock-right .cv-edit-btn,
+	#cv-ui-dock-right .blemmy-review-toggle,
+	#cv-ui-dock-right .cv-layout-debug-toggle,
 	#cv-ui-dock-right .cv-view-mode-toggle,
 	#cv-ui-dock-right .theme-toggle,
-	#cv-ui-dock-right .print-fab,
 	#cv-ui-dock-right .cv-chat-trigger,
 	#cv-ui-dock-right .cv-cloud-dock-trigger {
-		position: static !important;
+		position: relative !important;
 		left: auto !important;
 		right: auto !important;
 		bottom: auto !important;
 		top: auto !important;
 		margin: 0 !important;
+		width: auto !important;
+		height: 2.1rem !important;
+		padding: 0.3rem 0.68rem !important;
+		font-size: 0.64rem !important;
+		border-radius: 2rem !important;
+		z-index: auto !important;
+	}
+
+	#cv-ui-dock-left .cv-dock-btn::before,
+	#cv-ui-dock-right .cv-dock-btn::before {
+		content: attr(data-icon);
+		font-size: 1.08rem;
+		line-height: 1;
+		display: inline-block;
+		transform: translateY(0.02rem);
+		flex-shrink: 0;
+	}
+
+	#cv-ui-dock-left .cv-dock-btn,
+	#cv-ui-dock-right .cv-dock-btn {
+		min-width: 2.1rem;
+	}
+
+	#cv-ui-dock-left .cv-dock-btn,
+	#cv-ui-dock-right .cv-dock-btn {
+		line-height: 1;
+		z-index: auto !important;
+	}
+
+	#cv-ui-dock-left.cv-ui-dock--compact .cv-dock-btn,
+	#cv-ui-dock-right.cv-ui-dock--compact .cv-dock-btn {
+		width: 2.1rem !important;
+		height: 2.1rem !important;
+		padding: 0 !important;
+		font-size: 0 !important;
+		justify-content: center;
+	}
+
+	#cv-ui-dock-left.cv-ui-dock--compact [data-icon]::before,
+	#cv-ui-dock-right.cv-ui-dock--compact [data-icon]::before {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
 	}
 
 	/* Keep auxiliary panels above dock, away from CV center. */
@@ -3572,25 +4023,317 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		left: 1rem !important;
 		right: auto !important;
 		bottom: calc(var(--cv-ui-dock-bottom) + 3.2rem) !important;
+		bottom: calc(
+			var(--cv-vv-bottom) +
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+			var(--cv-mobile-utility-h) +
+			(0.45rem * var(--cv-ui-zoom-comp))
+		) !important;
 		max-width: min(22rem, calc(100vw - 2rem)) !important;
 		z-index: 221;
 	}
 }
 
 @media screen and (max-width: 1100px) {
-	#cv-ui-dock-left,
-	#cv-ui-dock-right {
+	/*
+	 * Narrow: anchor is only as wide as the handle; the glass dock is
+	 * absolutely positioned and translates fully off-screen when collapsed.
+	 */
+	.cv-ui-dock-anchor--left {
+		display:         flex;
+		flex-direction:  row;
+		align-items:     flex-end;
+		width:           max-content;
+		max-width:       100%;
+	}
+	.cv-ui-dock-anchor--right {
+		display:         flex;
+		flex-direction:  row;
+		justify-content: flex-end;
+		width:           max-content;
+		max-width:       100%;
+	}
+	.cv-ui-dock-anchor .cv-ui-dock__handle {
+		display:     inline-flex;
+		position:    relative;
+		z-index:     3;
+	}
+	#cv-ui-dock-left.cv-ui-dock--peek,
+	#cv-ui-dock-right.cv-ui-dock--peek {
+		position:    absolute;
+		bottom:      0;
+		transition:  transform 0.22s ease;
+	}
+	#cv-ui-dock-left.cv-ui-dock--peek {
+		left:        var(--cv-dock-peek-handle-space-l);
+		right:       auto;
+	}
+	#cv-ui-dock-right.cv-ui-dock--peek {
+		right:       var(--cv-dock-peek-handle-space-r);
+		left:        auto;
+	}
+	/*
+	 * Peek slide uses px from JS: shell getBoundingClientRect().width plus
+	 * clearance, so distance matches fixed-position + pinch-zoom coordinates.
+	 */
+	#cv-ui-dock-left.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+		transform: translateX(calc(-1 * var(--cv-dock-peek-slide-l)));
+		pointer-events: none;
+	}
+	#cv-ui-dock-right.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+		transform: translateX(var(--cv-dock-peek-slide-r));
+		pointer-events: none;
+	}
+	#cv-ui-dock-left.cv-ui-dock--peek.cv-ui-dock--expanded,
+	.cv-ui-dock-anchor--left:hover
+		#cv-ui-dock-left.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+		transform:       translateX(0);
+		pointer-events:  auto;
+	}
+	#cv-ui-dock-right.cv-ui-dock--peek.cv-ui-dock--expanded,
+	.cv-ui-dock-anchor--right:hover
+		#cv-ui-dock-right.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+		transform:       translateX(0);
+		pointer-events:  auto;
+	}
+	#cv-ui-dock-left.cv-ui-dock--peek .cv-ui-dock__rail,
+	#cv-ui-dock-right.cv-ui-dock--peek .cv-ui-dock__rail {
 		flex-direction: column;
-		align-items: stretch;
+		align-items:    stretch;
+		flex-wrap:      nowrap;
+	}
+	.cv-ui-dock__handle--left::after {
+		content: '›';
+	}
+	.cv-ui-dock__handle--right::after {
+		content: '‹';
+	}
+	.cv-ui-dock-anchor--left:has(#cv-ui-dock-left.cv-ui-dock--expanded)
+		.cv-ui-dock__handle--left::after {
+		content: '‹';
+	}
+	.cv-ui-dock-anchor--right:has(#cv-ui-dock-right.cv-ui-dock--expanded)
+		.cv-ui-dock__handle--right::after {
+		content: '›';
 	}
 
-	#cv-ui-dock-right {
-		right: 0.65rem;
+	#cv-ui-dock-left .cv-history-controls {
+		flex-direction: column;
+		width: 100%;
 	}
 
-	#cv-ui-dock-right .cv-view-mode-toggle,
-	#cv-ui-dock-right .print-fab {
+	#cv-ui-dock-left .cv-dock-btn,
+	#cv-ui-dock-right .cv-dock-btn {
+		width: 2.1rem;
+		height: 2.1rem;
+		padding: 0;
+		font-size: 0;
+		line-height: 1;
 		justify-content: center;
+	}
+
+	#cv-ui-dock-left [data-icon]::before,
+	#cv-ui-dock-right [data-icon]::before {
+		content: attr(data-icon);
+		font-size: 1.08rem;
+		line-height: 1;
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		display: block;
+		pointer-events: none;
+	}
+
+	/* Print + About: centered column above docks (narrow screens). */
+	#print-fab,
+	#cv-download-pdf.print-fab {
+		position: fixed !important;
+		left: calc(
+			var(--cv-vv-left) + var(--cv-vv-width) * 0.5
+		) !important;
+		right: auto !important;
+		top: auto !important;
+		bottom: calc(
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+			var(--cv-vv-bottom) +
+			(0.35rem * var(--cv-ui-zoom-comp)) +
+			(2.85rem * var(--cv-ui-zoom-comp))
+		) !important;
+		z-index: 226;
+		transform-origin: center bottom;
+		transform: translateX(-50%) scale(var(--cv-ui-zoom-comp))
+			translateY(var(--cv-print-fab-lift, 0px));
+	}
+
+	#cv-download-pdf.print-fab #cv-download-pdf-label {
+		font-size: 0.62rem;
+	}
+
+	html.cv-mobile-utility-active #cv-ui-dock-left-anchor,
+	html.cv-mobile-utility-active #cv-ui-dock-right-anchor,
+	html.cv-mobile-utility-active #print-fab,
+	html.cv-mobile-utility-active #cv-download-pdf.print-fab {
+		display: none !important;
+	}
+}
+
+@media screen and (max-width: 760px) {
+	html.cv-mobile-utility-active:not(.cv-share-readonly) body {
+		padding-bottom: calc(
+			var(--cv-mobile-utility-h) +
+			var(--cv-vv-bottom) +
+			0.65rem
+		) !important;
+	}
+}
+
+@media screen {
+	.cv-mobile-utility-bar {
+		position: fixed;
+		left: calc(
+			var(--cv-vv-left) +
+			(0.55rem * var(--cv-ui-zoom-comp))
+		);
+		right: calc(
+			var(--cv-vv-right) +
+			(0.55rem * var(--cv-ui-zoom-comp))
+		);
+		bottom: calc(
+			var(--cv-vv-bottom) +
+			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp))
+		);
+		z-index: 240;
+		transform-origin: center bottom;
+		transform: scale(var(--cv-ui-zoom-comp));
+	}
+	.cv-mobile-utility-bar[hidden] {
+		display: none !important;
+	}
+	.cv-mobile-utility-bar__row {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.45rem;
+		padding: 0.45rem;
+		border-radius: 0.9rem;
+		background: rgba(255, 255, 255, 0.78);
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
+		backdrop-filter: blur(7px) saturate(120%);
+		-webkit-backdrop-filter: blur(7px) saturate(120%);
+	}
+	.cv-mobile-utility-bar__btn {
+		min-height: 2.35rem;
+		padding: 0.26rem 0.45rem;
+		border-radius: 0.8rem;
+		border: 1px solid var(--color-ink-border);
+		background: rgba(255, 255, 255, 0.84);
+		color: var(--color-ink-mid);
+		font-family: 'DM Sans', sans-serif;
+		font-size: 0.64rem;
+		font-weight: 600;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.32rem;
+	}
+	.cv-mobile-utility-bar__btn::before {
+		content: attr(data-icon);
+		font-size: 0.96rem;
+		line-height: 1;
+	}
+	.cv-mobile-utility-sheet {
+		position: fixed;
+		inset: 0;
+		z-index: 245;
+	}
+	.cv-mobile-utility-sheet[hidden] {
+		display: none !important;
+	}
+	.cv-mobile-utility-sheet__backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		background: rgba(0, 0, 0, 0.32);
+	}
+	.cv-mobile-utility-sheet__panel {
+		position: absolute;
+		left: max(0.7rem, var(--cv-vv-left));
+		right: max(0.7rem, var(--cv-vv-right));
+		bottom: calc(
+			var(--cv-vv-bottom) +
+			var(--cv-mobile-utility-h) +
+			0.45rem
+		);
+		border-radius: 0.95rem;
+		background: rgba(255, 255, 255, 0.96);
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+		padding: 0.6rem;
+		max-height: 62dvh;
+		overflow: auto;
+		transform-origin: bottom center;
+		transform: scale(var(--cv-ui-zoom-comp));
+	}
+	.cv-mobile-utility-sheet__head {
+		font: 600 0.72rem 'DM Sans', sans-serif;
+		color: var(--color-ink-mid);
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		margin: 0 0 0.45rem;
+	}
+	.cv-mobile-utility-sheet__body {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.45rem;
+	}
+	.dark .cv-mobile-utility-bar__row {
+		background: rgba(24, 24, 24, 0.72);
+		border-color: rgba(255, 255, 255, 0.12);
+	}
+	.dark .cv-mobile-utility-bar__btn {
+		background: rgba(30, 30, 30, 0.9);
+		border-color: rgba(255, 255, 255, 0.16);
+		color: #e5e7eb;
+	}
+	.dark .cv-mobile-utility-sheet__panel {
+		background: rgba(22, 22, 22, 0.96);
+		border-color: rgba(255, 255, 255, 0.14);
+	}
+	.dark .cv-mobile-utility-sheet__head {
+		color: #cbd5e1;
+	}
+}
+
+@media screen {
+	html,
+	html:not(.cv-share-readonly) body {
+		overflow-x: clip;
+	}
+	html:not(.cv-share-readonly) .cv-paper-stage:has(#cv-shell.cv-print-preview) {
+		width: var(--cv-paper-width);
+		max-width: var(--cv-paper-width);
+		margin: 0 auto;
+		zoom: var(--cv-paper-scale);
+		transform-origin: top left;
+	}
+	@supports not (zoom: 1) {
+		/*
+		 * Firefox fallback: shrink the stage layout box to scaled width, then
+		 * transform the stage content. This prevents horizontal overflow.
+		 */
+		html:not(.cv-share-readonly) .cv-paper-stage:has(#cv-shell.cv-print-preview) {
+			width: calc(var(--cv-paper-width) * var(--cv-paper-scale));
+			max-width: calc(var(--cv-paper-width) * var(--cv-paper-scale));
+			transform: scale(var(--cv-paper-scale));
+			transform-origin: top left;
+		}
+	}
+}
+
+@media screen and (max-width: 900px) {
+	html:not(.cv-share-readonly) body {
+		padding: 0.4rem !important;
 	}
 }
 
@@ -3665,27 +4408,15 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		border-right-color: #333;
 	}
 
-	.cv-cloud-dock-trigger {
-		position:         relative;
-		width:            2.5rem;
-		height:           2.5rem;
-		border-radius:    50%;
-		border:           1px solid var(--color-ink-border);
-		background:       transparent;
-		color:            var(--color-ink-muted);
-		font-size:        1.1rem;
-		cursor:           pointer;
-		display:          flex;
-		align-items:      center;
-		justify-content:  center;
-		transition:       border-color 0.15s, color 0.15s, background 0.15s;
+	.cv-cloud-dock-trigger:not(.cv-dock-btn) {
+		transition: border-color 0.15s, color 0.15s, background 0.15s;
 	}
-	.cv-cloud-dock-trigger:hover,
-	.cv-cloud-dock-trigger--open {
+	.cv-cloud-dock-trigger:not(.cv-dock-btn):hover,
+	.cv-cloud-dock-trigger:not(.cv-dock-btn).cv-cloud-dock-trigger--open {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
-	.cv-cloud-dock-trigger--open {
+	.cv-cloud-dock-trigger:not(.cv-dock-btn).cv-cloud-dock-trigger--open {
 		background: var(--color-ink-border);
 	}
 	.cv-cloud-drawer__sync {
@@ -4110,11 +4841,48 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 @media screen {
 	.cv-about-corner-btn {
 		position: fixed;
-		top: 1rem;
-		left: 0.65rem;
+		top: calc(var(--cv-vv-top) + (1rem * var(--cv-ui-zoom-comp)));
+		left: calc(
+			var(--cv-vv-left) +
+			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+		);
 		z-index: 250;
-		padding-inline: 0.55rem;
-		min-height: 1.75rem;
+		padding-inline: 0.7rem;
+		min-height: 2.1rem;
+		border-radius: 999px;
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		background: rgba(255, 255, 255, 0.76);
+		color: var(--color-ink-mid);
+		backdrop-filter: blur(6px) saturate(115%);
+		-webkit-backdrop-filter: blur(6px) saturate(115%);
+		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+		transform: scale(var(--cv-ui-zoom-comp));
+		transform-origin: left top;
+	}
+	.cv-about-corner-btn:hover {
+		border-color: var(--color-ink-muted);
+		color: var(--color-ink);
+	}
+	.dark .cv-about-corner-btn {
+		background: rgba(24, 24, 24, 0.62);
+		border-color: rgba(255, 255, 255, 0.16);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+	}
+	@media (max-width: 1100px) {
+		.cv-about-corner-btn {
+			top: auto;
+			left: calc(
+				var(--cv-vv-left) + var(--cv-vv-width) * 0.5
+			);
+			bottom: calc(
+				(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
+				var(--cv-vv-bottom) +
+				(0.35rem * var(--cv-ui-zoom-comp))
+			);
+			transform: translateX(-50%) scale(var(--cv-ui-zoom-comp));
+			transform-origin: center bottom;
+			z-index: 219;
+		}
 	}
 
 	.cv-about-modal {
@@ -4324,6 +5092,8 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		}
 	}
 
+	html.cv-share-readonly #cv-ui-dock-left-anchor,
+	html.cv-share-readonly #cv-ui-dock-right-anchor,
 	html.cv-share-readonly #cv-ui-dock-left,
 	html.cv-share-readonly #cv-ui-dock-right,
 	html.cv-share-readonly #cv-layout-status,
@@ -4338,8 +5108,8 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	}
 
 	html.cv-share-readonly {
-		--cv-share-scale: min(1, calc((100vw - 12px) / 794));
-		--cv-share-width: 900px;
+		--cv-paper-scale: min(1, calc((100vw - 12px) / 794));
+		--cv-paper-width: 794px;
 	}
 
 	html.cv-share-readonly body {
@@ -4348,7 +5118,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		overflow-x: auto;
 	}
 
-	html.cv-share-readonly .cv-share-stage {
+	html.cv-share-readonly .cv-paper-stage {
 		width: 210mm;
 		max-width: 210mm;
 		margin: 0 auto;
@@ -4367,13 +5137,13 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		margin: 0;
 	}
 
-	html.cv-share-readonly .cv-share-stage {
-		zoom: var(--cv-share-scale);
+	html.cv-share-readonly .cv-paper-stage {
+		zoom: var(--cv-paper-scale);
 	}
 
 	@supports not (zoom: 1) {
-		html.cv-share-readonly .cv-share-stage {
-			transform: scale(var(--cv-share-scale));
+		html.cv-share-readonly .cv-paper-stage {
+			transform: scale(var(--cv-paper-scale));
 			transform-origin: top left;
 		}
 	}

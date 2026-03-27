@@ -44,7 +44,7 @@
 				var vw = (window.visualViewport && window.visualViewport.width)
 					? window.visualViewport.width
 					: window.innerWidth;
-				var available = Math.max(Math.floor(vw) - 12, 280);
+				var available = Math.max(Math.floor(vw) - 12, 1);
 				var scale = Math.min(1, available / base);
 				document.documentElement.style
 					.setProperty('--cv-share-scale', String(scale));

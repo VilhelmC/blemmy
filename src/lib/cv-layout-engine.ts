@@ -869,6 +869,7 @@ export function initCvLayoutEngine(): () => void {
 	let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 	let layoutRunning = false;
 	let layoutQueued = false;
+	let lastResizeSignature = '';
 
 	// Current preferences (mutable, updated by event listener)
 	let prefs: CvPreferences = loadPrefs();
@@ -877,6 +878,18 @@ export function initCvLayoutEngine(): () => void {
 	let lastScoredCandidates: ScoredCandidate[] = [];
 	let lastProfiles: SectionProfileMap | null  = null;
 	let lastWorkItems: HTMLElement[]             = [];
+
+	function widthSignature(): string {
+		const grid = els.page1.querySelector('.cv-grid') as HTMLElement | null;
+		/*
+		 * Use layout-space widths (offset/client) so viewport zoom/scale changes
+		 * do not appear as paper-layout changes.
+		 */
+		const shellW = Math.round(els.shell.offsetWidth * 10) / 10;
+		const pageW = Math.round(els.page1.offsetWidth * 10) / 10;
+		const gridW = Math.round((grid?.clientWidth ?? 0) * 10) / 10;
+		return `${shellW}|${pageW}|${gridW}`;
+	}
 
 	function layoutTargetActive(): boolean {
 		return (
@@ -1309,6 +1322,7 @@ export function initCvLayoutEngine(): () => void {
 			layoutQueued = true;
 			return;
 		}
+		lastResizeSignature = widthSignature();
 		layoutRunning = true;
 		void applyLayout()
 			.finally(() => {
@@ -1325,6 +1339,13 @@ export function initCvLayoutEngine(): () => void {
 
 	function scheduleLayout(): void {
 		if (!els.card.isConnected || !els.shell.isConnected) { return; }
+		/*
+		 * Screen resize alone should not retrigger expensive layout search unless
+		 * the fixed paper layout target is active (print preview / print media).
+		 */
+		if (!layoutTargetActive()) { return; }
+		const sig = widthSignature();
+		if (sig === lastResizeSignature) { return; }
 		if (resizeTimer) { clearTimeout(resizeTimer); }
 		resizeTimer = setTimeout(() => { requestLayout(); }, RESIZE_MS);
 	}

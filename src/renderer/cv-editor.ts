@@ -41,6 +41,7 @@ import {
 	savePortraitLocalCache,
 } from '@lib/cv-portrait';
 import { clearLegacyPortraitStorage } from '@lib/cv-loader';
+import { DOCKED_SIDE_PANEL_CLASS } from '@renderer/docked-side-panels';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -840,7 +841,10 @@ function buildSidePanel(
 	const hiddenWork  = vis.hiddenWork      ?? [];
 	const hiddenSects = vis.hiddenSections  ?? [];
 
-	const panel = h('div', { id: 'cv-edit-panel', class: 'cv-edit-panel no-print' });
+	const panel = h('div', {
+		id: 'cv-edit-panel',
+		class: `cv-edit-panel cv-side-panel ${DOCKED_SIDE_PANEL_CLASS} no-print`,
+	});
 
 	// Header
 	panel.appendChild(h('div', { class: 'cv-edit-panel__header' },

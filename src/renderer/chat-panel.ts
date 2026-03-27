@@ -62,6 +62,13 @@ import {
 } from '@lib/cv-source';
 import { validateCvData } from '@lib/cv-loader';
 import type { CVData } from '@cv/cv';
+import { DOCK_CONTROLS } from '@renderer/dock-controls';
+import { initDockedPopover } from '@renderer/docked-popover';
+import {
+	DOCKED_SIDE_PANEL_CLASS,
+	dispatchDockedPanelClose,
+	dispatchDockedPanelOpen,
+} from '@renderer/docked-side-panels';
 
 // ─── Panel events ─────────────────────────────────────────────────────────────
 
@@ -316,7 +323,7 @@ function buildPanel(): PanelElements {
 
 	const panel = h('div', {
 		id:    'cv-chat-panel',
-		class: 'cv-chat-panel no-print',
+		class: `cv-chat-panel cv-side-panel ${DOCKED_SIDE_PANEL_CLASS} no-print`,
 		role:  'complementary',
 		'aria-label': 'CV Assistant',
 		hidden: '',
@@ -1137,33 +1144,14 @@ export function initChatPanel(
 		}
 	});
 
+	let popover: ReturnType<typeof initDockedPopover> | null = null;
+
 	// Close button
 	const closeBtn = els.panel.querySelector('#cv-chat-close') as HTMLButtonElement | null;
 	closeBtn?.addEventListener('click', (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-		closePanel();
-	});
-
-	// Clicking outside the panel closes it
-	document.addEventListener('click', (e) => {
-		const target  = e.target as HTMLElement;
-		const panel   = document.getElementById('cv-chat-panel');
-		const trigger = document.getElementById('cv-chat-trigger');
-		if (
-			panel && !panel.hidden &&
-			!panel.contains(target) &&
-			target !== trigger &&
-			!trigger?.contains(target)
-		) {
-			closePanel();
-		}
-	});
-
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && !els.panel.hidden) {
-			closePanel();
-		}
+		popover?.close();
 	});
 
 	// ── Open / close ──────────────────────────────────────────────────────────
@@ -1174,6 +1162,7 @@ export function initChatPanel(
 		refreshSourceBadge();
 		renderStarters();
 		appendConnectionStatusMessage();
+		dispatchDockedPanelOpen('cv-chat-panel');
 		window.dispatchEvent(new Event(CHAT_OPEN_EVENT));
 		if (!cfg) {
 			keyField?.focus();
@@ -1184,27 +1173,32 @@ export function initChatPanel(
 
 	function closePanel(): void {
 		els.panel.hidden = true;
+		dispatchDockedPanelClose('cv-chat-panel');
 		window.dispatchEvent(new Event(CHAT_CLOSE_EVENT));
 	}
 
 	// ── Toggle button ─────────────────────────────────────────────────────────
 
 	const trigger = h('button', {
-		id:           'cv-chat-trigger',
-		class:        'cv-chat-trigger no-print',
+		id:           DOCK_CONTROLS.chat.id,
+		class:        'cv-chat-trigger cv-dock-btn no-print',
 		type:         'button',
-		'aria-label': 'Open CV Assistant',
-		title:        'CV Assistant',
-	}, '✦');
-
-	trigger.addEventListener('click', () => {
-		if (els.panel.hidden) { openPanel(); }
-		else                  { closePanel(); }
+		'aria-label': DOCK_CONTROLS.chat.ariaLabel,
+		'aria-expanded': 'false',
+		'aria-controls': 'cv-chat-panel',
+		title:        DOCK_CONTROLS.chat.title,
+		'data-icon':  DOCK_CONTROLS.chat.icon,
+	}, DOCK_CONTROLS.chat.label);
+	popover = initDockedPopover({
+		panel: els.panel,
+		trigger,
+		openClass: 'cv-chat-trigger--open',
+		group: 'right-docked-panels',
+		marginPx: 12,
+		onOpen: openPanel,
+		onClose: closePanel,
 	});
-
-	// Mark trigger active when panel is open
-	window.addEventListener(CHAT_OPEN_EVENT,  () => trigger.classList.add('cv-chat-trigger--open'));
-	window.addEventListener(CHAT_CLOSE_EVENT, () => trigger.classList.remove('cv-chat-trigger--open'));
+	popover.refreshViewportFit();
 
 	// Refresh starters when CV changes (filter toggle, edit, upload)
 	window.addEventListener('cv-layout-applied', () => {

@@ -23,6 +23,12 @@ import {
 	nanoId,
 	openCommentCount,
 } from '@lib/cv-review';
+import { DOCK_CONTROLS } from '@renderer/dock-controls';
+import {
+	DOCKED_SIDE_PANEL_CLASS,
+	dispatchDockedPanelClose,
+	dispatchDockedPanelOpen,
+} from '@renderer/docked-side-panels';
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
@@ -59,6 +65,8 @@ function fmtAuthor(author: string): string {
 // ─── Events ───────────────────────────────────────────────────────────────────
 
 export const REVIEW_CHANGED_EVENT = 'blemmy-review-changed';
+export const REVIEW_PANEL_OPEN_EVENT = 'blemmy-review-open';
+export const REVIEW_PANEL_CLOSE_EVENT = 'blemmy-review-close';
 export type ReviewChangedDetail = { review: CVReview };
 
 function dispatch(review: CVReview): void {
@@ -233,7 +241,7 @@ export function initReviewPanel(opts: ReviewPanelOptions): ReviewPanelInstance {
 	// ── Outer panel ──────────────────────────────────────────────────────────
 	const panel = h('div', {
 		id:           'blemmy-review-panel',
-		class:        'blemmy-review-panel cv-side-panel no-print',
+		class: `blemmy-review-panel cv-side-panel ${DOCKED_SIDE_PANEL_CLASS} no-print`,
 		'aria-label': 'Review comments',
 		hidden:       '',
 	});
@@ -267,14 +275,15 @@ export function initReviewPanel(opts: ReviewPanelOptions): ReviewPanelInstance {
 
 	// ── Toggle button ─────────────────────────────────────────────────────────
 	const toggle = h('button', {
-		id:              'blemmy-review-toggle',
+		id:              DOCK_CONTROLS.reviewMode.id,
 		type:            'button',
-		class:           'blemmy-review-toggle no-print',
+		class:           'blemmy-review-toggle cv-dock-btn no-print',
 		'aria-expanded': 'false',
 		'aria-controls': 'blemmy-review-panel',
-		'aria-label':    'Review mode',
-		title:           'Review mode',
-	}, '✎');
+		'aria-label':    DOCK_CONTROLS.reviewMode.ariaLabel,
+		title:           DOCK_CONTROLS.reviewMode.title,
+		'data-icon':     DOCK_CONTROLS.reviewMode.icon,
+	}, DOCK_CONTROLS.reviewMode.label);
 
 	toggle.addEventListener('click', () => {
 		if (panelOpen) { closePanel(); } else { openPanel(); }
@@ -374,6 +383,8 @@ export function initReviewPanel(opts: ReviewPanelOptions): ReviewPanelInstance {
 		// Activate review mode on the CV shell
 		document.getElementById('cv-shell')?.setAttribute('data-review-mode', 'true');
 		document.documentElement.classList.add('blemmy-review-mode');
+		dispatchDockedPanelOpen('blemmy-review-panel');
+		window.dispatchEvent(new Event(REVIEW_PANEL_OPEN_EVENT));
 		refresh();
 	}
 
@@ -386,6 +397,8 @@ export function initReviewPanel(opts: ReviewPanelOptions): ReviewPanelInstance {
 		toggle.classList.remove('blemmy-review-toggle--active');
 		document.getElementById('cv-shell')?.removeAttribute('data-review-mode');
 		document.documentElement.classList.remove('blemmy-review-mode');
+		dispatchDockedPanelClose('blemmy-review-panel');
+		window.dispatchEvent(new Event(REVIEW_PANEL_CLOSE_EVENT));
 	}
 
 	document.addEventListener('keydown', (e) => {

@@ -33,6 +33,9 @@ docs/reports/*
 # ── Local init playbook (not part of the published tree) ───────
 REPO-INIT.md
 v2.0.1-deployment-instructions.md
+blemmy-v*-integration.md
+*patch*-integration*.md
+*integration*-patch*.md
 
 # ── OS / editor ───────────────────────────────────────────────
 .DS_Store

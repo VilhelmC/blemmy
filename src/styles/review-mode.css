@@ -122,7 +122,7 @@
 	position:       fixed;
 	top:            0;
 	right:          0;
-	width:          320px;
+	width:          var(--cv-panel-w, 344px);
 	height:         100vh;
 	background:     var(--color-ink-bg);
 	border-left:    1px solid var(--color-ink-border);
@@ -212,7 +212,7 @@ html.cv-share-readonly #cv-share-review-dock {
 		box-sizing: border-box;
 	}
 	html.cv-share-readonly body:has(#blemmy-review-panel:not([hidden]))
-	.cv-share-stage {
+	.cv-paper-stage {
 		margin-left: auto;
 		margin-right: auto;
 	}
@@ -220,7 +220,7 @@ html.cv-share-readonly #cv-share-review-dock {
 
 @media screen and (max-width: 900px) {
 	html {
-		--cv-review-panel-h: min(48dvh, 20rem);
+		--cv-review-panel-h: var(--cv-panel-h-mobile, min(48dvh, 20rem));
 	}
 	.blemmy-review-panel {
 		width: 100vw;
@@ -231,9 +231,6 @@ html.cv-share-readonly #cv-share-review-dock {
 		left: auto;
 		border-left: none;
 		border-top: 1px solid var(--color-ink-border);
-	}
-	body:has(#blemmy-review-panel:not([hidden])) {
-		padding-bottom: calc(var(--cv-review-panel-h) + 0.8rem) !important;
 	}
 	body:has(#blemmy-review-panel:not([hidden])) .cv-shell {
 		margin-right: 0 !important;

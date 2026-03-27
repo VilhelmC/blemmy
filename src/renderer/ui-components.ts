@@ -45,6 +45,7 @@ import {
 } from '@renderer/cv-editor';
 import { buildStyleSection } from '@renderer/style-panel';
 import { initReviewPanel } from '@renderer/review-panel';
+import { REVIEW_PANEL_OPEN_EVENT } from '@renderer/review-panel';
 import { initReviewOverlay, updateOverlay } from '@renderer/review-overlay';
 import type { CVReview, ContentPath } from '@cv/cv-review';
 import { applyCommentOps } from '@lib/cv-review';
@@ -53,6 +54,19 @@ import { stripPortraitForJsonExport } from '@lib/cv-json-export';
 import { CLOUD_ENABLED } from '@lib/cv-cloud';
 import { initBeforeUnloadGuard } from '@lib/cv-sync';
 import { initChatPanel } from '@renderer/chat-panel';
+import { CHAT_OPEN_EVENT } from '@renderer/chat-panel';
+import { DOCK_CONTROLS, buildDockButton } from '@renderer/dock-controls';
+import { refreshDockPeekSlide } from '@renderer/ui-manager';
+import { initDefaultHoverPinController } from '@renderer/hover-pin-controller';
+import { initMobileUtilityBar } from '@renderer/mobile-utility-bar';
+import { initDockedPopover } from '@renderer/docked-popover';
+import { initDockedSidePanelFlow } from '@renderer/docked-side-panels';
+import {
+	DOCKED_PANEL_OPEN_EVENT,
+	dispatchDockedPanelClose,
+	dispatchDockedPanelOpen,
+	type RightDockedPanelId,
+} from '@renderer/docked-side-panels';
 import {
 	AUTH_CHANGED_EVENT,
 	initAuthPanel,
@@ -116,12 +130,11 @@ function buildLayoutStatus(): HTMLElement {
 // ─── Debug toggle ─────────────────────────────────────────────────────────────
 
 function buildDebugToggle(): HTMLElement {
-	return h('button', {
-		id:             'cv-layout-debug-toggle',
-		type:           'button',
-		class:          'cv-layout-debug-toggle cv-history-btn no-print',
-		'aria-pressed': 'false',
-	}, 'Debug Layout');
+	return buildDockButton(h, DOCK_CONTROLS.debugLayout, {
+		id: DOCK_CONTROLS.debugLayout.id,
+		className: 'cv-layout-debug-toggle cv-history-btn',
+		pressed: 'false',
+	});
 }
 
 function initDebugToggle(): void {
@@ -134,7 +147,11 @@ function initDebugToggle(): void {
 		html.classList.toggle('cv-debug-mode', on);
 		if (toggleEl) {
 			toggleEl.setAttribute('aria-pressed', String(on));
-			toggleEl.textContent = on ? 'Debug Layout: ON' : 'Debug Layout';
+			toggleEl.textContent = on ? 'Debug On' : 'Debug';
+			toggleEl.setAttribute(
+				'title',
+				on ? 'Disable layout debugging' : 'Enable layout debugging',
+			);
 		}
 		if (on) { runDiagnostics(); }
 		else    { clearHighlights(); }
@@ -289,9 +306,11 @@ function syncPrintFabLabel(): void {
 	const printView = shell.classList.contains('cv-print-preview');
 	if (printView) {
 		fab.setAttribute('aria-label', 'Print or save as PDF');
+		fab.setAttribute('title', 'Print or save as PDF');
 		label.textContent = 'Print';
 	} else {
 		fab.setAttribute('aria-label', 'Preview PDF');
+		fab.setAttribute('title', 'Preview PDF');
 		label.textContent = 'Preview PDF';
 	}
 }
@@ -299,12 +318,11 @@ function syncPrintFabLabel(): void {
 // ─── View mode toggle ─────────────────────────────────────────────────────────
 
 function buildViewModeToggle(): HTMLElement {
-	return h('button', {
-		type:           'button',
-		id:             'cv-view-mode-toggle',
-		class:          'cv-view-mode-toggle no-print',
-		'aria-pressed': 'false',
-	}, 'Print view');
+	return buildDockButton(h, DOCK_CONTROLS.viewMode, {
+		id: DOCK_CONTROLS.viewMode.id,
+		className: 'cv-view-mode-toggle',
+		pressed: 'false',
+	});
 }
 
 function initViewModeToggle(): void {
@@ -321,6 +339,10 @@ function initViewModeToggle(): void {
 		const on = shell.classList.contains('cv-print-preview');
 		btn.setAttribute('aria-pressed', String(on));
 		btn.textContent = on ? 'Web view' : 'Print view';
+		btn.setAttribute(
+			'title',
+			on ? 'Switch to web view' : 'Switch to print view',
+		);
 	}
 
 	function apply(mode: 'print' | 'web'): void {
@@ -442,20 +464,19 @@ function buildPreferencesPanel(): { panel: HTMLElement; trigger: HTMLElement } {
 
 	const panel = h('div', {
 		id:           'cv-prefs-panel',
-		class:        'cv-prefs-panel no-print',
+		class:        'cv-prefs-panel cv-docked-popover no-print',
 		'aria-label': 'Layout preferences',
 		hidden:       '',
 	}, inner);
 
-	const trigger = h('button', {
-		id:              'cv-prefs-trigger',
-		class:           'cv-prefs-trigger no-print',
-		type:            'button',
-		'aria-expanded': 'false',
-		'aria-controls': 'cv-prefs-panel',
-		'aria-label':    'Layout preferences',
-		title:           'Layout preferences',
-	}, '⚙');
+	const trigger = buildDockButton(h, DOCK_CONTROLS.layoutPreferences, {
+		id: DOCK_CONTROLS.layoutPreferences.id,
+		className: 'cv-prefs-trigger',
+		extraAttrs: {
+			'aria-expanded': 'false',
+			'aria-controls': 'cv-prefs-panel',
+		},
+	});
 
 	return { panel, trigger };
 }
@@ -478,7 +499,6 @@ function initPreferencesPanel(): void {
 	const affinityEl = affinitySlider;
 
 	let current: CvPreferences = loadPrefs();
-	let panelOpen = false;
 
 	function syncUI(p: CvPreferences): void {
 		densityEl.value = String(p.maxDensity);
@@ -530,21 +550,12 @@ function initPreferencesPanel(): void {
 	});
 
 	resetBtn?.addEventListener('click', () => { emit({ ...PREFS_DEFAULTS }); });
-
-	trigger.addEventListener('click', () => {
-		panelOpen = !panelOpen;
-		(panel as HTMLElement & { hidden: boolean }).hidden = !panelOpen;
-		trigger.setAttribute('aria-expanded', String(panelOpen));
-		trigger.classList.toggle('cv-prefs-trigger--open', panelOpen);
-	});
-
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && panelOpen) {
-			panelOpen = false;
-			(panel as HTMLElement & { hidden: boolean }).hidden = true;
-			trigger.setAttribute('aria-expanded', 'false');
-			trigger.classList.remove('cv-prefs-trigger--open');
-		}
+	initDockedPopover({
+		panel,
+		trigger,
+		openClass: 'cv-prefs-trigger--open',
+		group: 'left-docked-popovers',
+		marginPx: 12,
 	});
 
 	syncUI(current);
@@ -560,6 +571,24 @@ function initCandidateSelector(): void {
 	// Non-nullable refs for closure use
 	const opts = optionsEl;
 	const cont = container;
+
+	function applySizeClass(): void {
+		const w = cont.getBoundingClientRect().width;
+		cont.classList.remove(
+			'cv-candidate-selector--s',
+			'cv-candidate-selector--m',
+			'cv-candidate-selector--l',
+		);
+		if (w < 360) {
+			cont.classList.add('cv-candidate-selector--s');
+			return;
+		}
+		if (w < 620) {
+			cont.classList.add('cv-candidate-selector--m');
+			return;
+		}
+		cont.classList.add('cv-candidate-selector--l');
+	}
 
 	function renderOptions(options: AlternativeOption[]): void {
 		opts.innerHTML = '';
@@ -583,11 +612,15 @@ function initCandidateSelector(): void {
 			btn.addEventListener('click', () => { dispatchAlternativeSelected(opt.candidateId); });
 			opts.appendChild(btn);
 		});
+		applySizeClass();
 	}
 
 	window.addEventListener(ALTERNATIVES_READY_EVENT, (e) => {
 		renderOptions((e as CustomEvent<AlternativesReadyDetail>).detail.options);
 	});
+	window.addEventListener('resize', applySizeClass);
+	window.visualViewport?.addEventListener('resize', applySizeClass);
+	window.addEventListener('cv-ui-viewport-changed', applySizeClass);
 }
 
 // ─── Print / PDF button + modal ───────────────────────────────────────────────
@@ -612,10 +645,11 @@ function buildPrintButton(): { fab: HTMLElement; modal: HTMLElement } {
 	`;
 
 	const fab = h('button', {
-		class:        'print-fab no-print',
+		class:        'print-fab cv-dock-btn no-print',
 		id:           'cv-download-pdf',
 		type:         'button',
 		'aria-label': 'Preview PDF',
+		title:        'Preview PDF',
 	});
 	const fabLabel = h('span', { id: 'cv-download-pdf-label' }, 'Preview PDF');
 	fab.appendChild(svg);
@@ -733,12 +767,10 @@ function initPrintButton(): void {
 // ─── Dark mode toggle ─────────────────────────────────────────────────────────
 
 function buildThemeToggle(): HTMLElement {
-	return h('button', {
-		id:           'theme-toggle',
-		class:        'theme-toggle no-print',
-		type:         'button',
-		'aria-label': 'Toggle dark mode',
-	}, '☽');
+	return buildDockButton(h, DOCK_CONTROLS.theme, {
+		id: DOCK_CONTROLS.theme.id,
+		className: 'theme-toggle',
+	});
 }
 
 function initThemeToggle(): void {
@@ -749,7 +781,9 @@ function initThemeToggle(): void {
 		if (!toggle) { return; }
 		const isDark = html.classList.contains('dark');
 		toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
-		toggle.textContent = isDark ? '☀︎' : '☽';
+		toggle.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+		toggle.setAttribute('aria-pressed', String(isDark));
+		toggle.textContent = DOCK_CONTROLS.theme.label;
 	}
 
 	toggle?.addEventListener('click', () => {
@@ -766,13 +800,10 @@ function initThemeToggle(): void {
 // ─── JSON upload button ───────────────────────────────────────────────────────
 
 function buildUploadButton(): HTMLElement {
-	return h('button', {
-		id:           'cv-upload-btn',
-		class:        'cv-upload-btn cv-history-btn no-print',
-		type:         'button',
-		'aria-label': 'Load CV data from JSON file',
-		title:        'Load JSON data file',
-	}, '↑ Load JSON');
+	return buildDockButton(h, DOCK_CONTROLS.uploadJson, {
+		id: DOCK_CONTROLS.uploadJson.id,
+		className: 'cv-upload-btn cv-history-btn',
+	});
 }
 
 function buildUploadStatus(): HTMLElement {
@@ -844,7 +875,13 @@ function initUploadButton(
 
 	// Sync button label to upload state
 	function syncLabel(): void {
-		btn.textContent = hasUploadedData() ? '↑ Custom data ×' : '↑ Load JSON';
+		btn.textContent = DOCK_CONTROLS.uploadJson.label;
+		btn.setAttribute(
+			'title',
+			hasUploadedData()
+				? 'Upload JSON (custom data currently loaded)'
+				: DOCK_CONTROLS.uploadJson.title,
+		);
 	}
 
 	window.addEventListener('cv-layout-applied', syncLabel);
@@ -854,13 +891,232 @@ function initUploadButton(
 // ─── Edit mode button ─────────────────────────────────────────────────────────
 
 function buildEditButton(): HTMLElement {
-	return h('button', {
-		id:           'cv-edit-btn',
-		class:        'cv-edit-btn no-print',
-		type:         'button',
-		'aria-pressed':'false',
-		title:        'Toggle edit mode',
-	}, '✎ Edit');
+	return buildDockButton(h, DOCK_CONTROLS.editMode, {
+		id: DOCK_CONTROLS.editMode.id,
+		className: 'cv-edit-btn',
+		pressed: 'false',
+	});
+}
+
+function syncUnifiedPanelState(): void {
+	const html = document.documentElement;
+	const isDesktop = window.matchMedia('(min-width: 901px)').matches;
+	const chatOpen = Boolean(
+		document.getElementById('cv-chat-panel')
+		&& !document.getElementById('cv-chat-panel')?.hasAttribute('hidden'),
+	);
+	const reviewOpen = Boolean(
+		document.getElementById('blemmy-review-panel')
+		&& !document.getElementById('blemmy-review-panel')?.hasAttribute('hidden'),
+	);
+	const editOpen = Boolean(
+		document.documentElement.classList.contains('cv-edit-mode')
+		&& document.getElementById('cv-edit-panel'),
+	);
+	const anyOpen = chatOpen || reviewOpen || editOpen;
+	html.classList.toggle('cv-panel-open', anyOpen);
+	html.classList.toggle('cv-panel-desktop', anyOpen && isDesktop);
+	html.classList.toggle('cv-panel-mobile', anyOpen && !isDesktop);
+	html.classList.remove(
+		'cv-panel-kind-chat',
+		'cv-panel-kind-review',
+		'cv-panel-kind-edit',
+	);
+	if (reviewOpen) {
+		html.classList.add('cv-panel-kind-review');
+		return;
+	}
+	if (chatOpen) {
+		html.classList.add('cv-panel-kind-chat');
+		return;
+	}
+	if (editOpen) {
+		html.classList.add('cv-panel-kind-edit');
+	}
+}
+
+function initResponsiveDockMode(
+	leftDock: HTMLElement,
+	rightDock: HTMLElement,
+): void {
+	const mobileMq = window.matchMedia('(max-width: 1100px)');
+	let rafScheduled = false;
+	const syncDock = (dock: HTMLElement): void => {
+		if (mobileMq.matches) {
+			dock.classList.add('cv-ui-dock--compact', 'cv-ui-dock--peek');
+			return;
+		}
+		dock.classList.remove(
+			'cv-ui-dock--peek',
+			'cv-ui-dock--expanded',
+		);
+		if (dock.classList.contains('cv-ui-dock--compact')) {
+			dock.classList.remove('cv-ui-dock--compact');
+		}
+		requestAnimationFrame(() => {
+			const needsCompact = dock.scrollWidth > dock.clientWidth + 1;
+			const hasCompact = dock.classList.contains('cv-ui-dock--compact');
+			if (needsCompact !== hasCompact) {
+				dock.classList.toggle('cv-ui-dock--compact', needsCompact);
+			}
+		});
+	};
+	const sync = (): void => {
+		if (rafScheduled) { return; }
+		rafScheduled = true;
+		requestAnimationFrame(() => {
+			rafScheduled = false;
+			syncDock(leftDock);
+			syncDock(rightDock);
+			refreshDockPeekSlide();
+		});
+	};
+	syncDock(leftDock);
+	syncDock(rightDock);
+	refreshDockPeekSlide();
+	sync();
+	window.addEventListener('resize', sync);
+	window.visualViewport?.addEventListener('resize', sync);
+	window.addEventListener('cv-layout-applied', sync);
+	const observer = new MutationObserver(() => { sync(); });
+	observer.observe(leftDock, { subtree: true, childList: true });
+	observer.observe(rightDock, { subtree: true, childList: true });
+}
+
+function initNarrowDockPeek(
+	leftAnchor: HTMLElement,
+	rightAnchor: HTMLElement,
+	leftDock: HTMLElement,
+	rightDock: HTMLElement,
+): void {
+	const leftHandle = document.getElementById('cv-ui-dock-left-handle');
+	const rightHandle = document.getElementById('cv-ui-dock-right-handle');
+	if (!(leftHandle instanceof HTMLElement) || !(rightHandle instanceof HTMLElement)) {
+		return;
+	}
+	const mq = window.matchMedia('(max-width: 1100px)');
+	const controller = initDefaultHoverPinController([
+		{
+			id: 'left',
+			handle: leftHandle,
+			panel: leftDock,
+			hoverRegion: leftAnchor,
+		},
+		{
+			id: 'right',
+			handle: rightHandle,
+			panel: rightDock,
+			hoverRegion: rightAnchor,
+		},
+	], {
+		isEnabled: () => mq.matches,
+		openClass: 'cv-ui-dock--expanded',
+	});
+	const onMq = (): void => {
+		if (!mq.matches) { controller.closeAll(); }
+	};
+	if (typeof mq.addEventListener === 'function') {
+		mq.addEventListener('change', onMq);
+	} else {
+		mq.addListener(onMq);
+	}
+}
+
+function initNarrowUtilityBar(): void {
+	const mq = window.matchMedia('(max-width: 760px)');
+	const utility = initMobileUtilityBar({
+		isEnabled: () => mq.matches,
+		primaryActions: [
+			{
+				id: 'edit',
+				label: 'Edit',
+				icon: DOCK_CONTROLS.editMode.icon,
+				targetId: DOCK_CONTROLS.editMode.id,
+			},
+			{
+				id: 'review',
+				label: 'Review',
+				icon: DOCK_CONTROLS.reviewMode.icon,
+				targetId: DOCK_CONTROLS.reviewMode.id,
+			},
+			{
+				id: 'chat',
+				label: 'Assistant',
+				icon: DOCK_CONTROLS.chat.icon,
+				targetId: DOCK_CONTROLS.chat.id,
+			},
+		],
+		moreActions: [
+			{
+				id: 'view-mode',
+				label: 'Print view',
+				icon: DOCK_CONTROLS.viewMode.icon,
+				targetId: DOCK_CONTROLS.viewMode.id,
+			},
+			{
+				id: 'theme',
+				label: 'Theme',
+				icon: DOCK_CONTROLS.theme.icon,
+				targetId: DOCK_CONTROLS.theme.id,
+			},
+			{
+				id: 'cloud',
+				label: 'Cloud',
+				icon: DOCK_CONTROLS.cloud.icon,
+				targetId: DOCK_CONTROLS.cloud.id,
+			},
+			{
+				id: 'layout',
+				label: 'Layout',
+				icon: DOCK_CONTROLS.layoutPreferences.icon,
+				targetId: DOCK_CONTROLS.layoutPreferences.id,
+			},
+			{
+				id: 'upload-json',
+				label: 'Upload JSON',
+				icon: DOCK_CONTROLS.uploadJson.icon,
+				targetId: DOCK_CONTROLS.uploadJson.id,
+			},
+			{
+				id: 'download-json',
+				label: 'Download JSON',
+				icon: DOCK_CONTROLS.downloadJson.icon,
+				targetId: DOCK_CONTROLS.downloadJson.id,
+			},
+			{
+				id: 'print-pdf',
+				label: 'Print / PDF',
+				icon: '⎙',
+				targetId: 'cv-download-pdf',
+			},
+		],
+	});
+	const sync = (): void => { utility.sync(); };
+	sync();
+	window.addEventListener('resize', sync);
+	window.visualViewport?.addEventListener('resize', sync);
+	window.addEventListener('cv-layout-applied', sync);
+	if (typeof mq.addEventListener === 'function') {
+		mq.addEventListener('change', sync);
+	} else {
+		mq.addListener(sync);
+	}
+}
+
+function initUnifiedPanelState(): void {
+	syncUnifiedPanelState();
+	const sync = (): void => { syncUnifiedPanelState(); };
+	window.addEventListener('resize', sync);
+	window.visualViewport?.addEventListener('resize', sync);
+	window.addEventListener('cv-layout-applied', sync);
+	window.addEventListener('cv-view-mode-changed', sync);
+	const observer = new MutationObserver(() => { sync(); });
+	observer.observe(document.body, {
+		subtree: true,
+		childList: true,
+		attributes: true,
+		attributeFilter: ['hidden', 'class'],
+	});
 }
 
 function buildHistoryControls(): HTMLElement {
@@ -868,27 +1124,18 @@ function buildHistoryControls(): HTMLElement {
 		id:    'cv-history-controls',
 		class: 'cv-history-controls no-print',
 	},
-		h('button', {
-			id:           'cv-undo-btn',
-			class:        'cv-history-btn',
-			type:         'button',
-			title:        'Undo last change (Ctrl/Cmd+Z)',
-			'aria-label': 'Undo last change',
-		}, '↶ Undo'),
-		h('button', {
-			id:           'cv-redo-btn',
-			class:        'cv-history-btn',
-			type:         'button',
-			title:        'Redo last change (Ctrl/Cmd+Shift+Z)',
-			'aria-label': 'Redo last change',
-		}, '↷ Redo'),
-		h('button', {
-			id:           'cv-reset-draft-btn',
-			class:        'cv-history-btn cv-history-btn--danger',
-			type:         'button',
-			title:        'Reset local draft edits to current loaded CV',
-			'aria-label': 'Reset local draft edits',
-		}, 'Reset draft'),
+		buildDockButton(h, DOCK_CONTROLS.undo, {
+			id: DOCK_CONTROLS.undo.id,
+			className: 'cv-history-btn',
+		}),
+		buildDockButton(h, DOCK_CONTROLS.redo, {
+			id: DOCK_CONTROLS.redo.id,
+			className: 'cv-history-btn',
+		}),
+		buildDockButton(h, DOCK_CONTROLS.resetDraft, {
+			id: DOCK_CONTROLS.resetDraft.id,
+			className: 'cv-history-btn cv-history-btn--danger',
+		}),
 	);
 }
 
@@ -969,8 +1216,10 @@ function initChangeHighlighter(): void {
 	}
 
 	document.addEventListener('mouseover', (e) => {
-		const t = e.target as HTMLElement | null;
-		const changed = t?.closest<HTMLElement>('.cv-ai-changed');
+		const t = e.target;
+		const changed = t instanceof Element
+			? t.closest<HTMLElement>('.cv-ai-changed')
+			: null;
 		if (!changed) {
 			hidePopover();
 			return;
@@ -978,8 +1227,10 @@ function initChangeHighlighter(): void {
 		showPopover(changed);
 	});
 	document.addEventListener('mousemove', (e) => {
-		const t = e.target as HTMLElement | null;
-		const changed = t?.closest<HTMLElement>('.cv-ai-changed');
+		const t = e.target;
+		const changed = t instanceof Element
+			? t.closest<HTMLElement>('.cv-ai-changed')
+			: null;
 		if (changed) { return; }
 		hidePopover();
 	});
@@ -1187,7 +1438,7 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 } {
 	const drawer = h('div', {
 		id:           'cv-cloud-drawer',
-		class:        'cv-side-panel cv-cloud-drawer no-print',
+		class:        'cv-side-panel cv-cloud-drawer cv-docked-popover no-print',
 		hidden:       '',
 		'aria-label': 'Cloud sync',
 	});
@@ -1240,32 +1491,27 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 	drawer.append(inner);
 	document.body.appendChild(drawer);
 
-	const cloudTrigger = h('button', {
-		id:               'cv-cloud-trigger',
-		class:            'cv-cloud-dock-trigger cv-history-btn no-print',
-		type:             'button',
-		title:            'Cloud sync',
-		'aria-expanded':  'false',
-		'aria-controls':  'cv-cloud-drawer',
-	}, '☁') as HTMLButtonElement;
+	const cloudTrigger = buildDockButton(h, DOCK_CONTROLS.cloud, {
+		id: DOCK_CONTROLS.cloud.id,
+		className: 'cv-cloud-dock-trigger cv-history-btn',
+		extraAttrs: {
+			'aria-expanded': 'false',
+			'aria-controls': 'cv-cloud-drawer',
+		},
+	});
 	if (!CLOUD_ENABLED) {
 		cloudTrigger.hidden = true;
 	}
 
 	let drawerOpen = false;
+	let popover: ReturnType<typeof initDockedPopover> | null = null;
 
 	function closeDrawer(): void {
-		drawerOpen = false;
-		drawer.hidden = true;
-		cloudTrigger.setAttribute('aria-expanded', 'false');
-		cloudTrigger.classList.remove('cv-cloud-dock-trigger--open');
+		popover?.close();
 	}
 
 	function openDrawer(): void {
-		drawerOpen = true;
-		drawer.hidden = false;
-		cloudTrigger.setAttribute('aria-expanded', 'true');
-		cloudTrigger.classList.add('cv-cloud-dock-trigger--open');
+		popover?.open();
 	}
 
 	function setSyncIndicator(short: string, title: string): void {
@@ -1316,20 +1562,16 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 	tabAuth.addEventListener('click', () => activateTab('auth'));
 	tabDocs.addEventListener('click', () => activateTab('docs'));
 
-	cloudTrigger.addEventListener('click', () => {
-		if (drawerOpen) { closeDrawer(); } else { openDrawer(); }
+	popover = initDockedPopover({
+		panel: drawer,
+		trigger: cloudTrigger,
+		openClass: 'cv-cloud-dock-trigger--open',
+		group: 'left-docked-popovers',
+		marginPx: 12,
+		onOpen: () => { drawerOpen = true; },
+		onClose: () => { drawerOpen = false; },
 	});
-
-	document.addEventListener('click', (e) => {
-		const t = e.target as HTMLElement | null;
-		if (!t || !drawerOpen) { return; }
-		if (drawer.contains(t) || cloudTrigger.contains(t)) { return; }
-		closeDrawer();
-	});
-
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && drawerOpen) { closeDrawer(); }
-	});
+	popover.refreshViewportFit();
 
 	return { onDataChange: docApi.onDataChange, cloudTrigger };
 }
@@ -1346,41 +1588,79 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 export function initUIComponents(
 	remount: (data: CVData) => void = () => { /* noop if not provided */ },
 ): void {
-	const leftDock  = h('div', { id: 'cv-ui-dock-left', class: 'cv-ui-dock no-print' });
+	const leftAnchor = h('div', {
+		id:    'cv-ui-dock-left-anchor',
+		class: 'cv-ui-dock-anchor cv-ui-dock-anchor--left no-print',
+	});
+	const leftDock = h('div', { id: 'cv-ui-dock-left', class: 'cv-ui-dock no-print' });
+	const leftZoomShell = h('div', { class: 'cv-ui-dock__zoom-shell' });
+	const leftRail = h('div', {
+		id:    'cv-ui-dock-left-rail',
+		class: 'cv-ui-dock__rail',
+	});
+	const leftHandle = h('button', {
+		type:            'button',
+		id:              'cv-ui-dock-left-handle',
+		class:           'cv-ui-dock__handle cv-ui-dock__handle--left no-print',
+		'aria-expanded': 'false',
+		'aria-label':    'Open or close left tool strip',
+		'aria-controls': 'cv-ui-dock-left',
+	});
+	const rightAnchor = h('div', {
+		id:    'cv-ui-dock-right-anchor',
+		class: 'cv-ui-dock-anchor cv-ui-dock-anchor--right no-print',
+	});
 	const rightDock = h('div', { id: 'cv-ui-dock-right', class: 'cv-ui-dock no-print' });
-	document.body.appendChild(leftDock);
-	document.body.appendChild(rightDock);
+	const rightZoomShell = h('div', { class: 'cv-ui-dock__zoom-shell' });
+	const rightRail = h('div', {
+		id:    'cv-ui-dock-right-rail',
+		class: 'cv-ui-dock__rail',
+	});
+	const rightHandle = h('button', {
+		type:            'button',
+		id:              'cv-ui-dock-right-handle',
+		class:           'cv-ui-dock__handle cv-ui-dock__handle--right no-print',
+		'aria-expanded': 'false',
+		'aria-label':    'Open or close right tool strip',
+		'aria-controls': 'cv-ui-dock-right',
+	});
+	leftZoomShell.appendChild(leftRail);
+	rightZoomShell.appendChild(rightRail);
+	leftDock.appendChild(leftZoomShell);
+	rightDock.appendChild(rightZoomShell);
+	leftAnchor.append(leftHandle, leftDock);
+	rightAnchor.append(rightDock, rightHandle);
+	document.body.appendChild(leftAnchor);
+	document.body.appendChild(rightAnchor);
 
 	// Layout status + debug toggle
 	document.body.appendChild(buildLayoutStatus());
-	leftDock.appendChild(buildDebugToggle());
+	rightRail.appendChild(buildDebugToggle());
 
 	// Candidate selector (content is inside #cv-shell, script wired here)
 	// View mode toggle
-	rightDock.appendChild(buildViewModeToggle());
+	rightRail.appendChild(buildViewModeToggle());
 
 	// Preferences panel + trigger
 	const { panel, trigger } = buildPreferencesPanel();
 	document.body.appendChild(panel);
-	leftDock.appendChild(trigger);
+	leftRail.appendChild(trigger);
 
 	const docPanelApi = initCloudSyncDrawer(remount);
 
 	// Upload/Download JSON + status
 	const uploadBtn = buildUploadButton();
-	const dlBtn = h('button', {
-		id:           'cv-download-json',
-		class:        'cv-download-json-btn cv-history-btn no-print',
-		type:         'button',
-		title:        'Download CV data as JSON',
-	}, '↓ JSON');
-	leftDock.appendChild(uploadBtn);
-	leftDock.appendChild(dlBtn);
+	const dlBtn = buildDockButton(h, DOCK_CONTROLS.downloadJson, {
+		id: DOCK_CONTROLS.downloadJson.id,
+		className: 'cv-download-json-btn cv-history-btn',
+	});
+	leftRail.appendChild(uploadBtn);
+	leftRail.appendChild(dlBtn);
 	document.body.appendChild(buildUploadStatus());
 
 	// Edit button + history controls
-	leftDock.appendChild(buildHistoryControls());
-	leftDock.appendChild(buildEditButton());
+	leftRail.appendChild(buildHistoryControls());
+	rightRail.appendChild(buildEditButton());
 
 	// v2.2 Review panel + overlay
 	const reviewInst = initReviewPanel({
@@ -1392,7 +1672,7 @@ export function initUIComponents(
 		getData: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__,
 	});
 	document.body.appendChild(reviewInst.panel);
-	leftDock.appendChild(reviewInst.toggle);
+	rightRail.appendChild(reviewInst.toggle);
 	initReviewOverlay((path) => { reviewInst.open(path); });
 	window.addEventListener('cv-layout-applied', () => {
 		const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
@@ -1444,20 +1724,36 @@ export function initUIComponents(
 
 	// Print button + modal
 	const { fab, modal } = buildPrintButton();
-	rightDock.appendChild(fab);
+	document.body.appendChild(fab);
 	document.body.appendChild(modal);
 
 	// Theme toggle, chat, cloud — circular dock controls grouped together
-	rightDock.appendChild(buildThemeToggle());
+	rightRail.appendChild(buildThemeToggle());
 
 	const { panel: chatPanel, toggle: chatTrigger } = initChatPanel(remount);
 	document.body.appendChild(chatPanel);
-	rightDock.appendChild(chatTrigger);
-	rightDock.appendChild(docPanelApi.cloudTrigger);
+	rightRail.appendChild(chatTrigger);
+	rightRail.appendChild(docPanelApi.cloudTrigger);
 	chatPanel.appendChild(buildRecentChangesPanel());
 
 	rehydrateStyle();
 	initBeforeUnloadGuard();
+	initUnifiedPanelState();
+	initResponsiveDockMode(leftDock, rightDock);
+	initNarrowDockPeek(leftAnchor, rightAnchor, leftDock, rightDock);
+	initNarrowUtilityBar();
+	requestAnimationFrame(() => {
+		refreshDockPeekSlide();
+	});
+
+	const sideFlow = initDockedSidePanelFlow({
+		getPanels: () => {
+			const ids = ['cv-edit-panel', 'blemmy-review-panel', 'cv-chat-panel'];
+			return ids
+				.map((id) => document.getElementById(id))
+				.filter((el): el is HTMLElement => el instanceof HTMLElement);
+		},
+	});
 
 	// ── Wire up event listeners ───────────────────────────────────────────────
 	initDebugToggle();
@@ -1504,9 +1800,45 @@ export function initUIComponents(
 	function setEditActive(on: boolean): void {
 		if (!editBtn) { return; }
 		editBtn.setAttribute('aria-pressed', String(on));
-		editBtn.textContent = on ? '✎ Editing' : '✎ Edit';
+		editBtn.textContent = on ? 'Editing' : 'Edit';
 		editBtn.classList.toggle('cv-edit-btn--active', on);
 	}
+
+	function closeChatPanelIfOpen(): void {
+		const panel = document.getElementById('cv-chat-panel');
+		if (!(panel instanceof HTMLElement) || panel.hidden) { return; }
+		const triggerEl = document.getElementById('cv-chat-trigger');
+		if (triggerEl instanceof HTMLElement) { triggerEl.click(); }
+	}
+
+	function closeEditPanelIfOpen(): void {
+		if (!editInstance) { return; }
+		editInstance.deactivate();
+		editInstance = null;
+		editWasActive = false;
+		setEditActive(false);
+		dispatchDockedPanelClose('cv-edit-panel');
+	}
+
+	window.addEventListener(CHAT_OPEN_EVENT, () => {
+		reviewInst.close();
+		closeEditPanelIfOpen();
+		sideFlow.sync();
+	});
+	window.addEventListener(REVIEW_PANEL_OPEN_EVENT, () => {
+		closeChatPanelIfOpen();
+		closeEditPanelIfOpen();
+		sideFlow.sync();
+	});
+	window.addEventListener(DOCKED_PANEL_OPEN_EVENT, (event) => {
+		const panelId = (event as CustomEvent<{ panelId: RightDockedPanelId }>)
+			.detail?.panelId;
+		if (!panelId) { return; }
+		if (panelId !== 'cv-chat-panel') { closeChatPanelIfOpen(); }
+		if (panelId !== 'blemmy-review-panel') { reviewInst.close(); }
+		if (panelId !== 'cv-edit-panel') { closeEditPanelIfOpen(); }
+		sideFlow.sync();
+	});
 
 	function activateEdit(): void {
 		const base = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
@@ -1532,6 +1864,10 @@ export function initUIComponents(
 			},
 		);
 		setEditActive(true);
+		dispatchDockedPanelOpen('cv-edit-panel');
+		closeChatPanelIfOpen();
+		reviewInst.close();
+		sideFlow.sync();
 	}
 
 	editBtn?.addEventListener('click', () => {
@@ -1540,6 +1876,8 @@ export function initUIComponents(
 			editInstance = null;
 			editWasActive = false;
 			setEditActive(false);
+			dispatchDockedPanelClose('cv-edit-panel');
+			sideFlow.sync();
 			return;
 		}
 		activateEdit();
@@ -1563,6 +1901,7 @@ export function initUIComponents(
 			editWasActive = false;
 			activateEdit();
 		}
+		sideFlow.sync();
 	});
 
 }
@@ -1634,5 +1973,6 @@ export function initSharedReviewComponents(autoOpen = false): void {
 		updateOverlay(d.review);
 	}
 	if (autoOpen) { reviewInst.open(); }
+	initUnifiedPanelState();
 }
 
