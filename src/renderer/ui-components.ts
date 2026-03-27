@@ -1048,6 +1048,12 @@ function initNarrowUtilityBar(): void {
 		],
 		moreActions: [
 			{
+				id: 'debug-layout',
+				label: 'Debug',
+				icon: DOCK_CONTROLS.debugLayout.icon,
+				targetId: DOCK_CONTROLS.debugLayout.id,
+			},
+			{
 				id: 'theme',
 				label: 'Theme',
 				icon: DOCK_CONTROLS.theme.icon,
