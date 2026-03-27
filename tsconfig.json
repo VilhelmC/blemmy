@@ -15,6 +15,9 @@
 			"@lib/*": [
 				"src/lib/*"
 			],
+			"@lib/engine/*": [
+				"src/lib/engine/*"
+			],
 			"@data/*": [
 				"src/data/*"
 			],

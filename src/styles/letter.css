@@ -1,0 +1,205 @@
+/* ─── Letter document styles ─────────────────────────────────────────────────
+   Styles for the cover letter document type (docType: "letter").
+   Imported via src/main.ts → import '@styles/letter.css'
+
+   The letter uses shared shell/card/page structure from global.css and
+   print.css. These rules cover the letter-specific elements.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Card and page ────────────────────────────────────────────────────────── */
+
+.letter-card {
+	/* Shares .cv-card base styles for shadow, border-radius, width */
+}
+
+.letter-page {
+	display:        flex;
+	flex-direction: column;
+	/* A4 dimensions handled by .cv-page in print.css */
+}
+
+/* ── Masthead ─────────────────────────────────────────────────────────────── */
+
+.letter-masthead {
+	display:          flex;
+	justify-content:  space-between;
+	align-items:      flex-end;
+	padding:          8.5mm 8.5mm 5mm 8.5mm;
+	border-bottom:    1.5px solid var(--color-sidebar, #1A1A1A);
+	margin-bottom:    6mm;
+	flex-shrink:      0;
+}
+
+.letter-masthead-identity {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.15rem;
+}
+
+.letter-sender-name {
+	font-family:    var(--font-heading, 'DM Sans', system-ui, sans-serif);
+	font-size:      var(--text-name, 1.95rem);
+	font-weight:    600;
+	letter-spacing: -0.02em;
+	line-height:    1.15;
+	color:          var(--color-ink);
+}
+
+.letter-sender-label {
+	font-size:      var(--text-label, 0.8rem);
+	font-weight:    400;
+	letter-spacing: 0.02em;
+	color:          var(--color-ink-mid);
+	font-family:    var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-sender-contact {
+	display:        flex;
+	flex-direction: column;
+	align-items:    flex-end;
+	gap:            0.2rem;
+}
+
+.letter-contact-item {
+	font-size:   var(--text-meta, 0.7rem);
+	color:       var(--color-ink-muted);
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+/* ── Main column ──────────────────────────────────────────────────────────── */
+
+.letter-main {
+	flex:           1;
+	padding:        0 8.5mm 8.5mm 8.5mm;
+	display:        flex;
+	flex-direction: column;
+	gap:            5mm;
+}
+
+/* ── Sections ─────────────────────────────────────────────────────────────── */
+
+.letter-section {
+	display:        flex;
+	flex-direction: column;
+}
+
+/* ── Recipient ────────────────────────────────────────────────────────────── */
+
+.letter-recipient {
+	gap: 3mm;
+}
+
+.letter-date {
+	font-size:   var(--text-meta, 0.7rem);
+	color:       var(--color-ink-muted);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-subject {
+	font-size:   var(--text-body, 0.8125rem);
+	font-weight: 600;
+	color:       var(--color-ink-dark);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-recipient-address {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.1rem;
+}
+
+.letter-recipient-name,
+.letter-recipient-title,
+.letter-recipient-org,
+.letter-recipient-address-line {
+	font-size:   var(--text-body, 0.8125rem);
+	color:       var(--color-ink);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-recipient-name {
+	font-weight: 600;
+}
+
+.letter-opening {
+	font-size:   var(--text-body, 0.8125rem);
+	color:       var(--color-ink);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────── */
+
+.letter-body {
+	gap:  2.5mm;
+	flex: 1;
+}
+
+.letter-paragraph {
+	font-size:   var(--text-body, 0.8125rem);
+	line-height: 1.55;
+	color:       var(--color-ink);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+/* ── Closing ──────────────────────────────────────────────────────────────── */
+
+.letter-closing {
+	gap:        2mm;
+	margin-top: auto; /* push to foot of page when content is short */
+}
+
+.letter-closing-salutation {
+	font-size:   var(--text-body, 0.8125rem);
+	color:       var(--color-ink);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-signature {
+	display:        flex;
+	flex-direction: column;
+	gap:            0.1rem;
+	margin-top:     8mm; /* space for handwritten signature */
+}
+
+.letter-signature-name {
+	font-size:   var(--text-body, 0.8125rem);
+	font-weight: 600;
+	color:       var(--color-ink);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+.letter-signature-title {
+	font-size:   var(--text-meta, 0.7rem);
+	color:       var(--color-ink-muted);
+	margin:      0;
+	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+/* ── Print overrides ──────────────────────────────────────────────────────── */
+
+@media print {
+	.letter-masthead {
+		padding: 8.5mm 8.5mm 5mm 8.5mm;
+	}
+
+	.letter-main {
+		padding: 0 8.5mm 8.5mm 8.5mm;
+	}
+
+	.letter-closing {
+		margin-top: auto;
+	}
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+
+.dark .letter-masthead {
+	border-bottom-color: var(--color-ink-border);
+}

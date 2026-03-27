@@ -23,19 +23,19 @@ import {
 	ensureSidebarTailSpacer,
 	removeSidebarTailSpacers,
 	visibleDirectFlexItemCount,
-} from '@lib/cv-column-slack';
+} from '@lib/engine/cv-column-slack';
 
 import {
 	analysePageAlignment,
 	enforcedGapCap,
 	BASE_MAIN_GAP_PX,
 	BASE_SIDEBAR_GAP_PX,
-} from '@lib/cv-align';
+} from '@lib/engine/cv-align';
 
 import {
 	profileAllSections,
 	logProfiles,
-} from '@lib/cv-profile';
+} from '@lib/engine/cv-profile';
 
 import {
 	generateCandidates,
@@ -51,7 +51,7 @@ import {
 	type MovableSectionPlacement,
 	type ScoredCandidate,
 	type SectionProfileMap,
-} from '@lib/cv-candidate';
+} from '@lib/engine/cv-candidate';
 
 import {
 	loadPrefs,
@@ -65,7 +65,9 @@ import {
 	type AlternativeSelectedDetail,
 	type AlternativeOption,
 } from '@lib/cv-prefs';
-import { hashAuditState, layoutAuditLog } from '@lib/layout-audit';
+import { hashAuditState, layoutAuditLog } from '@lib/engine/layout-audit';
+import type { EngineDocumentSpec, ResolvedEngineDocumentSpec } from '@lib/engine/document-spec';
+import { resolveSpec } from '@lib/engine/document-spec';
 
 // ─── Physical constants ───────────────────────────────────────────────────────
 
@@ -115,41 +117,56 @@ type LayoutEls = {
 	main1:         HTMLElement;
 	main2:         HTMLElement;
 	statusEl:      HTMLElement | null;
-	elSkills:      HTMLElement | null;
-	elLang:        HTMLElement | null;
-	elInt:         HTMLElement | null;
+	/** Movable section elements keyed by logical section name (from spec). */
+	movableSectionEls: Record<string, HTMLElement | null>;
+	/** Profilable non-movable elements (e.g. profile/summary paragraph). */
+	profilableEls:     Record<string, HTMLElement | null>;
 	footer2:       HTMLElement | null;
 	footer1:       HTMLElement | null;
 	masthead:      HTMLElement | null;
 	portraitCell:  HTMLElement | null;
 	mastheadRight: HTMLElement | null;
 	elProfile:     HTMLElement | null;
+	profileCol:    HTMLElement | null;
 };
 
-function getLayoutElements(): LayoutEls | null {
-	const card     = document.getElementById('cv-card');
-	const shell    = document.getElementById('cv-shell');
-	const page1    = document.getElementById('cv-page-1');
-	const page2    = document.getElementById('cv-page-2');
-	const sidebar1 = document.getElementById('cv-sidebar-1');
-	const sidebar2 = document.getElementById('cv-sidebar-2');
-	const main1    = document.getElementById('cv-main-1');
-	const main2    = document.getElementById('cv-main-2');
+let spec: ResolvedEngineDocumentSpec;
+
+function getLayoutElements(spec: ResolvedEngineDocumentSpec): LayoutEls | null {
+	const card     = document.getElementById(spec.cardId);
+	const shell    = document.getElementById(spec.shellId);
+	const page1    = document.getElementById(spec.page1Id);
+	const page2    = document.getElementById(spec.page2Id);
+	const sidebar1 = document.getElementById(spec.sidebar1Id);
+	const sidebar2 = document.getElementById(spec.sidebar2Id);
+	const main1    = document.getElementById(spec.main1Id);
+	const main2    = document.getElementById(spec.main2Id);
 	if (!card || !shell || !page1 || !page2 || !sidebar1 || !sidebar2 || !main1 || !main2) {
 		return null;
 	}
+
+	const movableSectionEls: Record<string, HTMLElement | null> = {};
+	for (const [key, domId] of Object.entries(spec.movableSections)) {
+		movableSectionEls[key] = document.getElementById(domId);
+	}
+
+	const profilableEls: Record<string, HTMLElement | null> = {};
+	for (const domId of (spec.profilableIds ?? [])) {
+		profilableEls[domId] = document.getElementById(domId);
+	}
+
 	return {
 		card, shell, page1, page2, sidebar1, sidebar2, main1, main2,
-		statusEl:      document.getElementById('cv-layout-status'),
-		elSkills:      document.getElementById('cv-rebalance-skills'),
-		elLang:        document.getElementById('cv-rebalance-languages'),
-		elInt:         document.getElementById('cv-rebalance-interests'),
-		footer2:       document.getElementById('cv-page-2-body-footer'),
-		footer1:       document.getElementById('cv-page-1-body-footer'),
-		masthead:      document.getElementById('cv-page-1-masthead'),
-		portraitCell:  document.getElementById('cv-p1-portrait-cell'),
-		mastheadRight: document.getElementById('cv-masthead-right'),
-		elProfile:     document.getElementById('cv-rebalance-profile'),
+		statusEl:      spec.statusElId      ? document.getElementById(spec.statusElId)      : null,
+		movableSectionEls,
+		profilableEls,
+		footer2:       spec.footer2Id       ? document.getElementById(spec.footer2Id)       : null,
+		footer1:       spec.footer1Id       ? document.getElementById(spec.footer1Id)       : null,
+		masthead:      spec.mastheadId      ? document.getElementById(spec.mastheadId)      : null,
+		portraitCell:  spec.portraitCellId  ? document.getElementById(spec.portraitCellId)  : null,
+		mastheadRight: spec.mastheadRightId ? document.getElementById(spec.mastheadRightId) : null,
+		elProfile:     spec.profilableIds?.[0] ? document.getElementById(spec.profilableIds[0]) : null,
+		profileCol:    spec.profileColId    ? document.getElementById(spec.profileColId)    : null,
 	};
 }
 
@@ -239,13 +256,13 @@ function clearSidebarWidth(card: HTMLElement): void {
 // ─── Density ──────────────────────────────────────────────────────────────────
 
 function setDensity(card: HTMLElement, level: number): void {
-	card.classList.remove('cv-density-1', 'cv-density-2', 'cv-density-3');
-	if (level >= 1 && level <= 3) { card.classList.add('cv-density-' + level); }
+	card.classList.remove(...[1,2,3].map((n) => spec.densityClassPrefix + n));
+	if (level >= 1 && level <= 3) { card.classList.add(spec.densityClassPrefix + level); }
 	invalidateIntrinsicHeightCache();
 }
 
 function clearDensity(card: HTMLElement): void {
-	card.classList.remove('cv-density-1', 'cv-density-2', 'cv-density-3');
+	card.classList.remove(...[1,2,3].map((n) => spec.densityClassPrefix + n));
 	invalidateIntrinsicHeightCache();
 }
 
@@ -261,7 +278,7 @@ function restoreMastheadToFull(els: LayoutEls): void {
 	if (!masthead) { return; }
 	masthead.classList.remove('cv-masthead-collapsed');
 	const hb         = portraitHeaderBlock(els);
-	const profileCol = document.getElementById('cv-masthead-profile-col');
+	const profileCol = spec.profileColId ? document.getElementById(spec.profileColId) : null;
 	if (elProfile != null && main1 != null && main1.contains(elProfile) && profileCol != null) {
 		profileCol.appendChild(elProfile);
 	}
@@ -284,7 +301,7 @@ function applyMastheadMode(els: LayoutEls, mode: MastheadMode): void {
 	const { masthead, main1, elProfile, mastheadRight } = els;
 	if (!masthead) { return; }
 	const hb         = portraitHeaderBlock(els);
-	const profileCol = document.getElementById('cv-masthead-profile-col');
+	const profileCol = spec.profileColId ? document.getElementById(spec.profileColId) : null;
 	if (hb == null) { return; }
 	if (mode === 'profile-sidebar-meta' && mastheadRight != null) {
 		hb.appendChild(mastheadRight);
@@ -312,16 +329,16 @@ type MovableEl = { key: 'skills' | 'languages' | 'interests'; el: HTMLElement };
 
 function getMovableEls(els: LayoutEls): MovableEl[] {
 	return ([
-		{ key: 'skills',    el: els.elSkills },
-		{ key: 'languages', el: els.elLang },
-		{ key: 'interests', el: els.elInt },
+		{ key: 'skills',    el: els.movableSectionEls['skills'] },
+		{ key: 'languages', el: els.movableSectionEls['languages'] },
+		{ key: 'interests', el: els.movableSectionEls['interests'] },
 	] as Array<{ key: MovableEl['key']; el: HTMLElement | null }>)
 		.filter((x): x is MovableEl => x.el != null);
 }
 
 function restoreMovableToSidebar2(els: LayoutEls): void {
 	const { sidebar2 } = els;
-	const order = ['cv-rebalance-skills', 'cv-rebalance-languages', 'cv-rebalance-interests'];
+	const order = Object.values(spec.movableSections);
 	for (const id of order) {
 		const el = document.getElementById(id);
 		if (el && !sidebar2.contains(el)) { sidebar2.appendChild(el); }
@@ -458,7 +475,7 @@ function createMergeController(els: LayoutEls) {
 		movedSb.length = 0;
 		for (const n of movedMn) { els.main2.appendChild(n as HTMLElement); }
 		movedMn.length = 0;
-		els.card.classList.remove('cv-single-page');
+		els.card.classList.remove(spec.singlePageClass);
 		els.page2.style.display = '';
 		removeSidebarTailSpacers(els.sidebar2);
 		ensureSidebarTailSpacer(els.sidebar1);
@@ -477,7 +494,7 @@ function createMergeController(els: LayoutEls) {
 			movedMn.push(els.main2.firstChild);
 			els.main1.appendChild(els.main2.firstChild);
 		}
-		els.card.classList.add('cv-single-page');
+		els.card.classList.add(spec.singlePageClass);
 		els.page2.style.display = 'none';
 		ensureSidebarTailSpacer(els.sidebar1);
 		invalidateIntrinsicHeightCache();
@@ -498,7 +515,7 @@ function fullReset(els: LayoutEls): void {
 	els.main2.querySelectorAll(':scope [data-work-section] > .section-label')
 		.forEach((n) => n.remove());
 	clearDensity(els.card);
-	els.card.classList.remove('cv-single-page');
+	els.card.classList.remove(spec.singlePageClass);
 	els.page2.style.display = '';
 	invalidateIntrinsicHeightCache();
 }
@@ -622,7 +639,7 @@ async function probeTwoPageScore(
 		els.main2,
 	]);
 	const heightScore   = p2Score + whitespacePenalty;
-	const affinityScore = widthAffinityPenalty(candidate, profiles);
+	const affinityScore = widthAffinityPenalty(candidate, profiles, spec.movableSections);
 	return { heightScore, affinityScore, restore };
 }
 
@@ -679,7 +696,7 @@ async function absorbSlackOnColumn(
 }
 
 async function trimSlackIfOverflow(els: LayoutEls): Promise<void> {
-	if (!els.card.classList.contains('cv-single-page')) { return; }
+	if (!els.card.classList.contains(spec.singlePageClass)) { return; }
 	const mainProps = [SLACK_VAR_P1_MAIN,    SLACK_VAR_P1_MAIN_INNER];
 	const sbProps   = [SLACK_VAR_P1_SIDEBAR, SLACK_VAR_P1_SIDEBAR_INNER];
 	let round = 0;
@@ -709,7 +726,7 @@ function trimOnce(el: HTMLElement, props: string[]): boolean {
 async function applySlackDistribution(els: LayoutEls): Promise<void> {
 	clearSlackVars(els);
 	await raf2();
-	const single  = els.card.classList.contains('cv-single-page');
+	const single  = els.card.classList.contains(spec.singlePageClass);
 	const p2Shown = !single && els.page2.offsetParent !== null &&
 		getComputedStyle(els.page2).display !== 'none';
 
@@ -743,7 +760,7 @@ async function applySlackDistribution(els: LayoutEls): Promise<void> {
 async function applyAlignmentPass(els: LayoutEls): Promise<void> {
 	clearAlignVars(els);
 	await raf2();
-	const single  = els.card.classList.contains('cv-single-page');
+	const single  = els.card.classList.contains(spec.singlePageClass);
 	const p2Shown = !single && els.page2.offsetParent !== null &&
 		getComputedStyle(els.page2).display !== 'none';
 
@@ -819,7 +836,7 @@ async function finaliseLayout(
 	if (isSingle) {
 		let best = 0;
 		for (let f = 1; f <= 3; f++) {
-			els.card.classList.remove('cv-fill-1', 'cv-fill-2', 'cv-fill-3');
+			els.card.classList.remove(...[1,2,3].map((n) => spec.fillClassPrefix + n));
 			els.card.classList.add('cv-fill-' + f);
 			await raf2();
 			if (readIntrinsicGridHeightPx(els.page1) > MAX_SINGLE_PAGE_PX) {
@@ -827,7 +844,7 @@ async function finaliseLayout(
 			}
 			best = f;
 		}
-		els.card.classList.remove('cv-fill-1', 'cv-fill-2', 'cv-fill-3');
+		els.card.classList.remove(...[1,2,3].map((n) => spec.fillClassPrefix + n));
 		if (best > 0) { els.card.classList.add('cv-fill-' + best); }
 		els.card.dataset.cvFill = String(best);
 	}
@@ -844,7 +861,7 @@ async function finaliseLayout(
 		} else {
 			const { sbSum, mainSum } = readP2ContentSums(els);
 			return scoreP2Balance(sbSum, mainSum, THRESHOLD_PX) +
-				widthAffinityPenalty({ ...winner, sidebarMm: mm }, profiles);
+				widthAffinityPenalty({ ...winner, sidebarMm: mm }, profiles, spec.movableSections);
 		}
 	});
 	setSidebarWidth(els.card, refined);
@@ -860,8 +877,9 @@ async function finaliseLayout(
 
 // ─── Main engine ──────────────────────────────────────────────────────────────
 
-export function initCvLayoutEngine(): () => void {
-	const _elsOrNull = getLayoutElements();
+export function initCvLayoutEngine(documentSpec: EngineDocumentSpec): () => void {
+	spec = resolveSpec(documentSpec);
+	const _elsOrNull = getLayoutElements(spec);
 	if (!_elsOrNull) { return () => { /* nothing to clean up */ }; }
 	const els: LayoutEls = _elsOrNull;
 
@@ -1031,7 +1049,7 @@ export function initCvLayoutEngine(): () => void {
 		clearSidebarWidth(els.card);
 		clearSlackVars(els);
 		clearAlignVars(els);
-		els.card.classList.remove('cv-fill-1', 'cv-fill-2', 'cv-fill-3');
+		els.card.classList.remove(...[1,2,3].map((n) => spec.fillClassPrefix + n));
 		els.card.dataset.cvFill = '0';
 
 		if (!layoutTargetActive()) {
@@ -1053,13 +1071,20 @@ export function initCvLayoutEngine(): () => void {
 		}
 
 		// 1. Profile
-		const profiles = profileAllSections({
-			elSkills:  els.elSkills,
-			elLang:    els.elLang,
-			elInt:     els.elInt,
-			elProfile: els.elProfile,
-			sidebar1:  els.sidebar1,
-		});
+		// Build named element arrays for profileAllSections
+		const movableProfileEntries: Array<[string, HTMLElement | null]> =
+			Object.entries(spec.movableSections).map(
+				([, domId]) => [domId, document.getElementById(domId)]
+			);
+		const profilableEntries: Array<[string, HTMLElement | null]> =
+			(spec.profilableIds ?? []).map(
+				(domId) => [domId, document.getElementById(domId)]
+			);
+		const profiles = profileAllSections(
+			[...movableProfileEntries, ...profilableEntries],
+			els.sidebar1,
+			spec.alwaysSidebarIds[0] ?? 'cv-education',
+		);
 		logProfiles(profiles);
 		lastProfiles = profiles;
 
@@ -1077,7 +1102,7 @@ export function initCvLayoutEngine(): () => void {
 			rejected: 0,
 			rejectionsByRule: {},
 		};
-		const candidates = generateCandidates(workCount, profiles, candDiag);
+		const candidates = generateCandidates(workCount, profiles, spec.movableSections, spec.alwaysSidebarIds, candDiag);
 		layoutAuditLog('engine-candidates', {
 			workCount,
 			total: candidates.length,
@@ -1094,7 +1119,7 @@ export function initCvLayoutEngine(): () => void {
 		} else {
 			els.card.removeAttribute('data-cv-candidates-reject-top');
 		}
-		logCandidates(candidates, profiles);
+		logCandidates(candidates, profiles, spec.movableSections);
 
 		const single1 = candidates.filter((c) => c.pages === 1);
 		const two2    = candidates.filter((c) => c.pages === 2);
@@ -1117,7 +1142,7 @@ export function initCvLayoutEngine(): () => void {
 					els, mc, candidate, workItems, prefs.maxDensity,
 				);
 				if (fits) {
-					const affinityScore = widthAffinityPenalty(candidate, profiles);
+					const affinityScore = widthAffinityPenalty(candidate, profiles, spec.movableSections);
 					const whitespacePenalty = scoreWhitespaceSlack([
 						els.sidebar1,
 						els.main1,

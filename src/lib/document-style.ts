@@ -29,6 +29,23 @@ export type { PrintSidebarStyle } from '@cv/document-style';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STYLE_KEY = 'blemmy-document-style';
+const CUSTOM_FONT_LINK_ID = 'cv-custom-font-css';
+const ALLOWED_CUSTOM_CSS_VARS = new Set<string>([
+	'--text-body',
+	'--text-meta',
+	'--text-label',
+	'--text-name',
+	'--print-main-padding',
+	'--print-sidebar-padding',
+	'--cv-slack-gap-p1-main',
+	'--cv-slack-gap-p1-sidebar',
+	'--cv-slack-gap-p2-main',
+	'--cv-slack-gap-p2-sidebar',
+	'--cv-align-gap-p1-main',
+	'--cv-align-gap-p1-sidebar',
+	'--cv-align-gap-p2-main',
+	'--cv-align-gap-p2-sidebar',
+]);
 
 export const STYLE_DEFAULTS: DocumentStyle = {
 	sidebarColor:    '#1A1A1A',
@@ -38,6 +55,68 @@ export const STYLE_DEFAULTS: DocumentStyle = {
 	headingDistinct: false,
 	printSidebar:    'color',
 };
+
+function assertSafeGoogleFontUrl(raw?: string): string | null {
+	if (!raw) { return null; }
+	const value = raw.trim();
+	if (!value) { return null; }
+	let url: URL;
+	try {
+		url = new URL(value);
+	} catch {
+		throw new Error('customFontCssUrl must be a valid URL.');
+	}
+	if (url.protocol !== 'https:') {
+		throw new Error('customFontCssUrl must use https.');
+	}
+	if (url.hostname !== 'fonts.googleapis.com') {
+		throw new Error('customFontCssUrl must point to fonts.googleapis.com.');
+	}
+	return url.toString();
+}
+
+function applyCustomFontStylesheet(url: string | null): void {
+	const prev = document.getElementById(CUSTOM_FONT_LINK_ID);
+	if (!url) {
+		prev?.remove();
+		return;
+	}
+	let link = prev as HTMLLinkElement | null;
+	if (!(link instanceof HTMLLinkElement)) {
+		link = document.createElement('link');
+		link.id = CUSTOM_FONT_LINK_ID;
+		link.rel = 'stylesheet';
+		document.head.appendChild(link);
+	}
+	link.href = url;
+}
+
+function sanitizeCssVarValue(raw: string): string {
+	const v = raw.trim();
+	if (!v) { throw new Error('customCssVars values cannot be empty.'); }
+	if (v.length > 160) {
+		throw new Error('customCssVars values must be <= 160 chars.');
+	}
+	if (/[{};]/.test(v)) {
+		throw new Error('customCssVars values must not contain ; { }.');
+	}
+	return v;
+}
+
+function applyCustomCssVars(root: HTMLElement, vars?: Record<string, string>): void {
+	for (const name of ALLOWED_CUSTOM_CSS_VARS) {
+		if (!vars || !(name in vars)) {
+			root.style.removeProperty(name);
+		}
+	}
+	if (!vars) { return; }
+	for (const [name, value] of Object.entries(vars)) {
+		if (!ALLOWED_CUSTOM_CSS_VARS.has(name)) {
+			throw new Error(`customCssVars key not allowed: ${name}`);
+		}
+		root.style.setProperty(name, sanitizeCssVarValue(value));
+	}
+}
 
 // ─── Font CSS values ──────────────────────────────────────────────────────────
 
@@ -291,6 +370,8 @@ export function applyDocumentStyle(patch: Partial<DocumentStyle>): DocumentStyle
 	}
 
 	const root = document.documentElement;
+	const safeFontUrl = assertSafeGoogleFontUrl(style.customFontCssUrl);
+	applyCustomFontStylesheet(safeFontUrl);
 
 	// ── Sidebar colour ────────────────────────────────────────────────────────
 	root.style.setProperty('--color-sidebar', style.sidebarColor);
@@ -340,15 +421,17 @@ export function applyDocumentStyle(patch: Partial<DocumentStyle>): DocumentStyle
 
 	// ── Font families ─────────────────────────────────────────────────────────
 	const bodyCSS    = BODY_FONT_CSS[style.bodyFont];
-	const headingCSS = style.headingDistinct
-		? HEADING_FONT_CSS[style.headingFont]
-		: bodyCSS;
+	const bodyFontCss = style.customBodyFontFamily?.trim() || bodyCSS;
+	const headingFontCss = style.customHeadingFontFamily?.trim() ||
+		HEADING_FONT_CSS[style.headingFont];
+	const headingCSS = style.headingDistinct ? headingFontCss : bodyFontCss;
 
-	root.style.setProperty('--font-body',    bodyCSS);
+	root.style.setProperty('--font-body',    bodyFontCss);
 	root.style.setProperty('--font-heading', headingCSS);
 
 	// ── Print sidebar mode ────────────────────────────────────────────────────
 	root.dataset.printSidebar = style.printSidebar;
+	applyCustomCssVars(root, style.customCssVars);
 
 	// ── Persist ───────────────────────────────────────────────────────────────
 	saveStyle(style);

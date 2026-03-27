@@ -41,6 +41,7 @@ blemmy-v*-integration.md
 .DS_Store
 Thumbs.db
 *.zip
+patch/
 .tmp-import/
 .tmp-v201-zip/
 .tmp-blemmy-zip/

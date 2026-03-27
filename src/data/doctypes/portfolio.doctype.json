@@ -1,0 +1,44 @@
+{
+	"docType": "portfolio",
+	"label": "Portfolio",
+	"version": "0.1",
+
+	"layout": {
+		"model": "multi-page",
+		"maxPages": null,
+		"pageSize": "A4",
+		"hasPortrait": false,
+		"hasMasthead": true,
+		"hasFooter": false
+	},
+
+	"domPrefix": "portfolio",
+
+	"sections": [
+		{
+			"id":        "header",
+			"label":     "Header",
+			"placement": "masthead"
+		},
+		{
+			"id":        "intro",
+			"label":     "Introduction",
+			"placement": "fixed-main"
+		},
+		{
+			"id":        "project",
+			"label":     "Project",
+			"placement": "fixed-main",
+			"repeating": true
+		},
+		{
+			"id":        "skills",
+			"label":     "Skills",
+			"placement": "fixed-main"
+		}
+	],
+
+	"contentType": "PortfolioData",
+
+	"_note": "Stub spec — renderer and content type not yet implemented. Layout model 'multi-page' is not yet handled by the engine; this spec is stored for forward compatibility and assistant discoverability."
+}

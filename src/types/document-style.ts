@@ -91,6 +91,30 @@ export interface DocumentStyle {
 	printSidebar:    PrintSidebarStyle;
 
 	/**
+	 * Optional Google Fonts stylesheet URL to load at runtime.
+	 * Must be an https URL and should point to fonts.googleapis.com.
+	 */
+	customFontCssUrl?: string;
+
+	/**
+	 * Optional custom font-family CSS value used for body text.
+	 * Example: "'Merriweather', Georgia, serif"
+	 */
+	customBodyFontFamily?: string;
+
+	/**
+	 * Optional custom font-family CSS value used for headings when
+	 * headingDistinct is true.
+	 */
+	customHeadingFontFamily?: string;
+
+	/**
+	 * Optional allowlisted CSS variable overrides.
+	 * Keys must be existing style tokens supported by runtime apply logic.
+	 */
+	customCssVars?: Record<string, string>;
+
+	/**
 	 * Name of the preset that produced this style, if any.
 	 * Informational only — displayed in the style panel.
 	 * Cleared when the user makes a manual change after applying a preset.

@@ -78,10 +78,10 @@ import type { CVData } from '@cv/cv';
 
 import {
 	columnSlackBelowDirectDivBlocksPx,
-} from '@lib/cv-column-slack';
+} from '@lib/engine/cv-column-slack';
 import {
 	analysePageAlignment,
-} from '@lib/cv-align';
+} from '@lib/engine/cv-align';
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
@@ -1722,7 +1722,7 @@ export function initUIComponents(
 
 	// Print button + modal
 	const { fab, modal } = buildPrintButton();
-	document.body.appendChild(fab);
+	rightRail.appendChild(fab);
 	document.body.appendChild(modal);
 
 	// Theme toggle, chat, cloud — circular dock controls grouped together
@@ -1765,16 +1765,31 @@ export function initUIComponents(
 
 	// Download JSON action
 	dlBtn.addEventListener('click', () => {
-		const data = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-		if (!data) { return; }
-		const forFile = stripPortraitForJsonExport(data);
+		const state = window as Window & {
+			__ACTIVE_DOC_TYPE__?: 'cv' | 'letter';
+			__CV_DATA__?: CVData;
+			__LETTER_DATA__?: unknown;
+		};
+		const activeType = state.__ACTIVE_DOC_TYPE__ ?? 'cv';
+		const cvData = state.__CV_DATA__;
+		const letterData = state.__LETTER_DATA__;
+		const payload = activeType === 'letter'
+			? letterData
+			: (cvData ? stripPortraitForJsonExport(cvData) : null);
+		if (!payload || typeof payload !== 'object') { return; }
+		const forFile = {
+			docType: activeType,
+			...(payload as unknown as Record<string, unknown>),
+		};
 		const blob = new Blob([JSON.stringify(forFile, null, '\t')], {
 			type: 'application/json',
 		});
 		const url  = URL.createObjectURL(blob);
 		const a    = document.createElement('a');
 		a.href     = url;
-		a.download = 'cv-content.json';
+		a.download = activeType === 'letter'
+			? 'letter-content.json'
+			: 'cv-content.json';
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

@@ -1,7 +1,7 @@
 {
 	"name": "@blemmy/engine",
-	"version": "0.1.0",
-	"description": "Constraint-driven document layout engine — 8-stage pipeline for precision A4 print layout.",
+	"version": "1.0.0",
+	"description": "Constraint-driven document layout engine — generic 8-stage pipeline for precision A4 print layout.",
 	"license": "AGPL-3.0-only",
 	"private": true,
 	"type": "module",
@@ -18,16 +18,14 @@
 		"directory": "src/lib/engine"
 	},
 	"_comment": [
-		"This package.json marks the boundary of the Blemmy layout engine.",
+		"v3.0: Engine files now physically live in this directory.",
 		"",
-		"Current status: pre-extraction. The engine files live in src/lib/ as a",
-		"logical boundary, consumed directly via the @lib Vite alias rather than",
-		"as a published npm package.",
+		"The engine is fully decoupled from CVData. Callers provide an",
+		"EngineDocumentSpec (document-spec.ts) that maps logical section names",
+		"to DOM element IDs. The CV application wires this via cv-document-spec.ts.",
 		"",
-		"At v3.0, this directory will become a proper npm workspace package",
-		"('@blemmy/engine') with its own build, tests, and publish pipeline.",
-		"The engine will be decoupled from CVData and expose a generic",
-		"DocumentLayoutSpec interface instead.",
+		"Consumed via the @lib/engine Vite alias within the monorepo.",
+		"Future: extract to a standalone npm package when a second consumer exists.",
 		"",
 		"Commercial licensing available alongside the AGPL terms — see LICENSE."
 	]

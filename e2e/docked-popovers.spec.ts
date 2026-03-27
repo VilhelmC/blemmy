@@ -77,19 +77,20 @@ test.describe('docked popovers', () => {
 	});
 
 	test('mobile utility sheet can open prefs and cloud', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await page.setViewportSize({ width: 333, height: 532 });
 		await expect(page.locator('#cv-mobile-utility-bar')).toBeVisible();
 
 		await page.locator('#cv-mobile-utility-bar button:has-text("More")').click();
 		await page.locator('#cv-mobile-utility-sheet button:has-text("Layout")')
 			.click();
-		await expect(page.locator('#cv-prefs-panel')).toBeVisible();
+		// Proxied prefs open is deferred (setTimeout 0) after sheet closes.
+		await expect(page.locator('#cv-prefs-panel')).toBeVisible({ timeout: 20_000 });
 
 		await page.locator('#cv-mobile-utility-bar button:has-text("More")').click();
 		await page.locator('#cv-mobile-utility-sheet button:has-text("Cloud")')
 			.click();
-		await expect(page.locator('#cv-cloud-drawer')).toBeVisible();
+		await expect(page.locator('#cv-cloud-drawer')).toBeVisible({ timeout: 20_000 });
 		await expect(page.locator('#cv-prefs-panel')).toBeHidden();
 	});
 

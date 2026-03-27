@@ -159,7 +159,7 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 	historyIsColumn: boolean;
 	compactButtons: Array<{ id: string; fontSizePx: number; hasIconAttr: boolean }>;
 	titles: Record<string, string | null>;
-	printOverlapsRightDock: boolean;
+	printFabInsideRightDock: boolean;
 }> {
 	return page.evaluate(() => {
 		const leftDock = document.getElementById('cv-ui-dock-left');
@@ -172,7 +172,6 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 			'cv-download-json',
 			'cv-edit-btn',
 			'blemmy-review-toggle',
-			'cv-view-mode-toggle',
 			'theme-toggle',
 			'cv-chat-trigger',
 			'cv-cloud-trigger',
@@ -187,7 +186,6 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 			}));
 		const titleIds = [
 			'cv-layout-debug-toggle',
-			'cv-view-mode-toggle',
 			'theme-toggle',
 			'cv-upload-btn',
 			'cv-download-json',
@@ -201,15 +199,8 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 			titles[id] = document.getElementById(id)?.getAttribute('title') ?? null;
 		}
 		const printBtn = document.getElementById('cv-download-pdf');
-		const printRect = printBtn?.getBoundingClientRect();
-		const rightRect = rightDock?.getBoundingClientRect();
-		const overlap = Boolean(
-			printRect &&
-			rightRect &&
-			printRect.left < rightRect.right &&
-			printRect.right > rightRect.left &&
-			printRect.top < rightRect.bottom &&
-			printRect.bottom > rightRect.top,
+		const printFabInsideRightDock = Boolean(
+			printBtn && rightDock?.contains(printBtn),
 		);
 		return {
 			leftExists: Boolean(leftDock),
@@ -217,7 +208,7 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 			historyIsColumn: window.getComputedStyle(history ?? document.body).flexDirection === 'column',
 			compactButtons,
 			titles,
-			printOverlapsRightDock: overlap,
+			printFabInsideRightDock,
 		};
 	});
 }
@@ -259,7 +250,7 @@ test.describe('review panel layout', () => {
 		await page.goto('/');
 		await page.setViewportSize({ width: 1280, height: 920 });
 		await expandPeekDocksForDockClicks(page);
-		await page.locator('#cv-view-mode-toggle').click();
+		// Print / PDF surface is the default; web view toggle is not mounted.
 		await ensureReviewOpen(page);
 		const snapC = await readDebugSnapshot(page);
 		expectNoOverflow(snapC.widths);
@@ -285,7 +276,7 @@ test.describe('review panel layout', () => {
 		await page.goto('/');
 		await page.setViewportSize({ width: 1365, height: 900 });
 		await ensureReviewOpen(page);
-		await pushTrace('initial-web-open');
+		await pushTrace('initial-print-open');
 		const initSnap = await readDebugSnapshot(page);
 		expectNoOverflow(initSnap.widths);
 		expectNoPanelOverlap(initSnap);
@@ -294,13 +285,12 @@ test.describe('review panel layout', () => {
 		for (const w of widths) {
 			await page.setViewportSize({ width: w, height: 900 });
 			await ensureReviewOpen(page);
-			await pushTrace(`web-resize-${w}`);
+			await pushTrace(`print-resize-${w}`);
 			const s = await readDebugSnapshot(page);
 			expectNoOverflow(s.widths);
 			expectNoPanelOverlap(s);
 		}
 
-		const reviewBtn = page.locator('#blemmy-review-toggle');
 		await clickControl(page, 'blemmy-review-toggle', 'Review');
 		await pushTrace('panel-closed');
 		await clickControl(page, 'blemmy-review-toggle', 'Review');
@@ -309,22 +299,6 @@ test.describe('review panel layout', () => {
 		const reopened = await readDebugSnapshot(page);
 		expectNoOverflow(reopened.widths);
 		expectNoPanelOverlap(reopened);
-
-		await clickControl(page, 'cv-view-mode-toggle', 'Print view', true);
-		await ensureReviewOpen(page);
-		await pushTrace('print-open');
-		const printOpen = await readDebugSnapshot(page);
-		expectNoOverflow(printOpen.widths);
-		expectNoPanelOverlap(printOpen);
-
-		for (const w of [1180, 980, 860, 980, 1220]) {
-			await page.setViewportSize({ width: w, height: 900 });
-			await ensureReviewOpen(page);
-			await pushTrace(`print-resize-${w}`);
-			const s = await readDebugSnapshot(page);
-			expectNoOverflow(s.widths);
-			expectNoPanelOverlap(s);
-		}
 
 		await testInfo.attach('review-layout-stress-trace', {
 			body: JSON.stringify(trace, null, 2),
@@ -383,6 +357,6 @@ test.describe('review panel layout', () => {
 			expect(title, `${id} missing title`).not.toBeNull();
 			expect((title ?? '').trim().length).toBeGreaterThan(0);
 		}
-		expect(dock.printOverlapsRightDock).toBe(false);
+		expect(dock.printFabInsideRightDock).toBe(true);
 	});
 });

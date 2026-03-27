@@ -25,7 +25,7 @@
  */
 
 import type { CVData, CVVisibility } from '@cv/cv';
-import { hashCvForAudit, layoutAuditLog } from '@lib/layout-audit';
+import { hashCvForAudit, layoutAuditLog } from '@lib/engine/layout-audit';
 
 // ─── Tag extraction ───────────────────────────────────────────────────────────
 

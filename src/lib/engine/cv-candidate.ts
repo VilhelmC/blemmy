@@ -50,7 +50,7 @@ import {
 	MIN_SIDEBAR_MM,
 	MAX_SIDEBAR_MM,
 	MM_TO_PX,
-} from '@lib/cv-profile';
+} from '@lib/engine/cv-profile';
 
 // ─── Re-export types the engine imports from here ─────────────────────────────
 
@@ -100,11 +100,18 @@ export type MovableSectionPlacement =
 	| 'p1-footer' // moves to #cv-page-1-body-footer  (single-page only)
 	| 'p2-footer' // moves to #cv-page-2-body-footer  (two-page only)
 
-export type MovableSections = {
-	readonly skills:    MovableSectionPlacement;
-	readonly languages: MovableSectionPlacement;
-	readonly interests: MovableSectionPlacement;
-};
+/**
+ * Generic map of section name → placement.
+ * Used by the engine to represent which sections go where, without
+ * encoding the specific section names (skills, languages, interests).
+ */
+export type MovableSectionMap = Record<string, MovableSectionPlacement>;
+
+/**
+ * @deprecated Use MovableSectionMap. Kept for backwards compatibility
+ * with CVLayoutSnapshot which still uses the named-key form.
+ */
+export type MovableSections = MovableSectionMap;
 
 export type LayoutCandidate = {
 	/** Unique descriptive label — used as a key and for console output. */
@@ -115,7 +122,7 @@ export type LayoutCandidate = {
 	readonly mastheadMode:   MastheadMode;
 	/** Sidebar grid track width in mm. */
 	readonly sidebarMm:      number;
-	readonly sections:       MovableSections;
+	readonly sections:       MovableSectionMap;
 	/** Columns in page-1 body footer; 0 = footer hidden. */
 	readonly p1FooterCols:   0 | 1 | 2 | 3;
 	/** Columns in page-2 body footer; 0 = footer hidden. */
@@ -151,21 +158,15 @@ export function footerColContentMm(
 
 // ─── Section-to-ID mapping ────────────────────────────────────────────────────
 
-const SECTION_DOM_ID: Record<keyof MovableSections, SectionId> = {
-	skills:    'cv-rebalance-skills',
-	languages: 'cv-rebalance-languages',
-	interests: 'cv-rebalance-interests',
-};
-
-function movableKeys(): (keyof MovableSections)[] {
-	return ['skills', 'languages', 'interests'];
-}
+// Section DOM IDs and movable keys are no longer hardcoded here.
+// They are injected via the sectionDomIds parameter to generateCandidates()
+// and related functions. The CV application provides these via CV_DOCUMENT_SPEC.
 
 function sectionsInPlacement(
-	sections: MovableSections,
+	sections:  MovableSectionMap,
 	placement: MovableSectionPlacement,
-): (keyof MovableSections)[] {
-	return movableKeys().filter((k) => sections[k] === placement);
+): string[] {
+	return Object.keys(sections).filter((k) => sections[k] === placement);
 }
 
 // ─── Sidebar width ────────────────────────────────────────────────────────────
@@ -175,15 +176,17 @@ function sectionsInPlacement(
  * sections assigned to the sidebar, plus Education (always in sidebar).
  */
 function candidateSidebarMm(
-	sections:  MovableSections,
-	profiles:  SectionProfileMap,
-	pages:     1 | 2,
+	sections:         MovableSectionMap,
+	profiles:         SectionProfileMap,
+	pages:            1 | 2,
+	sectionDomIds:    Record<string, string>,
+	alwaysSidebarIds: string[],
 ): number {
 	// Sections in sidebar for this candidate
-	const inSidebar: SectionId[] = ['cv-education'];
-	for (const k of movableKeys()) {
+	const inSidebar: SectionId[] = [...alwaysSidebarIds];
+	for (const k of Object.keys(sections)) {
 		if (sections[k] === 'sidebar') {
-			inSidebar.push(SECTION_DOM_ID[k]);
+			inSidebar.push(sectionDomIds[k]);
 		}
 	}
 	// On single-page, all sidebar sections merge into sidebar-1
@@ -207,13 +210,15 @@ function colCount(n: number): 0 | 1 | 2 | 3 {
  * Returns null if valid (no violations), or a reason string if invalid.
  */
 function hardConstraintViolation(
-	pages:         1 | 2,
-	pageSplitWork: number,
-	workCount:     number,
-	mastheadMode:  MastheadMode,
-	sections:      MovableSections,
-	sidebarMm:     number,
-	profiles:      SectionProfileMap,
+	pages:            1 | 2,
+	pageSplitWork:    number,
+	workCount:        number,
+	mastheadMode:     MastheadMode,
+	sections:         MovableSectionMap,
+	sidebarMm:        number,
+	profiles:         SectionProfileMap,
+	sectionDomIds:    Record<string, string>,
+	alwaysSidebarIds: string[],
 ): string | null {
 	function fitsHardMin(p: SectionProfile, widthMm: number): boolean {
 		return widthMm >= p.minUsefulWidthMm;
@@ -228,7 +233,7 @@ function hardConstraintViolation(
 	}
 
 	// C2: footer placement page-consistency
-	for (const k of movableKeys()) {
+	for (const k of Object.keys(sectionDomIds)) {
 		if (pages === 1 && sections[k] === 'p2-footer') {
 			return 'C2: p2-footer placement not valid on single-page';
 		}
@@ -248,7 +253,7 @@ function hardConstraintViolation(
 		const cols   = colCount(p1Secs.length) as 1 | 2 | 3;
 		const colMm  = footerColContentMm(sidebarMm, cols);
 		for (const k of p1Secs) {
-			const p = profiles.get(SECTION_DOM_ID[k]);
+			const p = profiles.get(sectionDomIds[k]);
 			if (p && !fitsHardMin(p, colMm)) {
 				return `C4: ${k} does not fit in p1-footer at ${colMm.toFixed(1)}mm`;
 			}
@@ -259,7 +264,7 @@ function hardConstraintViolation(
 		const cols   = colCount(p2Secs.length) as 1 | 2 | 3;
 		const colMm  = footerColContentMm(sidebarMm, cols);
 		for (const k of p2Secs) {
-			const p = profiles.get(SECTION_DOM_ID[k]);
+			const p = profiles.get(sectionDomIds[k]);
 			if (p && !fitsHardMin(p, colMm)) {
 				return `C4: ${k} does not fit in p2-footer at ${colMm.toFixed(1)}mm`;
 			}
@@ -269,20 +274,26 @@ function hardConstraintViolation(
 	// C4: sidebar sections must fit in sidebarMm
 	const sbSecs = sectionsInPlacement(sections, 'sidebar');
 	for (const k of sbSecs) {
-		const p = profiles.get(SECTION_DOM_ID[k]);
+		const p = profiles.get(sectionDomIds[k]);
 		if (p && !fitsHardMin(p, sidebarMm)) {
 			return `C4: ${k} does not fit in sidebar at ${sidebarMm.toFixed(1)}mm`;
 		}
 	}
-	// Education always in sidebar — check it too
-	const eduProfile = profiles.get('cv-education');
-	if (eduProfile && !fitsHardMin(eduProfile, sidebarMm)) {
+	// Always-sidebar sections — check they all fit
+	for (const sId of alwaysSidebarIds) {
+		const alwaysP = profiles.get(sId);
+		if (alwaysP && !fitsHardMin(alwaysP, sidebarMm)) {
+			return `C4: ${sId} does not fit in sidebar at ${sidebarMm.toFixed(1)}mm`;
+		}
+	}
+	const eduProfile = profiles.get('cv-education'); // legacy compat check
+	if (eduProfile && !fitsHardMin(eduProfile, sidebarMm) && !alwaysSidebarIds.includes('cv-education')) {
 		return `C4: education does not fit in sidebar at ${sidebarMm.toFixed(1)}mm`;
 	}
 
 	// C5: two-page sidebar-2 must have at least one section
 	if (pages === 2) {
-		const inSidebar2 = movableKeys().filter((k) => sections[k] === 'sidebar');
+		const inSidebar2 = Object.keys(sectionDomIds).filter((k) => sections[k] === 'sidebar');
 		if (inSidebar2.length === 0) {
 			return 'C5: sidebar-2 would be empty on two-page layout';
 		}
@@ -310,9 +321,11 @@ function hardConstraintViolation(
  * @param profiles    Section profile map from profileAllSections()
  */
 export function generateCandidates(
-	workCount: number,
-	profiles:  SectionProfileMap,
-	diagnostics?: CandidateGenerationDiagnostics,
+	workCount:        number,
+	profiles:         SectionProfileMap,
+	sectionDomIds:    Record<string, string>,
+	alwaysSidebarIds: string[],
+	diagnostics?:     CandidateGenerationDiagnostics,
 ): LayoutCandidate[] {
 	const candidates: LayoutCandidate[] = [];
 	const diag: CandidateGenerationDiagnostics = diagnostics ?? {
@@ -329,7 +342,7 @@ export function generateCandidates(
 	// All combinations of movable section placements we want to consider.
 	// We enumerate only semantically distinct arrangements (not the full 3^3
 	// power-set, which would include obviously invalid or uninteresting configs).
-	const sectionArrangements: MovableSections[] = buildSectionArrangements();
+	const sectionArrangements: MovableSectionMap[] = buildSectionArrangements(Object.keys(sectionDomIds));
 
 	for (const pages of pagesOptions) {
 		const mastheadModes = pages === 1 ? mastheadModes1 : mastheadModes2;
@@ -343,7 +356,7 @@ export function generateCandidates(
 			for (const sections of sectionArrangements) {
 				for (const mastheadMode of mastheadModes) {
 					// Derive sidebar width from profiles for this section arrangement
-					const sidebarMm = candidateSidebarMm(sections, profiles, pages);
+					const sidebarMm = candidateSidebarMm(sections, profiles, pages, sectionDomIds, alwaysSidebarIds);
 
 					// Derive footer column counts from section placements
 					const p1FooterSecs = sectionsInPlacement(sections, 'p1-footer');
@@ -355,6 +368,7 @@ export function generateCandidates(
 					const violation = hardConstraintViolation(
 						pages, pageSplitWork, workCount, mastheadMode,
 						sections, sidebarMm, profiles,
+						sectionDomIds, alwaysSidebarIds,
 					);
 					diag.totalCombinations += 1;
 					if (violation !== null) {
@@ -365,7 +379,12 @@ export function generateCandidates(
 					}
 
 					const id = buildCandidateId(
-						pages, pageSplitWork, mastheadMode, sidebarMm, sections,
+						pages,
+						pageSplitWork,
+						mastheadMode,
+						sidebarMm,
+						sections,
+						Object.keys(sectionDomIds),
 					);
 
 					candidates.push({
@@ -405,27 +424,29 @@ export function generateCandidates(
  * Languages (sidebar would then only have Interests — unusual and rarely
  * better than any footer arrangement).
  */
-function buildSectionArrangements(): MovableSections[] {
-	// Placement options per section:
-	//   skills:    sidebar | p1-footer | p2-footer
-	//   languages: sidebar | p1-footer | p2-footer
-	//   interests: sidebar | p1-footer | p2-footer
-	//
-	// We enumerate all 3^3 = 27 combinations but note that the hard
-	// constraints will prune most of them. This is clean and complete.
-
+/**
+ * Returns all MovableSectionMap arrangements for the given section keys.
+ * Generates all placement^N combinations (where N = sectionKeys.length)
+ * and returns them as a flat array. Hard constraints in generateCandidates
+ * prune structurally invalid ones before any reflow.
+ */
+function buildSectionArrangements(sectionKeys: string[]): MovableSectionMap[] {
 	const placements: MovableSectionPlacement[] = ['sidebar', 'p1-footer', 'p2-footer'];
-	const arrangements: MovableSections[] = [];
 
-	for (const skills of placements) {
-		for (const languages of placements) {
-			for (const interests of placements) {
-				arrangements.push({ skills, languages, interests });
+	function cartesian(keys: string[]): MovableSectionMap[] {
+		if (keys.length === 0) { return [{}]; }
+		const [first, ...rest] = keys as [string, ...string[]];
+		const restArrangements = cartesian(rest);
+		const result: MovableSectionMap[] = [];
+		for (const placement of placements) {
+			for (const restMap of restArrangements) {
+				result.push({ [first]: placement, ...restMap });
 			}
 		}
+		return result;
 	}
 
-	return arrangements;
+	return cartesian(sectionKeys);
 }
 
 function range(from: number, to: number): number[] {
@@ -440,8 +461,9 @@ function buildCandidateId(
 	mastheadMode:  MastheadMode,
 	sidebarMm:     number,
 	sections:      MovableSections,
+	sectionKeys:   string[],
 ): string {
-	const sectionParts = movableKeys()
+	const sectionParts = sectionKeys
 		.map((k) => `${k[0]}:${sections[k][0]}`)  // e.g. "s:s l:p i:p"
 		.join(' ');
 	const mh = mastheadMode === 'full' ? '' : `·mh:${mastheadMode.replace('profile-', '')}`;
@@ -466,16 +488,17 @@ function buildCandidateId(
  *   - Masthead rescue cost: slight preference for 'full' mode
  */
 export function widthAffinityPenalty(
-	candidate: LayoutCandidate,
-	profiles:  SectionProfileMap,
+	candidate:     LayoutCandidate,
+	profiles:      SectionProfileMap,
+	sectionDomIds: Record<string, string>,
 ): number {
 	let penalty = 0;
 
 	function penaliseSection(
-		k:      keyof MovableSections,
-		colMm:  number,
+		k:     string,
+		colMm: number,
 	): void {
-		const p = profiles.get(SECTION_DOM_ID[k]);
+		const p = profiles.get(sectionDomIds[k]);
 		if (!p) { return; }
 
 		const excess  = Math.max(0, colMm - p.maxComfortableWidthMm);
@@ -617,23 +640,27 @@ export function combinedScore(
  * Called before the reflow loop begins so the full search space is visible.
  */
 export function logCandidates(
-	candidates: LayoutCandidate[],
-	profiles:   SectionProfileMap,
+	candidates:    LayoutCandidate[],
+	profiles:      SectionProfileMap,
+	sectionDomIds: Record<string, string>,
 ): void {
 	console.groupCollapsed(`[cv-candidate] ${candidates.length} candidates generated`);
-	const rows = candidates.map((c) => ({
-		id:       c.id,
-		pages:    c.pages,
-		split:    c.pageSplitWork,
-		mh:       c.mastheadMode,
-		sb:       c.sidebarMm.toFixed(0) + 'mm',
-		sk:       c.sections.skills[0],
-		la:       c.sections.languages[0],
-		int:      c.sections.interests[0],
-		p1fc:     c.p1FooterCols,
-		p2fc:     c.p2FooterCols,
-		affinity: widthAffinityPenalty(c, profiles).toFixed(1),
-	}));
+	const rows = candidates.map((c) => {
+		const sectionCols = Object.fromEntries(
+			Object.keys(c.sections).map((k) => [k.slice(0, 4), c.sections[k][0]])
+		);
+		return {
+			id:      c.id,
+			pages:   c.pages,
+			split:   c.pageSplitWork,
+			mh:      c.mastheadMode,
+			sb:      c.sidebarMm.toFixed(0) + 'mm',
+			...sectionCols,
+			p1fc:    c.p1FooterCols,
+			p2fc:    c.p2FooterCols,
+			affinity: widthAffinityPenalty(c, profiles, sectionDomIds).toFixed(1),
+		};
+	});
 	console.table(rows);
 	console.groupEnd();
 }
@@ -668,11 +695,11 @@ export function clusterCandidates(
 	const topScore = sorted[0].combined;
 
 	function fingerprint(c: LayoutCandidate): string {
-		const sk  = c.sections.skills    === 'sidebar' ? 's' : 'f';
-		const la  = c.sections.languages === 'sidebar' ? 's' : 'f';
-		const int = c.sections.interests === 'sidebar' ? 's' : 'f';
-		const mh  = c.mastheadMode === 'full' ? 'full' : 'slim';
-		return `${c.pages}p·${mh}·${sk}${la}${int}`;
+		const sectionKey = Object.keys(c.sections)
+			.map((k) => c.sections[k] === 'sidebar' ? 's' : 'f')
+			.join('');
+		const mh = c.mastheadMode === 'full' ? 'full' : 'slim';
+		return `${c.pages}p·${mh}·${sectionKey}`;
 	}
 
 	const seen = new Map<string, ScoredCandidate>();
@@ -704,7 +731,7 @@ export function clusterLabel(s: ScoredCandidate): string {
 		parts.push(mhLabels[c.mastheadMode] ?? c.mastheadMode);
 	}
 
-	const inFooter = (['skills', 'languages', 'interests'] as const)
+	const inFooter = Object.keys(c.sections)
 		.filter((k) => c.sections[k] !== 'sidebar');
 	if (inFooter.length > 0) {
 		parts.push(inFooter.map((k) => k.slice(0, 4)).join('+') + ' below');

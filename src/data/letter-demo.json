@@ -1,0 +1,43 @@
+{
+	"meta": {
+		"lastUpdated": "2026-03-27",
+		"version": "1.0",
+		"language": "en",
+		"targetRole": "Principal Engineer — Design Technology"
+	},
+	"basics": {
+		"name":     "Alex Meridian",
+		"label":    "Computational Designer · Software Engineer · M.Arch",
+		"email":    "alex@meridian.design",
+		"phone":    "+1 415 000 0000",
+		"location": "San Francisco, CA"
+	},
+	"recipient": {
+		"name":         "Dr. Clara Voss",
+		"title":        "Director of Research",
+		"organisation": "Studio Lacuna",
+		"address":      "18 Vesterbrogade\nCopenhagen, Denmark"
+	},
+	"date":    "27 March 2026",
+	"subject": "Principal Engineer — Computational Research Platform",
+	"opening": "Dear Dr. Voss,",
+	"body": [
+		{
+			"text": "I am writing to express my interest in the Principal Engineer role at Studio Lacuna. Having followed the studio's work on computational urbanism for the past three years, I believe the intersection of your research ambitions and my technical background represents an unusually strong alignment."
+		},
+		{
+			"text": "Over the past four years at Forma Studio, I have led the design and delivery of parametric design tooling used on live projects exceeding two million square feet. The work required me to operate simultaneously as a software engineer, a researcher, and a communicator — writing production TypeScript on Monday, co-authoring an ACADIA paper on Tuesday, and presenting to a client board on Wednesday. I am equally comfortable in all three registers."
+		},
+		{
+			"text": "What draws me specifically to Studio Lacuna is the seriousness with which the practice treats the relationship between computation and material culture. My master's research at Harvard GSD — generative structural optimisation from voxel fields — was motivated by exactly this question, and I have never fully left it. I would welcome the opportunity to return to a research context where that question is central rather than peripheral."
+		},
+		{
+			"text": "I would be glad to discuss the role further at your convenience. I am available for a call or a visit to Copenhagen at short notice and can provide portfolio materials, code samples, or references on request."
+		}
+	],
+	"closing": {
+		"salutation": "Yours sincerely,",
+		"name":        "Alex Meridian",
+		"title":       "Principal Engineer — Design Technology"
+	}
+}

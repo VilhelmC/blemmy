@@ -1,6 +1,6 @@
 {
 	"name": "blemmy",
-	"version": "2.0.1",
+	"version": "3.2.0",
 	"description": "Content-driven document system with a precision layout engine — Vite + TypeScript",
 	"homepage": "https://blemmy.dev",
 	"type": "module",
@@ -17,7 +17,7 @@
 		"test:layout-edit-pass": "npm run build && node scripts/test-layout-edit-pass-stability.mjs",
 		"capture:layout-gif": "node scripts/capture-layout-gif.mjs",
 		"test:unit": "vitest run --pool=forks --maxWorkers=100%",
-		"test:e2e": "playwright test --workers=100%",
+		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headed": "playwright test --headed --workers=50%",
 		"gdpr:retention-cleanup": "node scripts/run-retention-cleanup.mjs"

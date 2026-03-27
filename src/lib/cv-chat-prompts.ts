@@ -17,6 +17,8 @@
 
 import type { CVData } from '@cv/cv';
 import type { CVReview } from '@cv/cv-review';
+import type { LetterData } from '@cv/letter';
+import { describeDocTypeSpec, getDocTypeSpec } from '@lib/document-type';
 import { buildReviewPromptSection } from '@lib/cv-review';
 
 
@@ -46,9 +48,17 @@ with a JSON object containing Partial<DocumentStyle> fields.
 - headingFont: "dm-sans" | "playfair-display" | "cormorant-garamond" | "libre-baskerville" | "eb-garamond"
 - bodyFont:    "dm-sans" | "work-sans" | "source-sans-3"
 - headingDistinct: true = use headingFont for headings; false = single font throughout
+- customFontCssUrl: optional https Google Fonts CSS URL (fonts.googleapis.com only)
+- customBodyFontFamily: optional CSS font-family string for body
+- customHeadingFontFamily: optional CSS font-family string for headings
 
 ### Print sidebar:
 - printSidebar: "color" | "grayscale" | "outline"
+
+### Custom CSS vars (allowlisted keys only):
+- customCssVars can override: --text-body, --text-meta, --text-label, --text-name
+- and print/layout tokens: --print-main-padding, --print-sidebar-padding
+- plus alignment/slack tokens: --cv-slack-gap-p*-*, --cv-align-gap-p*-*
 
 ### Response format:
 \`\`\`style
@@ -75,14 +85,21 @@ export type LayoutState = {
 	activeFilters: string[];
 };
 
+export type ActiveDocType = 'cv' | 'letter';
+export type ActiveDocData = CVData | LetterData;
+export type PromptContextMode = 'minimal' | 'full';
+
 /**
  * Reads the current layout state from #cv-card data attributes.
  * Call this just before building the system prompt so it reflects the
  * most recent layout pass.
  */
 export function readLayoutState(): LayoutState {
-	const card          = document.getElementById('cv-card');
-	const data          = window.__CV_DATA__;
+	const activeType = window.__ACTIVE_DOC_TYPE__ ?? 'cv';
+	const card = document.getElementById(
+		activeType === 'letter' ? 'letter-card' : 'cv-card',
+	);
+	const data = activeType === 'cv' ? window.__CV_DATA__ : undefined;
 	const activeFilters = data?.activeFilters ?? [];
 
 	if (!card) {
@@ -106,7 +123,11 @@ export function readLayoutState(): LayoutState {
 
 // Extend Window interface to know about __CV_DATA__
 declare global {
-	interface Window { __CV_DATA__?: CVData; }
+	interface Window {
+		__CV_DATA__?: CVData;
+		__LETTER_DATA__?: LetterData;
+		__ACTIVE_DOC_TYPE__?: ActiveDocType;
+	}
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -135,6 +156,62 @@ Tags are lowercase strings added to work/education items for filtering:
 Visibility hides items by index (hiddenWork: [1, 3] hides work items at index 1 and 3).
 activeFilters: when set, only items with at least one matching tag are shown (untagged items always show).
 `.trim();
+
+const LETTER_SCHEMA_SUMMARY = `
+Letter JSON schema (TypeScript interfaces):
+
+interface LetterData {
+  meta:      { lastUpdated, version, language, targetRole? }
+  basics:    { name, label, email, phone, location }
+  recipient: { name?, title?, organisation?, address? }
+  date:      string
+  subject?:  string
+  opening:   string
+  body:      Array<{ text: string }>
+  closing:   { salutation, name, title? }
+}
+`.trim();
+
+function tokenizePath(path: string): string[] {
+	return path
+		.replace(/\[(\d+)\]/g, '.$1')
+		.split('.')
+		.filter(Boolean);
+}
+
+function valueAtPath(root: unknown, path: string): unknown {
+	let cur: unknown = root;
+	for (const token of tokenizePath(path)) {
+		if (cur == null || typeof cur !== 'object') { return undefined; }
+		if (Array.isArray(cur)) {
+			const idx = Number(token);
+			if (!Number.isInteger(idx) || idx < 0 || idx >= cur.length) {
+				return undefined;
+			}
+			cur = cur[idx];
+			continue;
+		}
+		cur = (cur as Record<string, unknown>)[token];
+	}
+	return cur;
+}
+
+function buildScopedContextSection(data: ActiveDocData, paths: string[]): string {
+	const unique = Array.from(new Set(paths)).slice(0, 24);
+	if (unique.length === 0) { return ''; }
+	const snippets = unique
+		.map((path) => ({ path, value: valueAtPath(data, path) }))
+		.filter((entry) => entry.value !== undefined)
+		.map((entry) => `- ${entry.path}: ${JSON.stringify(entry.value)}`);
+	if (snippets.length === 0) { return ''; }
+	return `## Scoped content focus\n${snippets.join('\n')}`;
+}
+
+function buildDocTypeSummary(docType: ActiveDocType): string {
+	const spec = getDocTypeSpec(docType);
+	if (!spec) { return ''; }
+	return `## Active document type\n${describeDocTypeSpec(spec)}`;
+}
 
 /**
  * Builds the full system prompt for a chat session.
@@ -235,6 +312,100 @@ ${JSON.stringify(cv, null, 2)}
 ${sourceSection}`.trim();
 }
 
+export function buildRoutedSystemPrompt(args: {
+	docType: ActiveDocType;
+	docData: ActiveDocData;
+	layout: LayoutState;
+	sourceText?: string;
+	review?: CVReview;
+	contextMode: PromptContextMode;
+	scopedPaths?: string[];
+	includeReview?: boolean;
+}): string {
+	if (args.docType === 'cv') {
+		const cv = args.docData as CVData;
+		const full = buildSystemPrompt(
+			cv,
+			args.layout,
+			args.sourceText,
+			args.includeReview ? args.review : undefined,
+		);
+		if (args.contextMode === 'full') {
+			const scoped = buildScopedContextSection(cv, args.scopedPaths ?? []);
+			return scoped ? `${full}\n\n${scoped}` : full;
+		}
+		const scoped = buildScopedContextSection(cv, args.scopedPaths ?? []);
+		const reviewSection = args.includeReview && args.review
+			? buildReviewPromptSection(args.review)
+			: '';
+		return `You are a professional document assistant.
+
+${SCHEMA_SUMMARY}
+
+${buildDocTypeSummary('cv')}
+
+${[
+	`Current layout: ${args.layout.pages} page(s)`,
+	args.layout.disposition !== 'unknown' ? `disposition: ${args.layout.disposition}` : '',
+	args.layout.nearOverflow ? 'near overflow' : '',
+].filter(Boolean).join(' · ')}
+
+Return concise guidance. If asked to apply style changes, return a \`\`\`style block only.
+
+${STYLE_SCHEMA_SUMMARY}
+
+${reviewSection}
+
+${scoped}`.trim();
+	}
+
+	const letter = args.docData as LetterData;
+	const scoped = buildScopedContextSection(letter, args.scopedPaths ?? []);
+	const sourceSection = args.sourceText
+		? `
+## Source material
+\`\`\`
+${args.sourceText.slice(0, 12000)}${args.sourceText.length > 12000 ? '\n\n[… truncated]' : ''}
+\`\`\`
+`.trim()
+		: '';
+	const reviewSection = args.includeReview && args.review
+		? buildReviewPromptSection(args.review)
+		: '';
+	const dataSection = args.contextMode === 'full'
+		? `
+## Current letter data
+\`\`\`json
+${JSON.stringify(letter, null, 2)}
+\`\`\`
+`.trim()
+		: '';
+	return `You are a professional cover-letter assistant.
+
+${LETTER_SCHEMA_SUMMARY}
+
+${buildDocTypeSummary('letter')}
+
+${[
+	`Current layout: ${args.layout.pages} page(s)`,
+	args.layout.disposition !== 'unknown' ? `disposition: ${args.layout.disposition}` : '',
+	args.layout.nearOverflow ? 'near overflow' : '',
+].filter(Boolean).join(' · ')}
+
+When asked to apply letter content changes, return the COMPLETE LetterData JSON in a fenced \`\`\`json block.
+When asked for style changes, return a \`\`\`style block.
+
+${STYLE_SCHEMA_SUMMARY}
+
+${scoped}
+
+${reviewSection}
+
+${dataSection}
+
+${sourceSection}`.trim();
+}
+
 // ─── Starter suggestions ──────────────────────────────────────────────────────
 
 /**
@@ -281,6 +452,28 @@ export function buildStarterSuggestions(
 	starters.push('Rewrite my CV for a senior real estate investment role.');
 	starters.push('Adapt my summary for an architecture research position.');
 
+	return starters.slice(0, 4);
+}
+
+export function buildStarterSuggestionsForDoc(
+	docType:       ActiveDocType,
+	docData:       ActiveDocData,
+	layout:        LayoutState,
+	hasSourceText: boolean,
+): string[] {
+	if (docType === 'cv') {
+		return buildStarterSuggestions(docData as CVData, layout, hasSourceText);
+	}
+	const starters: string[] = [];
+	if (hasSourceText) {
+		starters.push('Use my source material to strengthen this cover letter.');
+	}
+	starters.push('Rewrite this letter for a more concise and confident tone.');
+	starters.push('Tailor this cover letter for a senior role.');
+	starters.push('Improve paragraph flow and reduce repetition.');
+	if (layout.nearOverflow) {
+		starters.push('Shorten this letter so it fits cleanly on one page.');
+	}
 	return starters.slice(0, 4);
 }
 

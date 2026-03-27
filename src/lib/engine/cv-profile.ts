@@ -328,47 +328,38 @@ export function profileSection(
 
 // ─── Batch profiling ──────────────────────────────────────────────────────────
 
-type ProfilableEls = {
-	elSkills:    HTMLElement | null;
-	elLang:      HTMLElement | null;
-	elInt:       HTMLElement | null;
-	elProfile:   HTMLElement | null;
-	sidebar1:    HTMLElement;
-};
-
 /**
- * Profiles all movable/constraint-relevant sections in one pass.
- * Should be called before any DOM mutations (merge, move, etc.).
- * Returns a map from section ID to profile.
+ * Profiles a set of sections in one pass.
  *
- * Sections profiled:
- *   cv-rebalance-skills      → candidate for p2 sidebar or footer
- *   cv-rebalance-languages   → candidate for p2 sidebar or footer (list-like)
- *   cv-rebalance-interests   → candidate for p2 sidebar or footer (prose)
- *   cv-rebalance-profile     → must stay in wide column (masthead or main-1)
- *   cv-education             → sidebar-1, informs min sidebar width
+ * @param namedElements    Array of [sectionId, element | null] to profile.
+ *                         Null elements are silently skipped.
+ * @param sidebar1El       The sidebar-1 element. Its first non-tail-spacer child
+ *                         is profiled as the always-sidebar section.
+ * @param alwaysSidebarId  SectionId assigned to the sidebar-1 child profile.
+ *                         Defaults to 'cv-education' for backwards compatibility.
+ *
+ * The engine calls this with elements resolved from EngineDocumentSpec.
  */
-export function profileAllSections(els: ProfilableEls): SectionProfileMap {
+export function profileAllSections(
+	namedElements:   Array<[SectionId, HTMLElement | null]>,
+	sidebar1El:      HTMLElement,
+	alwaysSidebarId: SectionId = 'cv-education',
+): SectionProfileMap {
 	const map = new Map<SectionId, SectionProfile>();
 
-	const toProfile: Array<[SectionId, HTMLElement | null]> = [
-		['cv-rebalance-skills',    els.elSkills],
-		['cv-rebalance-languages', els.elLang],
-		['cv-rebalance-interests', els.elInt],
-		['cv-rebalance-profile',   els.elProfile],
-	];
+	for (const [id, el] of namedElements) {
+		if (el == null) { continue; }
+		map.set(id, profileSection(el, id));
+	}
 
-	// Education: first direct div child of sidebar-1 (not the tail spacer)
-	const eduDiv = Array.from(els.sidebar1.children).find(
+	// Always-sidebar section: first direct div child of sidebar1 (not tail spacer)
+	const alwaysEl = Array.from(sidebar1El.children).find(
 		(c): c is HTMLElement =>
 			c instanceof HTMLElement &&
 			!c.classList.contains('cv-sidebar-tail-spacer'),
 	) ?? null;
-	toProfile.push(['cv-education', eduDiv]);
-
-	for (const [id, el] of toProfile) {
-		if (el == null) { continue; }
-		map.set(id, profileSection(el, id));
+	if (alwaysEl) {
+		map.set(alwaysSidebarId, profileSection(alwaysEl, alwaysSidebarId));
 	}
 
 	return map;

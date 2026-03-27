@@ -13,6 +13,7 @@ type DockedPopoverOptions = {
 	marginPx?: number;
 	onOpen?: () => void;
 	onClose?: () => void;
+	outsideCloseGuard?: (target: Node) => boolean;
 };
 
 export type DockedPopoverController = {
@@ -143,6 +144,7 @@ export function initDockedPopover(
 		const t = event.target;
 		if (!(t instanceof Node)) { return; }
 		if (options.panel.contains(t) || options.trigger.contains(t)) { return; }
+		if (options.outsideCloseGuard?.(t)) { return; }
 		closeSelf();
 	};
 

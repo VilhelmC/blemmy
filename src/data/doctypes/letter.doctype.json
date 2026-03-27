@@ -1,0 +1,42 @@
+{
+	"docType": "letter",
+	"label": "Cover Letter",
+	"version": "1.0",
+
+	"layout": {
+		"model": "single-column",
+		"maxPages": 1,
+		"pageSize": "A4",
+		"hasPortrait": false,
+		"hasMasthead": true,
+		"hasFooter": false
+	},
+
+	"domPrefix": "letter",
+
+	"sections": [
+		{
+			"id":        "header",
+			"label":     "Header",
+			"placement": "masthead"
+		},
+		{
+			"id":        "recipient",
+			"label":     "Recipient",
+			"placement": "fixed-main"
+		},
+		{
+			"id":        "body",
+			"label":     "Letter Body",
+			"placement": "fixed-main",
+			"repeating": true
+		},
+		{
+			"id":        "closing",
+			"label":     "Closing",
+			"placement": "fixed-main"
+		}
+	],
+
+	"contentType": "LetterData"
+}

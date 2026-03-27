@@ -1,0 +1,68 @@
+{
+	"docType": "cv",
+	"label": "Curriculum Vitae",
+	"version": "1.0",
+
+	"layout": {
+		"model": "sidebar-main",
+		"maxPages": 2,
+		"pageSize": "A4",
+		"hasPortrait": true,
+		"hasMasthead": true,
+		"hasFooter": true
+	},
+
+	"domPrefix": "cv",
+
+	"domOverrides": {
+		"sections": {
+			"skills":    "cv-rebalance-skills",
+			"languages": "cv-rebalance-languages",
+			"interests": "cv-rebalance-interests",
+			"profile":   "cv-rebalance-profile",
+			"education": "cv-education"
+		}
+	},
+
+	"cssClasses": {
+		"singlePage":    "cv-single-page",
+		"densityPrefix": "cv-density-",
+		"fillPrefix":    "cv-fill-"
+	},
+
+	"sections": [
+		{
+			"id":        "work",
+			"label":     "Experience",
+			"placement": "fixed-main",
+			"repeating": true
+		},
+		{
+			"id":        "education",
+			"label":     "Education",
+			"placement": "fixed-sidebar"
+		},
+		{
+			"id":        "skills",
+			"label":     "Skills",
+			"placement": "movable"
+		},
+		{
+			"id":        "languages",
+			"label":     "Languages",
+			"placement": "movable"
+		},
+		{
+			"id":        "interests",
+			"label":     "Interests",
+			"placement": "movable"
+		},
+		{
+			"id":        "profile",
+			"label":     "Profile",
+			"placement": "profilable"
+		}
+	],
+
+	"contentType": "CVData"
+}

@@ -9,6 +9,7 @@ import '@styles/cv-print-surface.css';
 import '@styles/cv-print-parity.css';
 import '@styles/style-panel.css';
 import '@styles/review-mode.css';
+import '@styles/letter.css';
 
 document.documentElement.classList.add('cv-css-ready');
 
@@ -24,9 +25,15 @@ import {
 } from '@lib/app-mode';
 import { loadCvData, onCvDataChanged } from '@lib/cv-loader';
 import { toggleFilter, extractAllTags } from '@lib/cv-filter';
-import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/layout-audit';
+import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/engine/layout-audit';
 import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
-import { applyLayoutSnapshotToDom } from '@lib/cv-layout-snapshot';
+import { applyLayoutSnapshotToDom } from '@lib/engine/cv-layout-snapshot';
+import { CV_DOCUMENT_SPEC } from '@lib/cv-document-spec';
+import { LETTER_DOCUMENT_SPEC } from '@lib/letter-document-spec';
+import {
+	loadLetterData,
+} from '@lib/letter-loader';
+import type { LetterData } from '@cv/letter';
 import {
 	loadPortraitLocalCache,
 	savePortraitLocalCache,
@@ -36,13 +43,18 @@ import { syncFilterBar }                from '@renderer/cv-renderer';
 import type { CVData }                  from '@cv/cv';
 
 import { renderCV }           from '@renderer/cv-renderer';
+import { renderLetter } from '@renderer/letter-renderer';
 import { initUIComponents, initSharedReviewComponents }   from '@renderer/ui-components';
 import { startUiManager } from '@renderer/ui-manager';
-import { initCvLayoutEngine } from '@lib/cv-layout-engine';
+import { initCvLayoutEngine } from '@lib/engine/cv-layout-engine';
 
 declare global {
 	interface Window {
 		__CV_DATA__?: CVData;
+		__LETTER_DATA__?: LetterData;
+		__ACTIVE_DOC_TYPE__?: 'cv' | 'letter';
+		__blemmySwitchToLetter__?: (data?: LetterData) => void;
+		__blemmySwitchToCv__?: (data?: CVData) => void;
 		cvUndo?: () => void;
 		cvRedo?: () => void;
 		cvCanUndo?: () => boolean;
@@ -130,13 +142,22 @@ function schedulePaperStageRefit(apply: () => void): void {
 			apply();
 		});
 	});
+	window.setTimeout(() => {
+		apply();
+	}, 120);
 }
 
 function setupPaperStageScale(readonlyMode: boolean): void {
 	const baseW = Math.round((210 / 25.4) * 96);
+	let moTimer: number | null = null;
 	const apply = (): void => {
+		const shell = document.getElementById('cv-shell');
+		if (!shell?.isConnected) {
+			return;
+		}
 		const vv = window.visualViewport;
 		const viewW = vv?.width ?? window.innerWidth;
+		const layoutW = document.documentElement?.clientWidth ?? viewW;
 		const isDesktop = window.matchMedia('(min-width: 901px)').matches;
 		const appPanelOpen = Boolean(
 			document.querySelector('.cv-side-panel:not([hidden])'),
@@ -148,9 +169,10 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
 		const reserveRight = isDesktop && (appPanelOpen || shareReviewOpen) ? 344 : 0;
-		const horizPad = isDesktop ? 12 : 28;
+		const horizPad = isDesktop ? 12 : 32;
+		const viewNarrow = Math.min(viewW, layoutW, window.innerWidth);
 		const viewportBudget = Math.max(
-			Math.floor(viewW) - horizPad - reserveRight,
+			Math.floor(viewNarrow) - horizPad - reserveRight,
 			1,
 		);
 		const root = document.getElementById('cv-root');
@@ -167,9 +189,8 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			1,
 			rawRoot > 0 ? Math.min(rawRoot, viewportBudget) : viewportBudget,
 		);
-		const shell = document.getElementById('cv-shell');
 		const hasFixedPaperStage = readonlyMode ||
-			Boolean(shell?.classList.contains('cv-print-preview'));
+			Boolean(shell.classList.contains('cv-print-preview'));
 		const scale = hasFixedPaperStage ? Math.min(availableW / baseW, 1) : 1;
 		document.documentElement.style.setProperty(
 			'--cv-paper-scale',
@@ -183,24 +204,62 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 		const shareHtml = document.documentElement.classList.contains(
 			'cv-share-readonly',
 		);
-		const stage =
-			shell?.parentElement?.classList.contains('cv-paper-stage')
-				? shell.parentElement
+		const shellParent = shell.parentElement;
+		const scaler =
+			shellParent?.classList.contains('cv-paper-scaler')
+				? shellParent
 				: null;
+		let stage: HTMLElement | null = null;
+		if (scaler?.parentElement?.classList.contains('cv-paper-stage')) {
+			stage = scaler.parentElement;
+		} else if (shellParent?.classList.contains('cv-paper-stage')) {
+			stage = shellParent;
+		}
 		const zoomSupported =
 			typeof CSS !== 'undefined' &&
 			typeof CSS.supports === 'function' &&
 			CSS.supports('zoom', '1');
+		const useMobileTransform =
+			zoomSupported &&
+			!isDesktop &&
+			!shareHtml &&
+			hasFixedPaperStage &&
+			scaler instanceof HTMLElement &&
+			stage instanceof HTMLElement;
 		if (stage instanceof HTMLElement) {
 			if (shareHtml || !hasFixedPaperStage) {
 				stage.style.removeProperty('zoom');
 				stage.style.removeProperty('width');
 				stage.style.removeProperty('max-width');
-			} else if (zoomSupported) {
+				stage.style.removeProperty('overflow-x');
+				if (scaler instanceof HTMLElement) {
+					scaler.style.removeProperty('transform');
+					scaler.style.removeProperty('transform-origin');
+					scaler.style.removeProperty('width');
+				}
+			} else if (useMobileTransform) {
 				/*
-				 * Chrome Android often loses stylesheet `zoom` after CV remounts
-				 * (e.g. tag filters). Inline zoom + A4 width keeps the stage scaled.
+				 * Chrome Android: zoom on .cv-paper-stage is unreliable after DOM
+				 * remounts. Scale an inner .cv-paper-scaler with transform and clip
+				 * the stage layout box to the scaled width.
 				 */
+				stage.style.removeProperty('zoom');
+				const layW = Math.max(1, Math.round(baseW * scale));
+				stage.style.setProperty('width', `${layW}px`);
+				stage.style.setProperty('max-width', '100%');
+				stage.style.setProperty('overflow-x', 'clip');
+				stage.style.setProperty('margin-inline', 'auto');
+				scaler.style.setProperty('width', `${baseW}px`);
+				scaler.style.setProperty('transform', `scale(${scale})`);
+				scaler.style.setProperty('transform-origin', 'top center');
+			} else if (zoomSupported) {
+				stage.style.removeProperty('overflow-x');
+				stage.style.removeProperty('margin-inline');
+				if (scaler instanceof HTMLElement) {
+					scaler.style.removeProperty('transform');
+					scaler.style.removeProperty('transform-origin');
+					scaler.style.removeProperty('width');
+				}
 				stage.style.setProperty('zoom', String(scale));
 				stage.style.setProperty('width', `${baseW}px`);
 				stage.style.setProperty('max-width', `${baseW}px`);
@@ -208,6 +267,13 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 				stage.style.removeProperty('zoom');
 				stage.style.removeProperty('width');
 				stage.style.removeProperty('max-width');
+				stage.style.removeProperty('overflow-x');
+				stage.style.removeProperty('margin-inline');
+				if (scaler instanceof HTMLElement) {
+					scaler.style.removeProperty('transform');
+					scaler.style.removeProperty('transform-origin');
+					scaler.style.removeProperty('width');
+				}
 			}
 		}
 	};
@@ -217,7 +283,15 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 	window.addEventListener('cv-layout-applied', () => {
 		schedulePaperStageRefit(apply);
 	});
-	const observer = new MutationObserver(() => { apply(); });
+	const observer = new MutationObserver(() => {
+		if (moTimer != null) {
+			window.clearTimeout(moTimer);
+		}
+		moTimer = window.setTimeout(() => {
+			moTimer = null;
+			apply();
+		}, 48);
+	});
 	observer.observe(document.body, {
 		subtree: true,
 		attributes: true,
@@ -247,7 +321,10 @@ function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
 		stage.append(banner, shell);
 		return;
 	}
-	stage.append(shell);
+	const scaler = document.createElement('div');
+	scaler.className = 'cv-paper-scaler';
+	scaler.appendChild(shell);
+	stage.appendChild(scaler);
 }
 
 /** Screen preview needs .cv-paper-stage so --cv-paper-scale applies after each remount. */
@@ -702,6 +779,7 @@ function mount(cv: CVData): void {
 	if (legacyShell) { legacyShell.remove(); }
 	if (engineCleanup) { engineCleanup(); engineCleanup = null; }
 
+	window.__ACTIVE_DOC_TYPE__ = 'cv';
 	window.__CV_DATA__ = cv;
 	if (cv.basics.portraitDataUrl) {
 		void savePortraitLocalCache(cv.basics.portraitDataUrl);
@@ -712,6 +790,7 @@ function mount(cv: CVData): void {
 	const shell = document.getElementById('cv-shell');
 	if (!shell) { throw new Error('[main] #cv-shell not found after render'); }
 	activateShell(shell);
+	ensurePaperStageIfNeeded();
 
 	// Wire filter bar chip clicks
 	initFilterBar(cv);
@@ -719,7 +798,7 @@ function mount(cv: CVData): void {
 	const hasSharedSnapshot = Boolean(cv.layoutSnapshot);
 	engineCleanup = (isShareReadonlyMode() && hasSharedSnapshot)
 		? null
-		: initCvLayoutEngine() ?? null;
+		: initCvLayoutEngine(CV_DOCUMENT_SPEC) ?? null;
 	if (isShareReadonlyMode() && cv.layoutSnapshot) {
 		applyLayoutSnapshotToDom(cv.layoutSnapshot);
 		window.dispatchEvent(new Event('cv-layout-applied'));
@@ -735,6 +814,34 @@ function mount(cv: CVData): void {
 			window.dispatchEvent(new Event('resize'));
 		});
 	});
+}
+
+function switchToLetter(data?: LetterData): void {
+	const letterData = data ?? window.__LETTER_DATA__ ?? loadLetterData();
+	const existingRoot = document.getElementById('letter-root')
+		?? document.getElementById('cv-root');
+	if (existingRoot) { existingRoot.remove(); }
+	const legacyShell = document.getElementById('letter-shell')
+		?? document.getElementById('cv-shell');
+	if (legacyShell) { legacyShell.remove(); }
+	if (engineCleanup) { engineCleanup(); engineCleanup = null; }
+	window.__ACTIVE_DOC_TYPE__ = 'letter';
+	window.__LETTER_DATA__ = letterData;
+	const root = renderLetter(letterData);
+	document.body.insertBefore(root, document.body.firstChild);
+	const shell = document.getElementById('letter-shell');
+	if (shell instanceof HTMLElement) {
+		activateShell(shell);
+	}
+	engineCleanup = initCvLayoutEngine(LETTER_DOCUMENT_SPEC) ?? null;
+	persistSessionState();
+}
+
+function switchToCv(data?: CVData): void {
+	window.__ACTIVE_DOC_TYPE__ = 'cv';
+	window.__LETTER_DATA__ = undefined;
+	const nextCv = data ?? window.__CV_DATA__ ?? loadCvData();
+	mount(nextCv);
 }
 
 function applyData(cv: CVData, recordHistory = true): void {
@@ -952,6 +1059,8 @@ async function boot(): Promise<void> {
 		initLayoutAuditUi();
 	}
 	if (appMode === 'normal') {
+		window.__blemmySwitchToLetter__ = switchToLetter;
+		window.__blemmySwitchToCv__ = switchToCv;
 		window.cvUndo = undoCvChange;
 		window.cvRedo = redoCvChange;
 		window.cvCanUndo = () => historyPast.length > 0;

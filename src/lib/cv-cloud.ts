@@ -1,6 +1,6 @@
 import { createClient, type Session, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { CVData } from '@cv/cv';
-import { withCapturedLayoutSnapshot } from '@lib/cv-layout-snapshot';
+import { withCapturedLayoutSnapshot } from '@lib/engine/cv-layout-snapshot';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;

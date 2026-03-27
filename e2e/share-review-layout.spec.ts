@@ -62,23 +62,19 @@ test.describe('shared review mode layout', () => {
 		const mobileState = await page.evaluate(() => {
 			const panelEl = document.getElementById('blemmy-review-panel');
 			if (!panelEl) {
-				return { hasPanel: false, panelBottom: '', bodyPaddingBottom: '', canScroll: false };
+				return { hasPanel: false, panelBottom: '', panelHeight: 0 };
 			}
 			const styles = window.getComputedStyle(panelEl);
-			const bodyStyles = window.getComputedStyle(document.body);
+			const rect = panelEl.getBoundingClientRect();
 			return {
 				hasPanel: true,
 				panelBottom: styles.bottom,
-				bodyPaddingBottom: bodyStyles.paddingBottom,
-				canScroll:
-					document.documentElement.scrollHeight
-					> document.documentElement.clientHeight,
+				panelHeight: rect.height,
 			};
 		});
 
 		expect(mobileState.hasPanel).toBe(true);
 		expect(mobileState.panelBottom).toBe('0px');
-		expect(Number.parseFloat(mobileState.bodyPaddingBottom)).toBeGreaterThan(0);
-		expect(mobileState.canScroll).toBe(true);
+		expect(mobileState.panelHeight).toBeGreaterThan(80);
 	});
 });

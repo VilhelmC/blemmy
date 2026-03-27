@@ -3234,6 +3234,42 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	}
 	.cv-chat-apply-btn:hover { opacity: 0.82; }
 
+	.cv-chat-scope-bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.35rem 0.75rem 0.4rem;
+		border-top: 1px solid var(--color-ink-border);
+		background: rgba(26,60,64,0.03);
+	}
+	.cv-chat-scope-bar[hidden] { display: none; }
+	.cv-chat-scope-label {
+		font-size: 0.56rem;
+		letter-spacing: 0.02em;
+		color: var(--color-ink-muted);
+		text-transform: uppercase;
+	}
+	.cv-chat-scope-chip,
+	.cv-chat-scope-clear {
+		border: 1px solid rgba(26,60,64,0.25);
+		border-radius: 999px;
+		background: #fff;
+		color: var(--color-teal-deep, #1a3c40);
+		font-size: 0.56rem;
+		padding: 0.15rem 0.45rem;
+		cursor: pointer;
+	}
+	.cv-chat-scope-clear {
+		margin-left: auto;
+		color: var(--color-ink-muted);
+		border-style: dashed;
+	}
+	.cv-chat-scope-chip:hover,
+	.cv-chat-scope-clear:hover {
+		border-color: var(--color-sidebar, #1a3c40);
+	}
+
 	/* Input area */
 	.cv-chat-input-wrap {
 		display:     flex;
@@ -3282,6 +3318,12 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	}
 	.cv-chat-send:hover    { opacity: 0.82; }
 	.cv-chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+	.cv-chat-scope-selected {
+		outline: 2px solid rgba(26,60,64,0.75);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
 
 	/* Unified panel state now handles shell width and reserve space. */
 }
@@ -3959,6 +4001,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	#cv-ui-dock-right .cv-edit-btn,
 	#cv-ui-dock-right .blemmy-review-toggle,
 	#cv-ui-dock-right .cv-layout-debug-toggle,
+	#cv-ui-dock-right #cv-download-pdf,
 	#cv-ui-dock-right .cv-view-mode-toggle,
 	#cv-ui-dock-right .theme-toggle,
 	#cv-ui-dock-right .cv-chat-trigger,
@@ -4365,6 +4408,19 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 @media screen and (max-width: 900px) {
 	html:not(.cv-share-readonly) body {
 		padding: 0.4rem !important;
+	}
+	/*
+	 * Mobile Chrome: stylesheet zoom on .cv-paper-stage fights JS transform on
+	 * .cv-paper-scaler; disable zoom here so inline/layout styles control fit.
+	 */
+	html:not(.cv-share-readonly) .cv-paper-stage:has(.cv-paper-scaler) {
+		zoom: unset !important;
+		transform: none !important;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+	.cv-paper-scaler {
+		box-sizing: border-box;
 	}
 }
 

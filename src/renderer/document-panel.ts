@@ -1,5 +1,7 @@
 import type { CVData } from '@cv/cv';
 import { validateCvData } from '@lib/cv-loader';
+import { newLetterFromBasics, validateLetterData } from '@lib/letter-loader';
+import type { LetterData } from '@cv/letter';
 import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
 import {
 	CLOUD_ENABLED,
@@ -135,12 +137,25 @@ export function initDocumentPanel(
 	async function openDoc(doc: CloudDocument): Promise<void> {
 		if (!doc.latest) { setStatus('No versions for document', true); return; }
 		try {
+			if (doc.doc_type === 'letter') {
+				const letter = validateLetterData(doc.latest);
+				openDocument(doc);
+				const switchLetter = window.__blemmySwitchToLetter__;
+				switchLetter?.(letter);
+				closeDrawer?.();
+				return;
+			}
 			const cv = validateCvData(doc.latest);
 			openDocument(doc);
-			remount(cv);
+			const switchCv = window.__blemmySwitchToCv__;
+			if (switchCv) {
+				switchCv(cv);
+			} else {
+				remount(cv);
+			}
 			closeDrawer?.();
 		} catch (err) {
-			setStatus(err instanceof Error ? err.message : 'Invalid CV', true);
+			setStatus(err instanceof Error ? err.message : 'Invalid document', true);
 		}
 	}
 	function renderDocs(): void {
@@ -161,6 +176,11 @@ export function initDocumentPanel(
 				},
 				doc.name,
 			);
+			if (doc.doc_type && doc.doc_type !== 'cv') {
+				openBtn.appendChild(
+					h('span', { class: 'cv-doc-row__meta' }, ` (${doc.doc_type})`),
+				);
+			}
 			openBtn.addEventListener('click', () => { void openDoc(doc); });
 			const renameBtn = h(
 				'button',
@@ -632,15 +652,121 @@ export function initDocumentPanel(
 		docs = res.data;
 		renderDocs();
 	}
+	async function openCreateDocumentDialog(): Promise<{
+		docType: 'cv' | 'letter';
+		name: string;
+	} | null> {
+		return new Promise((resolve) => {
+			const overlay = h('div', { class: 'cv-share-modal' });
+			const panel = h('div', {
+				class: 'cv-share-modal__panel',
+				role: 'dialog',
+				'aria-modal': 'true',
+				'aria-label': 'Create new document',
+			});
+			const title = h('h3', { class: 'cv-share-modal__title' }, 'Create new document');
+			const statusEl = h('p', {
+				class: 'cv-share-modal__status',
+				hidden: '',
+			});
+			const typeLabel = h('label', {}, 'Document type');
+			const typeSelect = h('select', {
+				class: 'cv-share-modal__select',
+			}) as HTMLSelectElement;
+			typeSelect.append(
+				h('option', { value: 'cv' }, 'CV'),
+				h('option', { value: 'letter' }, 'Cover letter'),
+			);
+			const nameLabel = h('label', {}, 'Document name');
+			const nameInput = h('input', {
+				class: 'cv-share-modal__select',
+				type: 'text',
+				value: 'Untitled CV',
+				placeholder: 'Enter a document name',
+			}) as HTMLInputElement;
+			function setStatus(msg: string, isErr = false): void {
+				statusEl.textContent = msg;
+				statusEl.hidden = !msg;
+				statusEl.className = isErr
+					? 'cv-share-modal__status cv-share-modal__status--error'
+					: 'cv-share-modal__status';
+			}
+			typeSelect.addEventListener('change', () => {
+				const nextType = typeSelect.value === 'letter' ? 'letter' : 'cv';
+				if (!nameInput.value.trim() || nameInput.value === 'Untitled CV' || nameInput.value === 'Untitled Letter') {
+					nameInput.value = nextType === 'letter' ? 'Untitled Letter' : 'Untitled CV';
+				}
+			});
+			const createBtn = h('button', {
+				type: 'button',
+				class: 'cv-doc-btn',
+			}, 'Create');
+			const cancelBtn = h('button', {
+				type: 'button',
+				class: 'cv-doc-btn',
+			}, 'Cancel');
+			function closeWith(result: { docType: 'cv' | 'letter'; name: string } | null): void {
+				overlay.remove();
+				resolve(result);
+			}
+			createBtn.addEventListener('click', () => {
+				const docType = typeSelect.value === 'letter' ? 'letter' : 'cv';
+				const name = nameInput.value.trim();
+				if (!name) {
+					setStatus('Document name is required.', true);
+					return;
+				}
+				closeWith({ docType, name });
+			});
+			cancelBtn.addEventListener('click', () => { closeWith(null); });
+			overlay.addEventListener('click', (event) => {
+				if (event.target === overlay) { closeWith(null); }
+			});
+			panel.append(
+				title,
+				statusEl,
+				typeLabel,
+				typeSelect,
+				nameLabel,
+				nameInput,
+				h('div', { class: 'cv-share-modal__actions' }, createBtn, cancelBtn),
+			);
+			overlay.appendChild(panel);
+			document.body.appendChild(overlay);
+			nameInput.focus();
+			nameInput.select();
+		});
+	}
 	newBtn.addEventListener('click', async () => {
-		const name = prompt('Document name', 'Untitled CV')?.trim();
-		if (!name) { return; }
-		const data = window.__CV_DATA__;
-		if (!data) { setStatus('No CV loaded', true); return; }
-		const res = await createDocument(name, data);
+		const created = await openCreateDocumentDialog();
+		if (!created) { return; }
+		const { docType, name } = created;
+		let payload: CVData;
+		if (docType === 'letter') {
+			const cv = window.__CV_DATA__;
+			const seed = cv
+				? newLetterFromBasics(
+					cv.basics.name,
+					cv.basics.label ?? '',
+					cv.basics.email ?? '',
+					cv.basics.phone ?? '',
+					cv.basics.location ?? '',
+				)
+				: newLetterFromBasics('', '', '', '', '');
+			payload = seed as unknown as CVData;
+		} else {
+			const data = window.__CV_DATA__;
+			if (!data) { setStatus('No CV loaded', true); return; }
+			payload = data;
+		}
+		const res = await createDocument(name, payload, docType);
 		if (!res.ok) { setStatus(res.error.message, true); return; }
 		docs.unshift(res.data);
 		openDocument(res.data);
+		if (docType === 'letter') {
+			window.__blemmySwitchToLetter__?.(payload as unknown as LetterData);
+			closeDrawer?.();
+		}
 		renderDocs();
 		setStatus(`Created "${name}"`);
 	});

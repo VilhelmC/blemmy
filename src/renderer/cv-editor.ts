@@ -34,7 +34,7 @@ import type {
 	CVSkillsCategoryId,
 } from '@cv/cv';
 import { stripPortraitForJsonExport } from '@lib/cv-json-export';
-import { hashCvForAudit, layoutAuditLog } from '@lib/layout-audit';
+import { hashCvForAudit, layoutAuditLog } from '@lib/engine/layout-audit';
 import {
 	clearPortraitLocalCache,
 	processPortraitFile,

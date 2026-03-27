@@ -41,14 +41,20 @@ import type { CommentOperation, CVReview } from '@cv/cv-review';
 import { applyCommentOps } from '@lib/cv-review';
 
 import {
-	buildSystemPrompt,
+	buildRoutedSystemPrompt,
 	buildGenerateSystemPrompt,
 	buildGenerateUserMessage,
-	buildStarterSuggestions,
+	buildStarterSuggestionsForDoc,
 	buildOnboardingStarters,
 	isDefaultCvData,
 	readLayoutState,
+	type ActiveDocType,
+	type ActiveDocData,
 } from '@lib/cv-chat-prompts';
+import {
+	routeChatContext,
+	type RoutedContext,
+} from '@lib/chat-context-router';
 
 import { readFileToText, ACCEPTED_FILE_TYPES } from '@lib/cv-file-reader';
 import {
@@ -61,7 +67,10 @@ import {
 	type SourceChangedDetail,
 } from '@lib/cv-source';
 import { validateCvData } from '@lib/cv-loader';
+import { validateLetterData } from '@lib/letter-loader';
 import type { CVData } from '@cv/cv';
+import type { LetterData } from '@cv/letter';
+import { resolvePathToElement, type ContentPath } from '@lib/cv-review';
 import { DOCK_CONTROLS } from '@renderer/dock-controls';
 import { initDockedPopover } from '@renderer/docked-popover';
 import {
@@ -160,6 +169,7 @@ function renderMarkdown(text: string, showApplyButton = true): HTMLElement {
 type PanelElements = {
 	panel:       HTMLElement;
 	messages:    HTMLElement;
+	scopeBar:    HTMLElement;
 	inputWrap:   HTMLElement;
 	input:       HTMLTextAreaElement;
 	sendBtn:     HTMLButtonElement;
@@ -278,6 +288,11 @@ function buildPanel(): PanelElements {
 		'aria-label': 'Upload document to create CV',
 		title:        'Upload a document (.txt, .md, .docx, .pdf)',
 	}, '📎') as HTMLButtonElement;
+	const scopeBar = h('div', {
+		id: 'cv-chat-scope-bar',
+		class: 'cv-chat-scope-bar',
+		hidden: '',
+	});
 
 	const inputWrap = h('div', { class: 'cv-chat-input-wrap' },
 		uploadInput, uploadBtn, textarea, sendBtn,
@@ -332,12 +347,14 @@ function buildPanel(): PanelElements {
 		setupScreen,
 		starters,
 		messages,
+		scopeBar,
 		inputWrap,
 	);
 
 	return {
 		panel,
 		messages,
+		scopeBar,
 		inputWrap,
 		input:       textarea as HTMLTextAreaElement,
 		sendBtn:     sendBtn as HTMLButtonElement,
@@ -377,11 +394,134 @@ export function initChatPanel(
 		sourceMeta = saved.meta;
 	}
 
+	let selectedPaths = new Set<string>();
+
+	function activeDocType(): ActiveDocType {
+		return window.__ACTIVE_DOC_TYPE__ === 'letter' ? 'letter' : 'cv';
+	}
+
+	function activeDocData(): ActiveDocData | null {
+		return activeDocType() === 'letter'
+			? (window.__LETTER_DATA__ ?? null)
+			: (window.__CV_DATA__ ?? null);
+	}
+
+	function activeReviewPaths(): string[] {
+		const cv = window.__CV_DATA__;
+		if (!cv?.review?.comments?.length) { return []; }
+		return cv.review.comments
+			.filter((comment) => comment.status === 'open' || comment.status === 'flagged')
+			.map((comment) => comment.path);
+	}
+
+	function clearScopedHighlight(): void {
+		document
+			.querySelectorAll<HTMLElement>('.cv-chat-scope-selected')
+			.forEach((el) => el.classList.remove('cv-chat-scope-selected'));
+	}
+
+	function resolveLetterPathElement(path: string): HTMLElement | null {
+		const direct = document.querySelector<HTMLElement>(
+			`[data-letter-field="${CSS.escape(path)}"]`,
+		);
+		if (direct) { return direct; }
+		if (path.startsWith('body[')) {
+			const idx = Number(path.match(/^body\[(\d+)\]/)?.[1] ?? '-1');
+			if (idx >= 0) {
+				return document.querySelector<HTMLElement>(
+					`[data-letter-field="body.${idx}.text"]`,
+				);
+			}
+		}
+		return null;
+	}
+
+	function resolvePathElement(path: string): HTMLElement | null {
+		if (activeDocType() === 'letter') {
+			return resolveLetterPathElement(path);
+		}
+		return resolvePathToElement(path as ContentPath);
+	}
+
+	function bestSelectableTarget(node: HTMLElement): HTMLElement {
+		return node.closest<HTMLElement>('[data-cv-field], [data-letter-field], .experience-block, .education-item')
+			?? node;
+	}
+
+	function resolvePathFromTarget(target: HTMLElement): string | null {
+		const letterField = target.closest<HTMLElement>('[data-letter-field]')
+			?.getAttribute('data-letter-field');
+		if (letterField) {
+			return letterField.startsWith('body.')
+				? letterField.replace(/^body\.(\d+)\.text$/, 'body[$1].text')
+				: letterField;
+		}
+		const cvField = target.closest<HTMLElement>('[data-cv-field]')
+			?.getAttribute('data-cv-field');
+		if (cvField) { return `basics.${cvField}`; }
+		const workNode = target.closest<HTMLElement>('.experience-block');
+		if (workNode) {
+			const all = Array.from(document.querySelectorAll<HTMLElement>('.experience-block'));
+			const idx = all.indexOf(workNode);
+			if (idx >= 0) { return `work[${idx}]`; }
+		}
+		const eduNode = target.closest<HTMLElement>('.education-item');
+		if (eduNode) {
+			const all = Array.from(document.querySelectorAll<HTMLElement>('.education-item'));
+			const idx = all.indexOf(eduNode);
+			if (idx >= 0) { return `education[${idx}]`; }
+		}
+		return null;
+	}
+
+	function renderScopeBar(): void {
+		const bar = els.scopeBar;
+		bar.innerHTML = '';
+		const paths = Array.from(selectedPaths);
+		if (paths.length === 0) {
+			bar.hidden = true;
+			clearScopedHighlight();
+			return;
+		}
+		bar.hidden = false;
+		bar.appendChild(h('span', { class: 'cv-chat-scope-label' }, 'Scoped to'));
+		for (const path of paths) {
+			const chip = h('button', {
+				type: 'button',
+				class: 'cv-chat-scope-chip',
+				'data-scope-path': path,
+				title: `Remove ${path}`,
+			}, path);
+			chip.addEventListener('click', () => {
+				selectedPaths.delete(path);
+				renderScopeBar();
+			});
+			bar.appendChild(chip);
+		}
+		const clearBtn = h('button', {
+			type: 'button',
+			class: 'cv-chat-scope-clear',
+		}, 'Clear');
+		clearBtn.addEventListener('click', () => {
+			selectedPaths = new Set<string>();
+			renderScopeBar();
+		});
+		bar.appendChild(clearBtn);
+
+		clearScopedHighlight();
+		for (const path of paths) {
+			const el = resolvePathElement(path);
+			if (!el) { continue; }
+			bestSelectableTarget(el).classList.add('cv-chat-scope-selected');
+		}
+	}
+
 	// ── Setup / teardown ────────────────────────────────────────────────────
 
 	function showSetup(show: boolean): void {
 		els.setupScreen.hidden = !show;
 		els.inputWrap.hidden   = show;
+		els.scopeBar.hidden    = selectedPaths.size === 0;
 		const starters = document.getElementById('cv-chat-starters');
 		if (starters) { starters.hidden = show; }
 	}
@@ -461,17 +601,25 @@ export function initChatPanel(
 		if (!startersEl) { return; }
 		startersEl.innerHTML = '';
 
-		const cv = window.__CV_DATA__;
-		if (!cv || history.length > 0) {
+		const docType = activeDocType();
+		const docData = activeDocData();
+		if (!docData || history.length > 0) {
 			startersEl.hidden = true;
 			return;
 		}
 
 		const layout      = readLayoutState();
-		const onboarding  = isDefaultCvData(cv);
+		const onboarding  = docType === 'cv'
+			? isDefaultCvData(docData as CVData)
+			: false;
 		const suggestions = onboarding
 			? buildOnboardingStarters()
-			: buildStarterSuggestions(cv, layout, sourceText !== null);
+			: buildStarterSuggestionsForDoc(
+				docType,
+				docData,
+				layout,
+				sourceText !== null,
+			);
 
 		startersEl.hidden = false;
 		startersEl.appendChild(
@@ -802,28 +950,39 @@ export function initChatPanel(
 	function applyJson(raw: string, isGenerated = false): void {
 		try {
 			const parsed  = JSON.parse(raw);
-			const fixed   = coerceCvPayload(parsed);
-			const newData = validateCvData(fixed);
-			const prev = window.__CV_DATA__;
-			const keepUrl = prev?.basics.portraitDataUrl;
-			if (keepUrl && !newData.basics.portraitDataUrl) {
-				newData.basics = {
-					...newData.basics,
-					portraitDataUrl: keepUrl,
-				};
+			if (activeDocType() === 'letter') {
+				const letterData = validateLetterData(parsed as LetterData);
+				const toLetter = (window as Window & {
+					__blemmySwitchToLetter__?: (data: LetterData) => void;
+				}).__blemmySwitchToLetter__;
+				if (!toLetter) {
+					throw new Error('Missing letter switch hook');
+				}
+				toLetter(letterData);
+			} else {
+				const fixed   = coerceCvPayload(parsed);
+				const newData = validateCvData(fixed);
+				const prev = window.__CV_DATA__;
+				const keepUrl = prev?.basics.portraitDataUrl;
+				if (keepUrl && !newData.basics.portraitDataUrl) {
+					newData.basics = {
+						...newData.basics,
+						portraitDataUrl: keepUrl,
+					};
+				}
+				const keepSha = prev?.basics.portraitSha256;
+				if (keepSha && !newData.basics.portraitSha256) {
+					newData.basics = {
+						...newData.basics,
+						portraitSha256: keepSha,
+					};
+				}
+				remount(newData);
 			}
-			const keepSha = prev?.basics.portraitSha256;
-			if (keepSha && !newData.basics.portraitSha256) {
-				newData.basics = {
-					...newData.basics,
-					portraitSha256: keepSha,
-				};
-			}
-			remount(newData);
 			appendMessage('system',
 				isGenerated
-					? '✓ CV created! Review it and use edit mode to make adjustments. Download it as JSON to save.'
-					: '✓ CV updated successfully.',
+					? '✓ Document created. Review it and use edit mode to make adjustments. Download it as JSON to save.'
+					: '✓ Document updated successfully.',
 			);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -891,17 +1050,36 @@ export function initChatPanel(
 		isStreaming = true;
 		els.sendBtn.disabled = true;
 
-		const cv     = window.__CV_DATA__;
+		const docType = activeDocType();
+		const docData = activeDocData();
 		const layout = readLayoutState();
-		const onboarding   = cv ? isDefaultCvData(cv) : true;
+		const onboarding = docType === 'cv'
+			? (docData ? isDefaultCvData(docData as CVData) : true)
+			: false;
+		const route: RoutedContext = routeChatContext({
+			message: text,
+			onboarding,
+			hasSourceText: sourceText !== null,
+			selectedPaths: Array.from(selectedPaths),
+			reviewPaths: activeReviewPaths(),
+		});
 		const looksLikeGen = onboarding && (
 			text.length > 200 ||
 			/\b(I|my|worked|studied|graduated|years?)\b/i.test(text)
 		);
 		const sysPr = looksLikeGen
 			? buildGenerateSystemPrompt()
-			: (cv
-				? buildSystemPrompt(cv, layout, sourceText ?? undefined, cv?.review)
+			: (docData
+				? buildRoutedSystemPrompt({
+					docType,
+					docData,
+					layout,
+					sourceText: route.includeSource ? sourceText ?? undefined : undefined,
+					review: window.__CV_DATA__?.review,
+					contextMode: route.contextMode,
+					scopedPaths: route.scopedPaths,
+					includeReview: route.includeReview,
+				})
 				: buildGenerateSystemPrompt());
 
 		const { appendChunk, finalise } = appendStreamingBubble();
@@ -917,9 +1095,16 @@ export function initChatPanel(
 			const reviewRaw   = extractReviewBlock(fullText);
 			const applyWords = ['apply', 'update', 'change', 'rewrite', 'modify', 'use this'];
 			const wantsApply = applyWords.some((w) => text.toLowerCase().includes(w));
-			const autoApply  = Boolean(jsonRaw && wantsApply);
+			const expectsJson = route.expectedBlock === 'json';
+			const expectsStyle = route.expectedBlock === 'style';
+			const expectsReview = route.expectedBlock === 'review';
+			const modeMismatch =
+				(expectsJson && !jsonRaw) ||
+				(expectsStyle && !styleRaw2) ||
+				(expectsReview && !reviewRaw);
+			const autoApply = Boolean(jsonRaw && wantsApply && !expectsStyle && !expectsReview);
 			if (autoApply) {
-				finalise('Applied the proposed CV changes automatically.', false);
+				finalise('Applied the proposed document changes automatically.', false);
 			} else {
 				finalise(fullText, true);
 			}
@@ -927,11 +1112,15 @@ export function initChatPanel(
 
 			// Auto-apply if the response contains exactly one JSON block
 			// and the user's message contained an apply-intent keyword
-			if (jsonRaw && wantsApply) {
+			if (jsonRaw && wantsApply && !expectsStyle && !expectsReview) {
 				applyJson(jsonRaw);
 			}
-			if (styleRaw2) { applyStylePatch(styleRaw2); }
-			if (reviewRaw) { applyReviewOps(reviewRaw); }
+			if (styleRaw2 && !expectsJson) { applyStylePatch(styleRaw2); }
+			if (reviewRaw && !expectsJson && !expectsStyle) { applyReviewOps(reviewRaw); }
+			if (modeMismatch) {
+				appendMessage('system',
+					'⚠ Response did not match expected format for this request. Ask again or specify "return json/style/review".');
+			}
 
 		} catch (err) {
 			const chatErr = err as ChatError;
@@ -967,6 +1156,20 @@ export function initChatPanel(
 	});
 
 	els.sendBtn.addEventListener('click', () => { sendMessage(); });
+
+	document.addEventListener('click', (event) => {
+		if (els.panel.hidden) { return; }
+		const target = event.target as HTMLElement | null;
+		if (!target) { return; }
+		if (target.closest('#cv-chat-panel')) { return; }
+		if (target.closest('.cv-mobile-utility-bar')) { return; }
+		const path = resolvePathFromTarget(target);
+		if (!path) { return; }
+		selectedPaths.has(path)
+			? selectedPaths.delete(path)
+			: selectedPaths.add(path);
+		renderScopeBar();
+	});
 
 	// File upload
 	els.uploadBtn.addEventListener('click', () => { els.uploadInput.click(); });
@@ -1161,6 +1364,7 @@ export function initChatPanel(
 		refreshSetupState();
 		refreshSourceBadge();
 		renderStarters();
+		renderScopeBar();
 		appendConnectionStatusMessage();
 		dispatchDockedPanelOpen('cv-chat-panel');
 		window.dispatchEvent(new Event(CHAT_OPEN_EVENT));
@@ -1173,6 +1377,7 @@ export function initChatPanel(
 
 	function closePanel(): void {
 		els.panel.hidden = true;
+		clearScopedHighlight();
 		dispatchDockedPanelClose('cv-chat-panel');
 		window.dispatchEvent(new Event(CHAT_CLOSE_EVENT));
 	}
@@ -1195,6 +1400,14 @@ export function initChatPanel(
 		openClass: 'cv-chat-trigger--open',
 		group: 'right-docked-panels',
 		marginPx: 12,
+		outsideCloseGuard: (target: Node) => {
+			if (!(target instanceof HTMLElement)) { return false; }
+			return Boolean(
+				target.closest(
+					'[data-cv-field], [data-letter-field], .experience-block, .education-item',
+				),
+			);
+		},
 		onOpen: openPanel,
 		onClose: closePanel,
 	});
@@ -1202,6 +1415,7 @@ export function initChatPanel(
 
 	// Refresh starters when CV changes (filter toggle, edit, upload)
 	window.addEventListener('cv-layout-applied', () => {
+		renderScopeBar();
 		if (!els.panel.hidden && history.length === 0) { renderStarters(); }
 	});
 
