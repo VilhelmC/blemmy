@@ -189,11 +189,8 @@ function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
 }
 
 function activateShell(shell: HTMLElement): void {
-	const pdf    = new URLSearchParams(location.search).get('cv-pdf') === '1';
-	const stored = localStorage.getItem('cv-view-mode');
-	if (pdf || stored === 'print') {
-		shell.classList.add('cv-print-preview');
-	}
+	// Force print preview by default while web view is temporarily disabled.
+	shell.classList.add('cv-print-preview');
 }
 
 function finishBootUi(): void {

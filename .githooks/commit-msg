@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+msg_file="$1"
+
+if awk '/^Made-with:[[:space:]]*Cursor[[:space:]]*$/{found=1} END{exit !found}' "$msg_file" >/dev/null 2>&1; then
+  echo "ERROR: Commit message contains forbidden trailer: Made-with: Cursor" >&2
+  exit 1
+fi
+
+exit 0

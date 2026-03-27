@@ -22,12 +22,9 @@
 			if (stored === 'dark' || (!stored && prefersDark)) {
 				document.documentElement.classList.add('dark');
 			}
-			// Activate print-surface immediately if applicable
+			// Force print-surface on initial paint (web view toggle hidden for now)
 			const q = new URLSearchParams(location.search);
-			const pdf = q.get('cv-pdf') === '1';
-			if (pdf || localStorage.getItem('cv-view-mode') === 'print') {
-				document.documentElement.classList.add('cv-print-surface');
-			}
+			document.documentElement.classList.add('cv-print-surface');
 			if (q.get('cv-embed') === '1') {
 				document.documentElement.classList.add('cv-embed-pdf');
 			}

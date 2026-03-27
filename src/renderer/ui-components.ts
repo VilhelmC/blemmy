@@ -1048,12 +1048,6 @@ function initNarrowUtilityBar(): void {
 		],
 		moreActions: [
 			{
-				id: 'view-mode',
-				label: 'Print view',
-				icon: DOCK_CONTROLS.viewMode.icon,
-				targetId: DOCK_CONTROLS.viewMode.id,
-			},
-			{
 				id: 'theme',
 				label: 'Theme',
 				icon: DOCK_CONTROLS.theme.icon,
@@ -1638,8 +1632,6 @@ export function initUIComponents(
 	rightRail.appendChild(buildDebugToggle());
 
 	// Candidate selector (content is inside #cv-shell, script wired here)
-	// View mode toggle
-	rightRail.appendChild(buildViewModeToggle());
 
 	// Preferences panel + trigger
 	const { panel, trigger } = buildPreferencesPanel();
@@ -1757,7 +1749,6 @@ export function initUIComponents(
 
 	// ── Wire up event listeners ───────────────────────────────────────────────
 	initDebugToggle();
-	initViewModeToggle();
 	initPreferencesPanel();
 	initCandidateSelector();
 	initPrintButton();
