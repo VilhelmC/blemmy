@@ -2356,9 +2356,10 @@ html.cv-published-embed .cv-share-banner {
 	}
 }
 
-/* ─── Always-visible download JSON button ───────────────────────────────────── */
+/* ─── Always-visible download JSON + export HTML buttons ────────────────────── */
 @media screen {
-	.cv-download-json-btn {
+	.cv-download-json-btn,
+	.blemmy-export-html-btn {
 		position:      fixed;
 		bottom:        2rem;
 		left:          26rem;
@@ -2376,7 +2377,11 @@ html.cv-published-embed .cv-share-banner {
 		z-index:       101;
 		transition:    border-color 0.12s, color 0.12s;
 	}
-	.cv-download-json-btn:hover {
+	.blemmy-export-html-btn {
+		left: 31.5rem;
+	}
+	.cv-download-json-btn:hover,
+	.blemmy-export-html-btn:hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
@@ -3505,6 +3510,7 @@ html.cv-published-embed .cv-share-banner {
 	.cv-upload-btn, .cv-upload-status { left: 8.6rem; }
 	.cv-edit-btn, .cv-edit-toolbar { left: 15.6rem; }
 	.cv-download-json-btn { left: 22.8rem; }
+	.blemmy-export-html-btn { left: 29.5rem; }
 }
 
 @media screen and (max-width: 1200px) {
@@ -3514,6 +3520,7 @@ html.cv-published-embed .cv-share-banner {
 	.cv-upload-btn,
 	.cv-edit-btn,
 	.cv-download-json-btn,
+	.blemmy-export-html-btn,
 	.cv-view-mode-toggle,
 	.theme-toggle,
 	.print-fab:not(.cv-dock-btn) {
@@ -3525,6 +3532,7 @@ html.cv-published-embed .cv-share-banner {
 	.theme-toggle { bottom: 4.2rem; }
 	.cv-view-mode-toggle { bottom: 7.4rem; }
 	.cv-download-json-btn { bottom: 10.6rem; }
+	.blemmy-export-html-btn { bottom: 12rem; }
 	.cv-edit-btn { bottom: 13.8rem; }
 	.cv-upload-btn { bottom: 17rem; }
 	.cv-prefs-trigger { bottom: 20.2rem; }
@@ -3565,6 +3573,7 @@ html.cv-published-embed .cv-share-banner {
 	#cv-upload-btn          { left: 9rem !important; bottom: 1rem !important; }
 	#cv-edit-btn            { left: 14rem !important; bottom: 1rem !important; }
 	#cv-download-json       { left: 18.5rem !important; bottom: 1rem !important; }
+	#blemmy-export-html     { left: 22.5rem !important; bottom: 1rem !important; }
 
 	/* Right control rail */
 	#cv-view-mode-toggle { right: 10.5rem !important; bottom: 1rem !important; }
@@ -4086,6 +4095,7 @@ html.cv-published-embed .cv-share-banner {
 	#cv-ui-dock-left .cv-prefs-trigger,
 	#cv-ui-dock-left .cv-upload-btn,
 	#cv-ui-dock-left .cv-download-json-btn,
+	#cv-ui-dock-left .blemmy-export-html-btn,
 	#cv-ui-dock-right .cv-edit-btn,
 	#cv-ui-dock-right .blemmy-review-toggle,
 	#cv-ui-dock-right .cv-layout-debug-toggle,

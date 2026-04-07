@@ -53,6 +53,7 @@ import type { CVReview, ContentPath } from '@cv/cv-review';
 import { applyCommentOps } from '@lib/cv-review';
 
 import { stripPortraitForJsonExport } from '@lib/cv-json-export';
+import { exportStandaloneHtml } from '@lib/html-export';
 import { CLOUD_ENABLED } from '@lib/cv-cloud';
 import { initBeforeUnloadGuard } from '@lib/cv-sync';
 import { initChatPanel } from '@renderer/chat-panel';
@@ -1053,6 +1054,12 @@ function initNarrowUtilityBar(): void {
 				targetId: DOCK_CONTROLS.downloadJson.id,
 			},
 			{
+				id: 'export-html',
+				label: 'Export HTML',
+				icon: DOCK_CONTROLS.exportHtml.icon,
+				targetId: DOCK_CONTROLS.exportHtml.id,
+			},
+			{
 				id: 'print-pdf',
 				label: 'Print / PDF',
 				icon: DOCK_CONTROLS.printPdf.icon,
@@ -1621,8 +1628,13 @@ export function initUIComponents(
 		id: DOCK_CONTROLS.downloadJson.id,
 		className: 'cv-download-json-btn cv-history-btn',
 	});
+	const htmlExportBtn = buildDockButton(h, DOCK_CONTROLS.exportHtml, {
+		id: DOCK_CONTROLS.exportHtml.id,
+		className: 'blemmy-export-html-btn cv-history-btn',
+	});
 	leftRail.appendChild(uploadBtn);
 	leftRail.appendChild(dlBtn);
+	leftRail.appendChild(htmlExportBtn);
 	document.body.appendChild(buildUploadStatus());
 
 	// Edit button + history controls
@@ -1763,6 +1775,13 @@ export function initUIComponents(
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
+	});
+
+	htmlExportBtn.addEventListener('click', () => {
+		const ok = exportStandaloneHtml();
+		if (!ok) {
+			window.alert('No document shell found — make sure a document is loaded.');
+		}
 	});
 
 	// Upload button — triggers re-render via remount

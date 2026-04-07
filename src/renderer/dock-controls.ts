@@ -42,6 +42,13 @@ export const DOCK_CONTROLS = {
 		title: 'Download CV data as JSON',
 		icon: '↓',
 	},
+	exportHtml: {
+		id: 'blemmy-export-html',
+		label: 'Export HTML',
+		ariaLabel: 'Export document as standalone HTML file',
+		title: 'Export as standalone HTML',
+		icon: '⬡',
+	},
 	printPdf: {
 		id: 'cv-download-pdf',
 		label: 'Preview PDF',

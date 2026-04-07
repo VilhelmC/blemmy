@@ -45,6 +45,8 @@ patch/
 .tmp-import/
 .tmp-v201-zip/
 .tmp-blemmy-zip/
+.tmp-v3.3-import/
+.tmp-v3.3-zip/
 blemmy-v2.1-style-schema/
 blemmy-v2.1-integration.md
 .vscode/settings.json
