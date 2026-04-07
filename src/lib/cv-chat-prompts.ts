@@ -140,10 +140,13 @@ interface CVData {
   basics:        { name, label, email, phone, location, nationality, born, summary }
   education:     Array<{ institution, area, degree, startDate, endDate, score?, highlights[], tags? }>
   work:          Array<{ company, position, startDate, endDate, summary?, highlights[], tags? }>
-  skills:        { programming: string[], design_bim: string[], strategic: string[] }
+  skills:        Record<string, string[]>  // dynamic category keys → skill lists
   languages:     Array<{ language, fluency }>
   personal:      { interests }
-  visibility?:   { hiddenWork?: number[], hiddenEducation?: number[], hiddenSections?: string[] }
+  visibility?:   { hiddenWork?: number[], hiddenEducation?: number[], hiddenSections?: string[],
+                   hiddenWorkHighlights?: Record<string, number[]>,
+                   hiddenEducationHighlights?: Record<string, number[]>,
+                   hiddenSkillItems?: Record<string, number[]>, hiddenLanguages?: number[] }
   activeFilters?: string[]
 }
 
@@ -502,7 +505,7 @@ Guidelines for generating the JSON:
 - **basics.summary**: Write 2–4 sentences, first-person, outcome-focused. Bridge between their background and what makes them distinctive.
 - **work**: Extract all roles. Write highlight bullets in "Lead: Body" format — lead is a 1–3 word skill/outcome noun, body is a concrete sentence with result if possible.
 - **education**: Extract all qualifications. Include score only if explicitly mentioned.
-- **skills**: Categorise technical skills into programming, design_bim, and strategic groups. Infer from context if not explicit.
+- **skills**: Object whose keys are category names (snake_case identifiers) and values are string arrays. Group logically (e.g. technical, design, leadership); infer from context.
 - **languages**: Include only if mentioned. Use standard fluency levels: Native, Fluent, Professional Working Proficiency, Conversational, Basic.
 - **tags**: Add 2–4 lowercase thematic tags to each work and education entry based on the nature of the role (e.g. "research", "finance", "design", "technical", "strategy", "academic", "communication").
 - **meta**: Set lastUpdated to today's date, version to "1.0", language to "en" (or detected language).

@@ -225,16 +225,16 @@ function getWorkItems(): HTMLElement[] {
 	}
 
 	// Fallback: if wrappers were lost by prior DOM mutations, use work blocks.
-	return Array.from(document.querySelectorAll<HTMLElement>('.experience-block[data-work-idx]'))
+	return Array.from(document.querySelectorAll<HTMLElement>('.experience-block[data-blemmy-drag-idx]'))
 		.sort((a, b) =>
-			parseInt(a.dataset.workIdx ?? '0', 10) - parseInt(b.dataset.workIdx ?? '0', 10),
+			parseInt(a.dataset.blemmyDragIdx ?? '0', 10) - parseInt(b.dataset.blemmyDragIdx ?? '0', 10),
 		);
 }
 
 function getWorkItemsDiag(): { count: number; source: 'wrapped' | 'block-fallback' | 'none' } {
 	const wrappedCount = document.querySelectorAll('[data-work-index]').length;
 	if (wrappedCount > 0) { return { count: wrappedCount, source: 'wrapped' }; }
-	const fallbackCount = document.querySelectorAll('.experience-block[data-work-idx]').length;
+	const fallbackCount = document.querySelectorAll('.experience-block[data-blemmy-drag-idx]').length;
 	if (fallbackCount > 0) { return { count: fallbackCount, source: 'block-fallback' }; }
 	return { count: 0, source: 'none' };
 }

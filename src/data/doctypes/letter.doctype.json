@@ -1,42 +1,33 @@
 {
-	"docType": "letter",
-	"label": "Cover Letter",
-	"version": "1.0",
+	"docType":     "letter",
+	"label":       "Cover Letter",
+	"version":     "2.0",
+	"contentType": "LetterData",
+	"domPrefix":   "letter",
 
-	"layout": {
-		"model": "single-column",
-		"maxPages": 1,
+	"medium": {
 		"pageSize": "A4",
-		"hasPortrait": false,
-		"hasMasthead": true,
-		"hasFooter": false
+		"pages": { "min": 1, "max": 1 }
 	},
 
-	"domPrefix": "letter",
+	"zones": {
+		"id":        "root",
+		"sizing":    { "type": "flex" },
+		"direction": "vertical",
+		"children": [
+			{
+				"id":            "header",
+				"sizing":        { "type": "intrinsic" },
+				"firstPageOnly": true
+			},
+			{
+				"id":     "body",
+				"sizing": { "type": "flex" }
+			}
+		]
+	},
 
-	"sections": [
-		{
-			"id":        "header",
-			"label":     "Header",
-			"placement": "masthead"
-		},
-		{
-			"id":        "recipient",
-			"label":     "Recipient",
-			"placement": "fixed-main"
-		},
-		{
-			"id":        "body",
-			"label":     "Letter Body",
-			"placement": "fixed-main",
-			"repeating": true
-		},
-		{
-			"id":        "closing",
-			"label":     "Closing",
-			"placement": "fixed-main"
-		}
-	],
-
-	"contentType": "LetterData"
+	"movableSections": [],
+	"fixedSections":   [],
+	"contentSplits":   []
 }

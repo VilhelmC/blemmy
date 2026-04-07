@@ -4,7 +4,7 @@
  * Edit mode for the CV. Activated and deactivated via toggleEditMode().
  *
  * When active:
- *   - All [data-cv-field] elements become contenteditable
+ *   - All [data-blemmy-field] elements become contenteditable
  *   - Clicking the portrait opens a file picker to replace the image
  *   - Work items become draggable to reorder within their page
  *   - Changes are saved to localStorage on every edit (debounced 400ms)
@@ -31,7 +31,6 @@ import type {
 	CVData,
 	CVSectionId,
 	CVSidebarSectionId,
-	CVSkillsCategoryId,
 } from '@cv/cv';
 import { stripPortraitForJsonExport } from '@lib/cv-json-export';
 import { hashCvForAudit, layoutAuditLog } from '@lib/engine/layout-audit';
@@ -41,6 +40,12 @@ import {
 	savePortraitLocalCache,
 } from '@lib/cv-portrait';
 import { clearLegacyPortraitStorage } from '@lib/cv-loader';
+import type { DocumentTypeSpec } from '@lib/document-type';
+import {
+	activateEditMode as activateGenericEditInner,
+	type EditModeInstance as GenericLetterEditInstance,
+} from '@renderer/generic-editor';
+import { stripBlemmyEditChrome } from '@lib/blemmy-edit-chrome';
 import { DOCKED_SIDE_PANEL_CLASS } from '@renderer/docked-side-panels';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -78,30 +83,41 @@ export function clearDraft(): void {
 // ─── Highlight serialisation ──────────────────────────────────────────────────
 
 /**
+ * Plain text under `root` for persistence, excluding injected edit chrome
+ * (reorder / hide controls live inside some contenteditable hosts).
+ */
+function readEditablePlainText(root: HTMLElement): string {
+	const clone = root.cloneNode(true) as HTMLElement;
+	stripBlemmyEditChrome(clone);
+	return clone.textContent?.trim() ?? '';
+}
+
+/**
  * Reads a highlight <li> element back to its source string.
  * Reconstructs "Lead: Body" if the li has a <strong> child.
+ * Clone + strip so wrapper nodes cannot smuggle button glyphs via textContent.
  */
 function serialiseHighlightLi(li: HTMLElement): string {
-	const strong = li.querySelector('strong.highlight-lead');
+	const clone = li.cloneNode(true) as HTMLElement;
+	stripBlemmyEditChrome(clone);
+	const strong = clone.querySelector('strong.highlight-lead');
 	if (strong) {
-		// Lead is the strong text minus the trailing ':'
 		const lead = strong.textContent?.replace(/:$/, '').trim() ?? '';
-		// Body is everything after the strong element
 		let body = '';
 		let node = strong.nextSibling;
 		while (node) {
 			body += node.textContent ?? '';
-			node  = node.nextSibling;
+			node = node.nextSibling;
 		}
 		return `${lead}: ${body.trim()}`;
 	}
-	return li.textContent?.trim() ?? '';
+	return clone.textContent?.trim() ?? '';
 }
 
 // ─── Field → data path parsing ────────────────────────────────────────────────
 
 /**
- * Parses a data-cv-field string and writes the new text value into the
+ * Parses a data-blemmy-field string and writes the new text value into the
  * working data object. Handles all field types.
  *
  * Returns true if the field was recognised and the data was updated.
@@ -161,6 +177,17 @@ function applyFieldEdit(
 		return true;
 	}
 
+	// education.N.highlights.M
+	const eduHlMatch = field.match(/^education\.(\d+)\.highlights\.(\d+)$/);
+	if (eduHlMatch) {
+		const ei = parseInt(eduHlMatch[1], 10);
+		const hi = parseInt(eduHlMatch[2], 10);
+		if (!data.education[ei]) { return false; }
+		const value = li ? serialiseHighlightLi(li) : text;
+		data.education[ei].highlights[hi] = value;
+		return true;
+	}
+
 	// education.N.degree / institution / area / dates / score
 	const eduMatch = field.match(/^education\.(\d+)\.(degree|institution|area|dates|score)$/);
 	if (eduMatch) {
@@ -179,12 +206,16 @@ function applyFieldEdit(
 		}
 	}
 
-	// skills.programming.N / skills.design_bim.N / skills.strategic.N
-	const skillMatch = field.match(/^skills\.(programming|design_bim|strategic)\.(\d+)$/);
+	// skills.<category>.N — category keys match validateSkills in cv-loader
+	const skillMatch = field.match(/^skills\.([a-zA-Z][a-zA-Z0-9_]*)\.(\d+)$/);
 	if (skillMatch) {
-		const cat = skillMatch[1] as 'programming' | 'design_bim' | 'strategic';
+		const cat = skillMatch[1];
 		const si  = parseInt(skillMatch[2], 10);
-		data.skills[cat][si] = text;
+		const arr = data.skills[cat];
+		if (!Array.isArray(arr) || si < 0 || si >= arr.length) {
+			return false;
+		}
+		arr[si] = text;
 		return true;
 	}
 
@@ -237,20 +268,20 @@ function workReorderInsertAt(
 
 function workBlockKey(block: HTMLElement): string {
 	const company = block
-		.querySelector<HTMLElement>('[data-cv-field$=".company"]')
+		.querySelector<HTMLElement>('[data-blemmy-field$=".company"]')
 		?.innerText
 		.trim() ?? '';
 	const period = block
-		.querySelector<HTMLElement>('[data-cv-field$=".period"]')
+		.querySelector<HTMLElement>('[data-blemmy-field$=".period"]')
 		?.innerText
 		.trim() ?? '';
-	const fallback = block.dataset.workIdx ?? '';
+	const fallback = block.dataset.blemmyDragIdx ?? '';
 	return `${company}|${period}|${fallback}`;
 }
 
 function captureWorkRects(shell: HTMLElement): Map<string, DOMRect> {
 	const rects = new Map<string, DOMRect>();
-	const blocks = shell.querySelectorAll<HTMLElement>('[data-work-idx]');
+	const blocks = shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]');
 	blocks.forEach((block) => {
 		rects.set(workBlockKey(block), block.getBoundingClientRect());
 	});
@@ -259,7 +290,7 @@ function captureWorkRects(shell: HTMLElement): Map<string, DOMRect> {
 
 function animateWorkReorder(shell: HTMLElement, beforeRects: Map<string, DOMRect>): void {
 	requestAnimationFrame(() => {
-		const blocks = shell.querySelectorAll<HTMLElement>('[data-work-idx]');
+		const blocks = shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]');
 		blocks.forEach((block) => {
 			const key = workBlockKey(block);
 			const prev = beforeRects.get(key);
@@ -317,7 +348,7 @@ function enableWorkItemDrag(
 
 	function getBlock(target: EventTarget | null): HTMLElement | null {
 		if (!(target instanceof HTMLElement)) { return null; }
-		return target.closest<HTMLElement>('[data-work-idx]');
+		return target.closest<HTMLElement>('[data-blemmy-drag-idx]');
 	}
 
 	function blockUnderPointer(e: DragEvent): HTMLElement | null {
@@ -330,7 +361,7 @@ function enableWorkItemDrag(
 	function handleDragStart(e: DragEvent): void {
 		const block = getBlock(e.target);
 		if (!block) { return; }
-		dragIdx = parseInt(block.dataset.workIdx ?? '-1', 10);
+		dragIdx = parseInt(block.dataset.blemmyDragIdx ?? '-1', 10);
 		block.classList.add('cv-drag-source');
 		if (e.dataTransfer) {
 			e.dataTransfer.effectAllowed = 'move';
@@ -347,7 +378,7 @@ function enableWorkItemDrag(
 			hideInsertMarker();
 			return;
 		}
-		const overIdx = parseInt(block.dataset.workIdx ?? '-1', 10);
+		const overIdx = parseInt(block.dataset.blemmyDragIdx ?? '-1', 10);
 		if (overIdx < 0 || overIdx === dragIdx) {
 			hideInsertMarker();
 			return;
@@ -372,7 +403,7 @@ function enableWorkItemDrag(
 
 		const block = blockUnderPointer(e);
 		if (!block) { return; }
-		const overIdx = parseInt(block.dataset.workIdx ?? '-1', 10);
+		const overIdx = parseInt(block.dataset.blemmyDragIdx ?? '-1', 10);
 		if (overIdx < 0 || overIdx === dragIdx) { return; }
 
 		const rect = block.getBoundingClientRect();
@@ -395,7 +426,7 @@ function enableWorkItemDrag(
 		block?.classList.remove('cv-drag-source');
 		hideInsertMarker();
 		dragIdx = null;
-		shell.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
+		shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
 			el.draggable = false;
 		});
 	}
@@ -404,7 +435,7 @@ function enableWorkItemDrag(
 	// behavior inside nested contenteditable fields. A dedicated drag handle
 	// enables drag only for the current gesture.
 	function activateDraggable(): void {
-		shell.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
+		shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
 			el.draggable = false;
 			if (el.querySelector('.cv-drag-handle')) { return; }
 			const handle = document.createElement('button');
@@ -426,7 +457,7 @@ function enableWorkItemDrag(
 	}
 
 	function handleMouseUp(): void {
-		shell.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
+		shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
 			el.draggable = false;
 		});
 	}
@@ -444,7 +475,7 @@ function enableWorkItemDrag(
 	obs.observe(shell, { subtree: true, childList: true });
 
 	return () => {
-		shell.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
+		shell.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
 			el.draggable = false;
 		});
 		shell.removeEventListener('dragstart', handleDragStart);
@@ -530,16 +561,16 @@ function enableContentEditable(
 		}, 500);
 	}
 
-	const fields = shell.querySelectorAll<HTMLElement>('[data-cv-field]');
+	const fields = shell.querySelectorAll<HTMLElement>('[data-blemmy-field]');
 
 	function handleInput(e: Event): void {
 		const el    = e.currentTarget as HTMLElement;
-		const field = el.dataset.cvField;
+		const field = el.dataset.blemmyField;
 		if (!field || field === 'portrait') { return; }
 
 		// For highlight lis, pass the element itself for structured serialisation
 		const isHighlight = field.includes('.highlights.');
-		const text        = isHighlight ? '' : (el.textContent?.trim() ?? '');
+		const text        = isHighlight ? '' : readEditablePlainText(el);
 		applyFieldEdit(field, text, isHighlight ? el : null, data);
 
 		onEdit(data);
@@ -554,7 +585,7 @@ function enableContentEditable(
 	}
 
 	for (const el of Array.from(fields)) {
-		if (el.dataset.cvField === 'portrait') { continue; }
+		if (el.dataset.blemmyField === 'portrait') { continue; }
 		el.contentEditable = 'true';
 		el.setAttribute('spellcheck', 'false');
 		el.addEventListener('input',   handleInput);
@@ -579,7 +610,7 @@ function ensureVisibility(data: CVData): Required<CVData>['visibility'] & {
 	hiddenEducation: number[];
 	hiddenSections: CVSectionId[];
 	sidebarOrder: CVSidebarSectionId[];
-	skillsOrder: CVSkillsCategoryId[];
+	skillsOrder: string[];
 } {
 	if (!data.visibility) { data.visibility = {}; }
 	if (!data.visibility.hiddenWork)      { data.visibility.hiddenWork      = []; }
@@ -589,9 +620,16 @@ function ensureVisibility(data: CVData): Required<CVData>['visibility'] & {
 		data.visibility.sidebarOrder = ['skills', 'languages', 'interests'];
 	}
 	if (!data.visibility.skillsOrder) {
-		data.visibility.skillsOrder = ['programming', 'design_bim', 'strategic'];
+		data.visibility.skillsOrder = [...Object.keys(data.skills)];
 	}
 	return data.visibility as Required<typeof data.visibility>;
+}
+
+function hiddenMapHasAny(m: Record<string, number[]> | undefined): boolean {
+	if (!m) {
+		return false;
+	}
+	return Object.keys(m).some((k) => (m[k]?.length ?? 0) > 0);
 }
 
 function cleanupVisibility(data: CVData): void {
@@ -600,10 +638,15 @@ function cleanupVisibility(data: CVData): void {
 	const hiddenWork = v.hiddenWork ?? [];
 	const hiddenEducation = v.hiddenEducation ?? [];
 	const hiddenSections = v.hiddenSections ?? [];
+	const hiddenLangs = v.hiddenLanguages ?? [];
 	const hasManualHides =
 		hiddenWork.length > 0 ||
 		hiddenEducation.length > 0 ||
-		hiddenSections.length > 0;
+		hiddenSections.length > 0 ||
+		hiddenLangs.length > 0 ||
+		hiddenMapHasAny(v.hiddenWorkHighlights) ||
+		hiddenMapHasAny(v.hiddenSkillItems) ||
+		hiddenMapHasAny(v.hiddenEducationHighlights);
 	const sidebar = v.sidebarOrder ?? [];
 	const skills = v.skillsOrder ?? [];
 	const isDefaultSidebar =
@@ -611,11 +654,10 @@ function cleanupVisibility(data: CVData): void {
 		sidebar[0] === 'skills' &&
 		sidebar[1] === 'languages' &&
 		sidebar[2] === 'interests';
+	const skillKeys = Object.keys(data.skills);
 	const isDefaultSkills =
-		skills.length === 3 &&
-		skills[0] === 'programming' &&
-		skills[1] === 'design_bim' &&
-		skills[2] === 'strategic';
+		skills.length === skillKeys.length &&
+		skillKeys.every((k, i) => k === skills[i]);
 	if (!hasManualHides && isDefaultSidebar && isDefaultSkills) {
 		delete data.visibility;
 	}
@@ -630,6 +672,19 @@ function showWork(data: CVData, idx: number): void {
 	v.hiddenWork = v.hiddenWork.filter((i) => i !== idx);
 	cleanupVisibility(data);
 }
+
+function hideEducation(data: CVData, idx: number): void {
+	const v = ensureVisibility(data);
+	if (!v.hiddenEducation.includes(idx)) {
+		v.hiddenEducation.push(idx);
+	}
+}
+function showEducation(data: CVData, idx: number): void {
+	const v = ensureVisibility(data);
+	v.hiddenEducation = v.hiddenEducation.filter((i) => i !== idx);
+	cleanupVisibility(data);
+}
+
 function hideSection(data: CVData, id: CVSectionId): void {
 	const v = ensureVisibility(data);
 	if (!v.hiddenSections.includes(id)) { v.hiddenSections.push(id); }
@@ -637,6 +692,129 @@ function hideSection(data: CVData, id: CVSectionId): void {
 function showSection(data: CVData, id: CVSectionId): void {
 	const v = ensureVisibility(data);
 	v.hiddenSections = v.hiddenSections.filter((s) => s !== id);
+	cleanupVisibility(data);
+}
+
+function hideWorkHighlight(data: CVData, workIdx: number, hi: number): void {
+	const v = ensureVisibility(data);
+	if (!v.hiddenWorkHighlights) {
+		v.hiddenWorkHighlights = {};
+	}
+	const key = String(workIdx);
+	const arr = v.hiddenWorkHighlights[key] ?? (v.hiddenWorkHighlights[key] = []);
+	if (!arr.includes(hi)) {
+		arr.push(hi);
+	}
+}
+
+function showWorkHighlight(data: CVData, workIdx: number, hi: number): void {
+	const v = data.visibility;
+	if (!v?.hiddenWorkHighlights) {
+		return;
+	}
+	const key = String(workIdx);
+	const arr = v.hiddenWorkHighlights[key];
+	if (!arr) {
+		return;
+	}
+	const next = arr.filter((i) => i !== hi);
+	if (next.length === 0) {
+		delete v.hiddenWorkHighlights[key];
+	} else {
+		v.hiddenWorkHighlights[key] = next;
+	}
+	if (Object.keys(v.hiddenWorkHighlights).length === 0) {
+		delete v.hiddenWorkHighlights;
+	}
+	cleanupVisibility(data);
+}
+
+function hideSkillItem(data: CVData, category: string, skillIdx: number): void {
+	const v = ensureVisibility(data);
+	if (!v.hiddenSkillItems) {
+		v.hiddenSkillItems = {};
+	}
+	const arr = v.hiddenSkillItems[category] ?? (v.hiddenSkillItems[category] = []);
+	if (!arr.includes(skillIdx)) {
+		arr.push(skillIdx);
+	}
+}
+
+function showSkillItem(data: CVData, category: string, skillIdx: number): void {
+	const v = data.visibility;
+	if (!v?.hiddenSkillItems) {
+		return;
+	}
+	const arr = v.hiddenSkillItems[category];
+	if (!arr) {
+		return;
+	}
+	const next = arr.filter((i) => i !== skillIdx);
+	if (next.length === 0) {
+		delete v.hiddenSkillItems[category];
+	} else {
+		v.hiddenSkillItems[category] = next;
+	}
+	if (Object.keys(v.hiddenSkillItems).length === 0) {
+		delete v.hiddenSkillItems;
+	}
+	cleanupVisibility(data);
+}
+
+function hideEducationHighlight(data: CVData, eduIdx: number, hi: number): void {
+	const v = ensureVisibility(data);
+	if (!v.hiddenEducationHighlights) {
+		v.hiddenEducationHighlights = {};
+	}
+	const key = String(eduIdx);
+	const arr = v.hiddenEducationHighlights[key]
+		?? (v.hiddenEducationHighlights[key] = []);
+	if (!arr.includes(hi)) {
+		arr.push(hi);
+	}
+}
+
+function showEducationHighlight(data: CVData, eduIdx: number, hi: number): void {
+	const v = data.visibility;
+	if (!v?.hiddenEducationHighlights) {
+		return;
+	}
+	const key = String(eduIdx);
+	const arr = v.hiddenEducationHighlights[key];
+	if (!arr) {
+		return;
+	}
+	const next = arr.filter((i) => i !== hi);
+	if (next.length === 0) {
+		delete v.hiddenEducationHighlights[key];
+	} else {
+		v.hiddenEducationHighlights[key] = next;
+	}
+	if (Object.keys(v.hiddenEducationHighlights).length === 0) {
+		delete v.hiddenEducationHighlights;
+	}
+	cleanupVisibility(data);
+}
+
+function hideLanguage(data: CVData, idx: number): void {
+	const v = ensureVisibility(data);
+	if (!v.hiddenLanguages) {
+		v.hiddenLanguages = [];
+	}
+	if (!v.hiddenLanguages.includes(idx)) {
+		v.hiddenLanguages.push(idx);
+	}
+}
+
+function showLanguage(data: CVData, idx: number): void {
+	const v = data.visibility;
+	if (!v?.hiddenLanguages) {
+		return;
+	}
+	v.hiddenLanguages = v.hiddenLanguages.filter((i) => i !== idx);
+	if (v.hiddenLanguages.length === 0) {
+		delete v.hiddenLanguages;
+	}
 	cleanupVisibility(data);
 }
 
@@ -757,8 +935,8 @@ function injectTagEditors(
 
 	// ── Work items ───────────────────────────────────────────────────────────
 
-	document.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
-		const idx  = parseInt(el.dataset.workIdx ?? '-1', 10);
+	document.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
+		const idx  = parseInt(el.dataset.blemmyDragIdx ?? '-1', 10);
 		const item = data.work[idx];
 		if (!item) { return; }
 
@@ -791,10 +969,10 @@ function injectTagEditors(
 	// ── Education items ──────────────────────────────────────────────────────
 
 	document.querySelectorAll<HTMLElement>('.education-block').forEach((el) => {
-		// Find the index from the data-cv-field of a child
-		const fieldEl = el.querySelector<HTMLElement>('[data-cv-field^="education."]');
+		// Find the index from the data-blemmy-field of a child
+		const fieldEl = el.querySelector<HTMLElement>('[data-blemmy-field^="education."]');
 		if (!fieldEl) { return; }
-		const match = fieldEl.dataset.cvField?.match(/^education\.(\d+)\./);
+		const match = fieldEl.dataset.blemmyField?.match(/^education\.(\d+)\./);
 		if (!match) { return; }
 		const idx  = parseInt(match[1], 10);
 		const item = data.education[idx];
@@ -824,10 +1002,20 @@ function injectTagEditors(
 }
 
 type VisibilityToggleAction =
-	| { type: 'hide-work';     idx: number }
-	| { type: 'show-work';     idx: number }
-	| { type: 'hide-section';  id: CVSectionId }
-	| { type: 'show-section';  id: CVSectionId };
+	| { type: 'hide-work'; idx: number }
+	| { type: 'show-work'; idx: number }
+	| { type: 'hide-education'; idx: number }
+	| { type: 'show-education'; idx: number }
+	| { type: 'hide-section'; id: CVSectionId }
+	| { type: 'show-section'; id: CVSectionId }
+	| { type: 'hide-work-highlight'; workIdx: number; highlightIdx: number }
+	| { type: 'show-work-highlight'; workIdx: number; highlightIdx: number }
+	| { type: 'hide-education-highlight'; eduIdx: number; highlightIdx: number }
+	| { type: 'show-education-highlight'; eduIdx: number; highlightIdx: number }
+	| { type: 'hide-skill-item'; category: string; skillIdx: number }
+	| { type: 'show-skill-item'; category: string; skillIdx: number }
+	| { type: 'hide-language'; idx: number }
+	| { type: 'show-language'; idx: number };
 
 /**
  * Builds the hidden-items side panel.
@@ -837,9 +1025,14 @@ function buildSidePanel(
 	data:     CVData,
 	onAction: (action: VisibilityToggleAction) => void,
 ): HTMLElement {
-	const vis         = data.visibility ?? {};
-	const hiddenWork  = vis.hiddenWork      ?? [];
-	const hiddenSects = vis.hiddenSections  ?? [];
+	const vis          = data.visibility ?? {};
+	const hiddenWork   = vis.hiddenWork      ?? [];
+	const hiddenEdu    = vis.hiddenEducation ?? [];
+	const hiddenSects  = vis.hiddenSections  ?? [];
+	const hiddenHl     = vis.hiddenWorkHighlights ?? {};
+	const hiddenEduHl  = vis.hiddenEducationHighlights ?? {};
+	const hiddenSk     = vis.hiddenSkillItems ?? {};
+	const hiddenLangs  = [...(vis.hiddenLanguages ?? [])].sort((a, b) => a - b);
 
 	const panel = h('div', {
 		id: 'cv-edit-panel',
@@ -873,12 +1066,164 @@ function buildSidePanel(
 		list.appendChild(tile);
 	}
 
+	// Hidden experience bullets
+	for (const wKey of Object.keys(hiddenHl)) {
+		const workIdx = parseInt(wKey, 10);
+		if (!Number.isInteger(workIdx) || workIdx < 0) {
+			continue;
+		}
+		const entry = data.work[workIdx];
+		if (!entry) {
+			continue;
+		}
+		const idxList = [...(hiddenHl[wKey] ?? [])].sort((a, b) => a - b);
+		for (const hi of idxList) {
+			const preview = entry.highlights[hi] ?? '';
+			const short =
+				preview.length > 72 ? `${preview.slice(0, 72)}…` : preview;
+			const tile = h('div', {
+				class: 'cv-edit-panel__tile',
+				'data-panel-type': 'work-highlight',
+			},
+			h('span', { class: 'cv-edit-panel__tile-badge' }, 'Bullet'),
+			h('span', { class: 'cv-edit-panel__tile-label' }, entry.company),
+			h('span', { class: 'cv-edit-panel__tile-sub' }, short || `Index ${hi}`),
+			);
+			const restoreBtn = h('button', {
+				class: 'cv-edit-panel__restore',
+				type:  'button',
+				title: 'Restore to CV',
+			}, '↩');
+			restoreBtn.addEventListener('click', () => onAction({
+				type: 'show-work-highlight',
+				workIdx,
+				highlightIdx: hi,
+			}));
+			tile.appendChild(restoreBtn);
+			list.appendChild(tile);
+		}
+	}
+
+	// Hidden education entries
+	for (const idx of hiddenEdu) {
+		const entry = data.education[idx];
+		if (!entry) {
+			continue;
+		}
+		const tile = h('div', {
+			class: 'cv-edit-panel__tile',
+			'data-panel-type': 'education',
+		},
+		h('span', { class: 'cv-edit-panel__tile-badge' }, 'Education'),
+		h('span', { class: 'cv-edit-panel__tile-label' }, entry.institution),
+		h('span', { class: 'cv-edit-panel__tile-sub' }, entry.degree),
+		);
+		const restoreBtn = h('button', {
+			class: 'cv-edit-panel__restore',
+			type:  'button',
+			title: 'Restore to CV',
+		}, '↩');
+		restoreBtn.addEventListener('click', () => onAction({ type: 'show-education', idx }));
+		tile.appendChild(restoreBtn);
+		list.appendChild(tile);
+	}
+
+	// Hidden education bullets
+	for (const eKey of Object.keys(hiddenEduHl)) {
+		const eduIdx = parseInt(eKey, 10);
+		if (!Number.isInteger(eduIdx) || eduIdx < 0) {
+			continue;
+		}
+		const entry = data.education[eduIdx];
+		if (!entry) {
+			continue;
+		}
+		const idxList = [...(hiddenEduHl[eKey] ?? [])].sort((a, b) => a - b);
+		for (const hi of idxList) {
+			const preview = entry.highlights[hi] ?? '';
+			const short =
+				preview.length > 72 ? `${preview.slice(0, 72)}…` : preview;
+			const tile = h('div', {
+				class: 'cv-edit-panel__tile',
+				'data-panel-type': 'education-highlight',
+			},
+			h('span', { class: 'cv-edit-panel__tile-badge' }, 'Edu bullet'),
+			h('span', { class: 'cv-edit-panel__tile-label' }, entry.institution),
+			h('span', { class: 'cv-edit-panel__tile-sub' }, short || `Index ${hi}`),
+			);
+			const restoreBtn = h('button', {
+				class: 'cv-edit-panel__restore',
+				type:  'button',
+				title: 'Restore to CV',
+			}, '↩');
+			restoreBtn.addEventListener('click', () => onAction({
+				type: 'show-education-highlight',
+				eduIdx,
+				highlightIdx: hi,
+			}));
+			tile.appendChild(restoreBtn);
+			list.appendChild(tile);
+		}
+	}
+
+	// Hidden skill tags
+	for (const cat of Object.keys(hiddenSk)) {
+		const idxList = [...(hiddenSk[cat] ?? [])].sort((a, b) => a - b);
+		for (const si of idxList) {
+			const label = data.skills[cat]?.[si] ?? `Index ${si}`;
+			const tile = h('div', {
+				class: 'cv-edit-panel__tile',
+				'data-panel-type': 'skill-tag',
+			},
+			h('span', { class: 'cv-edit-panel__tile-badge' }, 'Skill'),
+			h('span', { class: 'cv-edit-panel__tile-label' }, `${cat}: ${label}`),
+			);
+			const restoreBtn = h('button', {
+				class: 'cv-edit-panel__restore',
+				type:  'button',
+				title: 'Restore to CV',
+			}, '↩');
+			restoreBtn.addEventListener('click', () => onAction({
+				type: 'show-skill-item',
+				category: cat,
+				skillIdx: si,
+			}));
+			tile.appendChild(restoreBtn);
+			list.appendChild(tile);
+		}
+	}
+
+	// Hidden languages
+	for (const li of hiddenLangs) {
+		const lang = data.languages[li];
+		if (!lang) {
+			continue;
+		}
+		const tile = h('div', {
+			class: 'cv-edit-panel__tile',
+			'data-panel-type': 'language',
+		},
+		h('span', { class: 'cv-edit-panel__tile-badge' }, 'Language'),
+		h('span', { class: 'cv-edit-panel__tile-label' }, lang.language),
+		h('span', { class: 'cv-edit-panel__tile-sub' }, lang.fluency),
+		);
+		const restoreBtn = h('button', {
+			class: 'cv-edit-panel__restore',
+			type:  'button',
+			title: 'Restore to CV',
+		}, '↩');
+		restoreBtn.addEventListener('click', () => onAction({ type: 'show-language', idx: li }));
+		tile.appendChild(restoreBtn);
+		list.appendChild(tile);
+	}
+
 	// Hidden sections
 	const sectionLabels: Record<CVSectionId, string> = {
 		skills:    'Technical Skills',
 		languages: 'Languages',
 		interests: 'Interests',
 		profile:   'Profile',
+		education: 'Education (sidebar)',
 	};
 	for (const id of hiddenSects) {
 		const tile = h('div', { class: 'cv-edit-panel__tile', 'data-panel-type': 'section' },
@@ -897,7 +1242,8 @@ function buildSidePanel(
 
 	if (list.children.length === 0) {
 		list.appendChild(h('p', { class: 'cv-edit-panel__empty' },
-			'All content visible. Click 👁 on any section or work item to hide it.',
+			'All content visible. Use the eye in each row of controls ' +
+				'(next to the arrows) to hide that piece of content.',
 		));
 	}
 
@@ -905,92 +1251,7 @@ function buildSidePanel(
 	return panel;
 }
 
-// ─── Visibility toggle buttons (injected onto CV elements in edit mode) ───────
-
-/**
- * Injects small eye-icon toggle buttons onto every hideable element in the CV.
- * These are absolutely-positioned over the element and have .no-print.
- * Returns a cleanup function that removes all injected buttons.
- */
-function injectVisibilityToggles(
-	data:     CVData,
-	onAction: (action: VisibilityToggleAction) => void,
-): () => void {
-	const injected: HTMLElement[] = [];
-	const vis         = data.visibility ?? {};
-	const hiddenWork  = vis.hiddenWork  ?? [];
-
-	function makeToggleBtn(
-		label:   string,
-		onClick: () => void,
-	): HTMLElement {
-		const btn   = document.createElement('button');
-		btn.type    = 'button';
-		btn.className = 'cv-vis-toggle no-print';
-		btn.title   = label;
-		btn.setAttribute('aria-label', label);
-		btn.textContent = '👁';
-		btn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			onClick();
-		});
-		return btn;
-	}
-
-	function injectOnto(
-		el:     HTMLElement,
-		btn:    HTMLElement,
-	): void {
-		// Elements need position:relative so the absolute button lands correctly.
-		// We only add it if not already set.
-		const pos = getComputedStyle(el).position;
-		if (pos === 'static') { el.style.position = 'relative'; }
-		el.appendChild(btn);
-		injected.push(btn);
-	}
-
-	// Work items — toggle per item
-	document.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
-		const idx = parseInt(el.dataset.workIdx ?? '-1', 10);
-		if (idx < 0 || hiddenWork.includes(idx)) { return; }
-		const btn = makeToggleBtn('Hide this work item', () => {
-			onAction({ type: 'hide-work', idx });
-		});
-		injectOnto(el, btn);
-	});
-
-	// Named sections — one toggle per section div
-	const sectionMap: Record<string, CVSectionId> = {
-		'cv-rebalance-skills':    'skills',
-		'cv-rebalance-languages': 'languages',
-		'cv-rebalance-interests': 'interests',
-		'cv-rebalance-profile':   'profile',
-	};
-	for (const [domId, sectionId] of Object.entries(sectionMap)) {
-		const el = document.getElementById(domId);
-		if (!el) { continue; }
-		const hiddenSects = data.visibility?.hiddenSections ?? [];
-		if (hiddenSects.includes(sectionId)) { continue; }
-		const btn = makeToggleBtn(`Hide ${sectionId} section`, () => {
-			onAction({ type: 'hide-section', id: sectionId });
-		});
-		injectOnto(el, btn);
-	}
-
-	return () => {
-		for (const btn of injected) {
-			// Restore position:relative if we added it
-			const parent = btn.parentElement;
-			if (parent?.style.position === 'relative') {
-				parent.style.removeProperty('position');
-			}
-			btn.remove();
-		}
-		injected.length = 0;
-	};
-}
-
-// ─── Reorder controls (up/down) ───────────────────────────────────────────────
+// ─── Reorder controls + inline hide (eye grouped with ▲▼) ─────────────────────
 
 function moveArrayItem<T>(arr: T[], from: number, to: number): void {
 	if (from < 0 || to < 0 || from >= arr.length || to >= arr.length || from === to) {
@@ -1011,6 +1272,7 @@ function makeMoveButton(
 	btn.title = label;
 	btn.setAttribute('aria-label', label);
 	btn.textContent = glyph;
+	btn.setAttribute('contenteditable', 'false');
 	btn.addEventListener('click', (e) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -1025,11 +1287,31 @@ function ensureRelativePosition(el: HTMLElement): void {
 	}
 }
 
+function makeHideEyeButton(label: string, onHide: () => void): HTMLButtonElement {
+	const btn = document.createElement('button');
+	btn.type = 'button';
+	btn.className = 'cv-vis-toggle cv-vis-toggle--inrow no-print';
+	btn.title = label;
+	btn.setAttribute('aria-label', label);
+	btn.textContent = '👁';
+	btn.setAttribute('contenteditable', 'false');
+	btn.addEventListener('click', (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		onHide();
+	});
+	return btn;
+}
+
 function injectReorderControls(
 	data: CVData,
+	handleAction: (action: VisibilityToggleAction) => void,
 	onMutate: () => void,
 ): () => void {
 	const injected: HTMLElement[] = [];
+	const hiddenWork = data.visibility?.hiddenWork ?? [];
+	const hiddenEdu = data.visibility?.hiddenEducation ?? [];
+	const hiddenSects = data.visibility?.hiddenSections ?? [];
 
 	function injectPair(
 		host: HTMLElement,
@@ -1039,11 +1321,18 @@ function injectReorderControls(
 			canMoveDown: boolean;
 			onMoveUp: () => void;
 			onMoveDown: () => void;
+			hide?: { label: string; onHide: () => void };
 		},
 	): void {
 		ensureRelativePosition(host);
 		const wrap = document.createElement('div');
 		wrap.className = `cv-move-controls no-print ${baseClass}`;
+		wrap.setAttribute('contenteditable', 'false');
+		if (config.hide) {
+			wrap.appendChild(
+				makeHideEyeButton(config.hide.label, config.hide.onHide),
+			);
+		}
 		const up = makeMoveButton('Move up', '↑', config.onMoveUp);
 		const down = makeMoveButton('Move down', '↓', config.onMoveDown);
 		if (!config.canMoveUp) { up.disabled = true; }
@@ -1053,13 +1342,17 @@ function injectReorderControls(
 		injected.push(wrap);
 	}
 
-	document.querySelectorAll<HTMLElement>('[data-work-idx]').forEach((el) => {
-		const idx = parseInt(el.dataset.workIdx ?? '-1', 10);
-		if (idx < 0) { return; }
+	document.querySelectorAll<HTMLElement>('[data-blemmy-drag-idx]').forEach((el) => {
+		const idx = parseInt(el.dataset.blemmyDragIdx ?? '-1', 10);
+		if (idx < 0 || hiddenWork.includes(idx)) { return; }
 		injectPair(
 			el,
 			'cv-move-controls--work',
 			{
+				hide: {
+					label: 'Hide this work item',
+					onHide: () => handleAction({ type: 'hide-work', idx }),
+				},
 				canMoveUp: idx > 0,
 				canMoveDown: idx < data.work.length - 1,
 				onMoveUp: () => { moveArrayItem(data.work, idx, idx - 1); onMutate(); },
@@ -1068,41 +1361,164 @@ function injectReorderControls(
 		);
 	});
 
-	document.querySelectorAll<HTMLElement>('li[data-cv-field]').forEach((el) => {
-		const field = el.dataset.cvField ?? '';
-		const m = field.match(/^work\.(\d+)\.highlights\.(\d+)$/);
-		if (!m) { return; }
-		const workIdx = parseInt(m[1], 10);
-		const hiIdx = parseInt(m[2], 10);
-		const highlights = data.work[workIdx]?.highlights;
-		if (!highlights) { return; }
+	document.querySelectorAll<HTMLElement>(
+		'.education-block[data-blemmy-education-idx]',
+	).forEach((el) => {
+		const idx = parseInt(el.dataset.blemmyEducationIdx ?? '-1', 10);
+		if (idx < 0 || hiddenEdu.includes(idx)) { return; }
 		injectPair(
 			el,
-			'cv-move-controls--inline',
+			'cv-move-controls--work',
 			{
-				canMoveUp: hiIdx > 0,
-				canMoveDown: hiIdx < highlights.length - 1,
-				onMoveUp: () => { moveArrayItem(highlights, hiIdx, hiIdx - 1); onMutate(); },
-				onMoveDown: () => { moveArrayItem(highlights, hiIdx, hiIdx + 1); onMutate(); },
+				hide: {
+					label: 'Hide this education entry',
+					onHide: () => handleAction({ type: 'hide-education', idx }),
+				},
+				canMoveUp: idx > 0,
+				canMoveDown: idx < data.education.length - 1,
+				onMoveUp: () => { moveArrayItem(data.education, idx, idx - 1); onMutate(); },
+				onMoveDown: () => { moveArrayItem(data.education, idx, idx + 1); onMutate(); },
 			},
 		);
 	});
 
-	document.querySelectorAll<HTMLElement>('.skill-tag[data-cv-field]').forEach((el) => {
-		const field = el.dataset.cvField ?? '';
-		const m = field.match(/^skills\.(programming|design_bim|strategic)\.(\d+)$/);
+	const eduSectionEl = document.getElementById('cv-education');
+	if (eduSectionEl instanceof HTMLElement && !hiddenSects.includes('education')) {
+		injectPair(
+			eduSectionEl,
+			'cv-move-controls--section',
+			{
+				hide: {
+					label: 'Hide education section',
+					onHide: () => handleAction({ type: 'hide-section', id: 'education' }),
+				},
+				canMoveUp: false,
+				canMoveDown: false,
+				onMoveUp: () => {},
+				onMoveDown: () => {},
+			},
+		);
+	}
+
+	const profileEl = document.getElementById('cv-rebalance-profile');
+	if (profileEl instanceof HTMLElement && !hiddenSects.includes('profile')) {
+		injectPair(
+			profileEl,
+			'cv-move-controls--section',
+			{
+				hide: {
+					label: 'Hide profile section',
+					onHide: () => handleAction({ type: 'hide-section', id: 'profile' }),
+				},
+				canMoveUp: false,
+				canMoveDown: false,
+				onMoveUp: () => {},
+				onMoveDown: () => {},
+			},
+		);
+	}
+
+	document.querySelectorAll<HTMLElement>('li[data-blemmy-field]').forEach((el) => {
+		const field = el.dataset.blemmyField ?? '';
+		const workM = field.match(/^work\.(\d+)\.highlights\.(\d+)$/);
+		if (workM) {
+			const workIdx = parseInt(workM[1], 10);
+			const hiIdx = parseInt(workM[2], 10);
+			const highlights = data.work[workIdx]?.highlights;
+			if (!highlights) { return; }
+			injectPair(
+				el,
+				'cv-move-controls--inline',
+				{
+					hide: {
+						label: 'Hide this bullet',
+						onHide: () => handleAction({
+							type: 'hide-work-highlight',
+							workIdx,
+							highlightIdx: hiIdx,
+						}),
+					},
+					canMoveUp: hiIdx > 0,
+					canMoveDown: hiIdx < highlights.length - 1,
+					onMoveUp: () => { moveArrayItem(highlights, hiIdx, hiIdx - 1); onMutate(); },
+					onMoveDown: () => { moveArrayItem(highlights, hiIdx, hiIdx + 1); onMutate(); },
+				},
+			);
+			return;
+		}
+		const eduM = field.match(/^education\.(\d+)\.highlights\.(\d+)$/);
+		if (eduM) {
+			const eduIdx = parseInt(eduM[1], 10);
+			const hiIdx = parseInt(eduM[2], 10);
+			const highlights = data.education[eduIdx]?.highlights;
+			if (!highlights) { return; }
+			injectPair(
+				el,
+				'cv-move-controls--inline',
+				{
+					hide: {
+						label: 'Hide this bullet',
+						onHide: () => handleAction({
+							type: 'hide-education-highlight',
+							eduIdx,
+							highlightIdx: hiIdx,
+						}),
+					},
+					canMoveUp: hiIdx > 0,
+					canMoveDown: hiIdx < highlights.length - 1,
+					onMoveUp: () => { moveArrayItem(highlights, hiIdx, hiIdx - 1); onMutate(); },
+					onMoveDown: () => { moveArrayItem(highlights, hiIdx, hiIdx + 1); onMutate(); },
+				},
+			);
+		}
+	});
+
+	document.querySelectorAll<HTMLElement>('.skill-tag[data-blemmy-field]').forEach((el) => {
+		const field = el.dataset.blemmyField ?? '';
+		const m = field.match(/^skills\.([a-zA-Z][a-zA-Z0-9_]*)\.(\d+)$/);
 		if (!m) { return; }
-		const cat = m[1] as keyof CVData['skills'];
+		const cat = m[1];
 		const idx = parseInt(m[2], 10);
 		const arr = data.skills[cat];
+		if (!Array.isArray(arr)) { return; }
 		injectPair(
 			el,
 			'cv-move-controls--inline',
 			{
+				hide: {
+					label: 'Hide this skill tag',
+					onHide: () => handleAction({
+						type: 'hide-skill-item',
+						category: cat,
+						skillIdx: idx,
+					}),
+				},
 				canMoveUp: idx > 0,
 				canMoveDown: idx < arr.length - 1,
 				onMoveUp: () => { moveArrayItem(arr, idx, idx - 1); onMutate(); },
 				onMoveDown: () => { moveArrayItem(arr, idx, idx + 1); onMutate(); },
+			},
+		);
+	});
+
+	const hiddenLangs = data.visibility?.hiddenLanguages ?? [];
+	document.querySelectorAll<HTMLElement>(
+		'.language-item[data-blemmy-language-idx]',
+	).forEach((el) => {
+		const idx = parseInt(el.dataset.blemmyLanguageIdx ?? '-1', 10);
+		if (idx < 0 || hiddenLangs.includes(idx)) { return; }
+		injectPair(
+			el,
+			'cv-move-controls--inline',
+			{
+				hide: {
+					label: 'Hide this language',
+					onHide: () => handleAction({ type: 'hide-language', idx }),
+				},
+				canMoveUp: idx > 0,
+				canMoveDown: idx < data.languages.length - 1,
+				onMoveUp: () => { moveArrayItem(data.languages, idx, idx - 1); onMutate(); },
+				onMoveDown: () => { moveArrayItem(data.languages, idx, idx + 1); onMutate(); },
 			},
 		);
 	});
@@ -1123,6 +1539,10 @@ function injectReorderControls(
 			el,
 			'cv-move-controls--section',
 			{
+				hide: {
+					label: `Hide ${id} section`,
+					onHide: () => handleAction({ type: 'hide-section', id }),
+				},
 				canMoveUp: visiblePos > 0,
 				canMoveDown: visiblePos < visibleSidebar.length - 1,
 				onMoveUp: () => {
@@ -1146,7 +1566,7 @@ function injectReorderControls(
 		Array.isArray(data.skills[id]) && data.skills[id].length > 0,
 	);
 	document.querySelectorAll<HTMLElement>('.skill-category[data-skill-category]').forEach((el) => {
-		const id = el.dataset.skillCategory as CVSkillsCategoryId | undefined;
+		const id = el.dataset.skillCategory;
 		if (!id) { return; }
 		const pos = visibleSkillCats.indexOf(id);
 		const absPos = skillsOrder.indexOf(id);
@@ -1214,7 +1634,7 @@ export function activateEditMode(
 	const workingData = deepClone(initialData);
 
 	shell.setAttribute(EDIT_ACTIVE_ATTR, 'true');
-	document.documentElement.classList.add('cv-edit-mode');
+	document.documentElement.classList.add('cv-edit-mode', 'blemmy-edit-mode');
 
 	function handleDataChange(data: CVData): void {
 		saveDraft(data);
@@ -1224,13 +1644,10 @@ export function activateEditMode(
 	// ── Side panel ────────────────────────────────────────────────────────────
 
 	let currentPanel: HTMLElement | null = null;
-	let cleanupToggles: (() => void) | null = null;
 	let cleanupMoves: (() => void) | null = null;
 
 	function refreshPanel(): void {
-		// Remove old panel and toggles
 		currentPanel?.remove();
-		cleanupToggles?.();
 		cleanupMoves?.();
 
 		function handleAction(action: VisibilityToggleAction): void {
@@ -1241,10 +1658,72 @@ export function activateEditMode(
 				beforeHash: hashCvForAudit(workingData),
 			});
 			switch (action.type) {
-				case 'hide-work':    hideWork(workingData, action.idx);    break;
-				case 'show-work':    showWork(workingData, action.idx);    break;
-				case 'hide-section': hideSection(workingData, action.id);  break;
-				case 'show-section': showSection(workingData, action.id);  break;
+				case 'hide-work':
+					hideWork(workingData, action.idx);
+					break;
+				case 'show-work':
+					showWork(workingData, action.idx);
+					break;
+				case 'hide-education':
+					hideEducation(workingData, action.idx);
+					break;
+				case 'show-education':
+					showEducation(workingData, action.idx);
+					break;
+				case 'hide-section':
+					hideSection(workingData, action.id);
+					break;
+				case 'show-section':
+					showSection(workingData, action.id);
+					break;
+				case 'hide-work-highlight':
+					hideWorkHighlight(
+						workingData,
+						action.workIdx,
+						action.highlightIdx,
+					);
+					break;
+				case 'show-work-highlight':
+					showWorkHighlight(
+						workingData,
+						action.workIdx,
+						action.highlightIdx,
+					);
+					break;
+				case 'hide-education-highlight':
+					hideEducationHighlight(
+						workingData,
+						action.eduIdx,
+						action.highlightIdx,
+					);
+					break;
+				case 'show-education-highlight':
+					showEducationHighlight(
+						workingData,
+						action.eduIdx,
+						action.highlightIdx,
+					);
+					break;
+				case 'hide-skill-item':
+					hideSkillItem(
+						workingData,
+						action.category,
+						action.skillIdx,
+					);
+					break;
+				case 'show-skill-item':
+					showSkillItem(
+						workingData,
+						action.category,
+						action.skillIdx,
+					);
+					break;
+				case 'hide-language':
+					hideLanguage(workingData, action.idx);
+					break;
+				case 'show-language':
+					showLanguage(workingData, action.idx);
+					break;
 			}
 			handleDataChange(workingData);
 			// Remount re-renders the CV with updated visibility
@@ -1258,9 +1737,8 @@ export function activateEditMode(
 			// re-activates edit mode after remount, which calls refreshPanel() again.
 		}
 
-		currentPanel   = buildSidePanel(workingData, handleAction);
-		cleanupToggles = injectVisibilityToggles(workingData, handleAction);
-		cleanupMoves = injectReorderControls(workingData, () => {
+		currentPanel = buildSidePanel(workingData, handleAction);
+		cleanupMoves = injectReorderControls(workingData, handleAction, () => {
 			layoutAuditLog('edit-reorder', {
 				beforeHash: hashCvForAudit(workingData),
 			});
@@ -1274,6 +1752,7 @@ export function activateEditMode(
 	}
 
 	refreshPanel();
+	window.dispatchEvent(new CustomEvent('cv-view-mode-changed'));
 
 	// ── Contenteditable + drag ────────────────────────────────────────────────
 
@@ -1297,11 +1776,11 @@ export function activateEditMode(
 		cleanupTags();
 		cleanupDrag();
 		cleanupPortrait();
-		cleanupToggles?.();
 		cleanupMoves?.();
 		currentPanel?.remove();
 		shell.removeAttribute(EDIT_ACTIVE_ATTR);
-		document.documentElement.classList.remove('cv-edit-mode');
+		document.documentElement.classList.remove('cv-edit-mode', 'blemmy-edit-mode');
+		window.dispatchEvent(new CustomEvent('cv-view-mode-changed'));
 	}
 
 	return {
@@ -1317,5 +1796,28 @@ export function activateEditMode(
 			remount(workingData);
 		},
 	};
+}
+
+export type GenericEditModeInstance = GenericLetterEditInstance;
+
+/**
+ * Activates generic field edit mode on an arbitrary shell (e.g. letter).
+ * CV editing should keep using {@link activateEditMode}.
+ */
+export function activateGenericEdit(
+	initialData: unknown,
+	shellId: string,
+	draftKey: string,
+	spec: DocumentTypeSpec,
+	remount: (data: unknown) => void,
+	onDataChange: (data: unknown) => void,
+): GenericLetterEditInstance {
+	return activateGenericEditInner(initialData, {
+		spec,
+		shellId,
+		draftKey,
+		onDataChange,
+		remount,
+	});
 }
 

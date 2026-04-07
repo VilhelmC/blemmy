@@ -1,6 +1,8 @@
 import { createClient, type Session, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { CVData } from '@cv/cv';
 import { withCapturedLayoutSnapshot } from '@lib/engine/cv-layout-snapshot';
+import { withRealisedLayout } from '@lib/engine/layout-realised';
+import { getDocTypeSpec as getCvDocTypeSpecForLayout } from '@lib/document-type';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -888,7 +890,10 @@ export async function createDocument(
 	docType = 'cv',
 ): Promise<CloudResult<CloudDocument>> {
 	try {
-		const dataWithLayout = withCapturedLayoutSnapshot(data);
+		const cvSpec = docType === 'cv' ? getCvDocTypeSpecForLayout('cv') : null;
+		const dataWithLayout = cvSpec
+			? (withRealisedLayout(data as unknown as Record<string, unknown>, cvSpec) as unknown as CVData)
+			: withCapturedLayoutSnapshot(data);
 		const forSave = await stripPortablePortraitForCloud(dataWithLayout);
 		const sb = getClient();
 		const user = await getCurrentUser();
@@ -928,7 +933,10 @@ export async function saveVersion(
 	label?: string,
 ): Promise<CloudResult<CloudVersion>> {
 	try {
-		const dataWithLayout = withCapturedLayoutSnapshot(data);
+		const cvSpec = getCvDocTypeSpecForLayout('cv');
+		const dataWithLayout = cvSpec
+			? (withRealisedLayout(data as unknown as Record<string, unknown>, cvSpec) as unknown as CVData)
+			: withCapturedLayoutSnapshot(data);
 		const forSave = await stripPortablePortraitForCloud(dataWithLayout);
 		const sb = getClient();
 		const { data: row, error } = await sb

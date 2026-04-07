@@ -59,6 +59,27 @@ describe('review layout clamp', () => {
 		expect(card.style.maxWidth).toBe('');
 	});
 
+	it('applies clamp when assistant/edit layout is active without review panel', () => {
+		document.body.innerHTML = `
+			<div id="cv-shell">
+				<div id="cv-card">
+					<div id="cv-page-1" class="cv-page">
+						<div class="cv-grid"></div>
+					</div>
+				</div>
+			</div>
+		`;
+		document.documentElement.classList.add('cv-panel-open', 'cv-panel-desktop');
+		const shell = document.getElementById('cv-shell') as HTMLElement;
+		const card = document.getElementById('cv-card') as HTMLElement;
+		mockRect(shell, 600);
+		mockRect(card, 800);
+		const report = applyReviewWidthClamp(document, true);
+		expect(report.applied).toBe(true);
+		expect(card.style.maxWidth).toBe('600px');
+		document.documentElement.classList.remove('cv-panel-open', 'cv-panel-desktop');
+	});
+
 	it('clears clamp explicitly', () => {
 		setupDom(false);
 		applyReviewWidthClamp(document, true);

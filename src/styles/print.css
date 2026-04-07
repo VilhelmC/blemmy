@@ -86,6 +86,7 @@
 	}
 
 	.no-print,
+	#cv-download-pdf,
 	.print-fab,
 	.theme-toggle,
 	[data-cv-interactive],

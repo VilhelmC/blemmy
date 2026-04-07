@@ -53,28 +53,28 @@ function emailDisplay(email: string): string {
 function renderMasthead(data: LetterData): HTMLElement {
 	const { basics } = data;
 
-	const name = h('div', { class: 'letter-sender-name', 'data-letter-field': 'basics.name' },
+	const name = h('div', { class: 'letter-sender-name', 'data-blemmy-field': 'basics.name' },
 		basics.name,
 	);
 
-	const label = h('div', { class: 'letter-sender-label', 'data-letter-field': 'basics.label' },
+	const label = h('div', { class: 'letter-sender-label', 'data-blemmy-field': 'basics.label' },
 		basics.label,
 	);
 
 	const contact = h('div', { class: 'letter-sender-contact' });
 
 	if (basics.email) {
-		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-letter-field': 'basics.email' },
+		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-blemmy-field': 'basics.email' },
 			emailDisplay(basics.email),
 		));
 	}
 	if (basics.phone) {
-		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-letter-field': 'basics.phone' },
+		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-blemmy-field': 'basics.phone' },
 			basics.phone,
 		));
 	}
 	if (basics.location) {
-		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-letter-field': 'basics.location' },
+		contact.appendChild(h('span', { class: 'letter-contact-item', 'data-blemmy-field': 'basics.location' },
 			basics.location,
 		));
 	}
@@ -97,13 +97,13 @@ function renderRecipient(data: LetterData): HTMLElement {
 		class: 'letter-section letter-recipient',
 	});
 
-	const dateEl = h('p', { class: 'letter-date', 'data-letter-field': 'date' }, data.date);
+	const dateEl = h('p', { class: 'letter-date', 'data-blemmy-field': 'date' }, data.date);
 	block.appendChild(dateEl);
 
 	if (data.subject) {
 		block.appendChild(h('p', {
 			class:              'letter-subject',
-			'data-letter-field': 'subject',
+			'data-blemmy-field': 'subject',
 		}, `Re: ${data.subject}`));
 	}
 
@@ -112,19 +112,19 @@ function renderRecipient(data: LetterData): HTMLElement {
 		if (recipient.name) {
 			recipientBlock.appendChild(h('p', {
 				class:              'letter-recipient-name',
-				'data-letter-field': 'recipient.name',
+				'data-blemmy-field': 'recipient.name',
 			}, recipient.name));
 		}
 		if (recipient.title) {
 			recipientBlock.appendChild(h('p', {
 				class:              'letter-recipient-title',
-				'data-letter-field': 'recipient.title',
+				'data-blemmy-field': 'recipient.title',
 			}, recipient.title));
 		}
 		if (recipient.organisation) {
 			recipientBlock.appendChild(h('p', {
 				class:              'letter-recipient-org',
-				'data-letter-field': 'recipient.organisation',
+				'data-blemmy-field': 'recipient.organisation',
 			}, recipient.organisation));
 		}
 		if (recipient.address) {
@@ -140,7 +140,7 @@ function renderRecipient(data: LetterData): HTMLElement {
 
 	block.appendChild(h('p', {
 		class:              'letter-opening',
-		'data-letter-field': 'opening',
+		'data-blemmy-field': 'opening',
 	}, data.opening));
 
 	return block;
@@ -157,8 +157,10 @@ function renderBody(data: LetterData): HTMLElement {
 	for (let i = 0; i < data.body.length; i++) {
 		const para = data.body[i];
 		block.appendChild(h('p', {
-			class:              'letter-paragraph',
-			'data-letter-field': `body.${i}.text`,
+			class:                   'letter-paragraph',
+			'data-blemmy-field':     `body.${i}.text`,
+			'data-blemmy-drag-group': 'body',
+			'data-blemmy-drag-idx':   String(i),
 		}, para.text));
 	}
 
@@ -172,19 +174,19 @@ function renderClosing(data: LetterData): HTMLElement {
 
 	const salutationEl = h('p', {
 		class:              'letter-closing-salutation',
-		'data-letter-field': 'closing.salutation',
+		'data-blemmy-field': 'closing.salutation',
 	}, closing.salutation);
 
 	const signatureBlock = h('div', { class: 'letter-signature' });
 	signatureBlock.appendChild(h('p', {
 		class:              'letter-signature-name',
-		'data-letter-field': 'closing.name',
+		'data-blemmy-field': 'closing.name',
 	}, closing.name));
 
 	if (closing.title) {
 		signatureBlock.appendChild(h('p', {
 			class:              'letter-signature-title',
-			'data-letter-field': 'closing.title',
+			'data-blemmy-field': 'closing.title',
 		}, closing.title));
 	}
 

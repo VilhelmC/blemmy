@@ -30,7 +30,7 @@ const minimal = {
 	},
 	education: [],
 	work: [],
-	skills: { programming: [], design_bim: [], strategic: [] },
+	skills: {},
 	languages: [],
 	personal: { interests: '' },
 };

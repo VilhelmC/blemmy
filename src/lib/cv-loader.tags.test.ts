@@ -19,7 +19,7 @@ const minimalRoot = {
 		born: '',
 		summary: '',
 	},
-	skills: { programming: [], design_bim: [], strategic: [] },
+	skills: {},
 	languages: [],
 	personal: { interests: '' },
 };

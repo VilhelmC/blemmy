@@ -170,12 +170,15 @@ async function main() {
 
 	// Enter edit mode
 	await page.click('#cv-edit-btn');
-	await page.waitForSelector('[data-work-idx] .cv-vis-toggle', { timeout: 15000 });
+	await page.waitForSelector(
+		'[data-blemmy-drag-group="work"] .cv-vis-toggle',
+		{ timeout: 15000 },
+	);
 	trace.push(await readSnapshot(page, 'edit-mode-enabled'));
 
 	// Hide first visible work item
 	let n = await readLayoutCounter(page);
-	await page.click('[data-work-idx] .cv-vis-toggle');
+	await page.click('[data-blemmy-drag-group="work"] .cv-vis-toggle');
 	await waitNextLayout(page, n);
 	await waitLayoutReady(page);
 	trace.push(await readSnapshot(page, 'hide-first-work'));

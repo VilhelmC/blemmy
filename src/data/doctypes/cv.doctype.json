@@ -1,68 +1,101 @@
 {
-	"docType": "cv",
-	"label": "Curriculum Vitae",
-	"version": "1.0",
+	"docType":     "cv",
+	"label":       "Curriculum Vitae",
+	"version":     "2.0",
+	"contentType": "CVData",
+	"domPrefix":   "cv",
 
-	"layout": {
-		"model": "sidebar-main",
-		"maxPages": 2,
+	"medium": {
 		"pageSize": "A4",
-		"hasPortrait": true,
-		"hasMasthead": true,
-		"hasFooter": true
+		"pages": { "min": 1, "max": 2 }
 	},
 
-	"domPrefix": "cv",
-
-	"domOverrides": {
-		"sections": {
-			"skills":    "cv-rebalance-skills",
-			"languages": "cv-rebalance-languages",
-			"interests": "cv-rebalance-interests",
-			"profile":   "cv-rebalance-profile",
-			"education": "cv-education"
-		}
+	"zones": {
+		"id":        "root",
+		"sizing":    { "type": "flex" },
+		"direction": "vertical",
+		"children": [
+			{
+				"id":            "header",
+				"sizing":        { "type": "intrinsic" },
+				"firstPageOnly": true,
+				"variants": [
+					{ "id": "full",    "label": "Full",    "default": true },
+					{ "id": "compact", "label": "Compact"                  },
+					{ "id": "minimal", "label": "Minimal"                  },
+					{ "id": "strip",   "label": "Strip"                    }
+				]
+			},
+			{
+				"id":        "body",
+				"sizing":    { "type": "flex" },
+				"direction": "horizontal",
+				"children": [
+					{
+						"id":     "sidebar",
+						"sizing": { "type": "range", "minMm": 44, "maxMm": 70 }
+					},
+					{
+						"id":        "main",
+						"sizing":    { "type": "flex" },
+						"direction": "vertical",
+						"children": [
+							{
+								"id":     "main-body",
+								"sizing": { "type": "flex" }
+							},
+							{
+								"id":       "footer",
+								"sizing":   { "type": "intrinsic" },
+								"optional": true
+							}
+						]
+					}
+				]
+			}
+		]
 	},
 
-	"cssClasses": {
-		"singlePage":    "cv-single-page",
-		"densityPrefix": "cv-density-",
-		"fillPrefix":    "cv-fill-"
-	},
-
-	"sections": [
+	"movableSections": [
 		{
-			"id":        "work",
-			"label":     "Experience",
-			"placement": "fixed-main",
-			"repeating": true
+			"id":           "skills",
+			"label":        "Skills",
+			"defaultZone":  "sidebar",
+			"allowedZones": ["sidebar", "footer"]
 		},
 		{
-			"id":        "education",
-			"label":     "Education",
-			"placement": "fixed-sidebar"
+			"id":           "languages",
+			"label":        "Languages",
+			"defaultZone":  "sidebar",
+			"allowedZones": ["sidebar", "footer"]
 		},
 		{
-			"id":        "skills",
-			"label":     "Skills",
-			"placement": "movable"
-		},
-		{
-			"id":        "languages",
-			"label":     "Languages",
-			"placement": "movable"
-		},
-		{
-			"id":        "interests",
-			"label":     "Interests",
-			"placement": "movable"
-		},
-		{
-			"id":        "profile",
-			"label":     "Profile",
-			"placement": "profilable"
+			"id":           "interests",
+			"label":        "Interests",
+			"defaultZone":  "sidebar",
+			"allowedZones": ["sidebar", "footer"]
 		}
 	],
 
-	"contentType": "CVData"
+	"fixedSections": [
+		{
+			"id":    "education",
+			"label": "Education",
+			"zone":  "sidebar"
+		},
+		{
+			"id":    "profile",
+			"label": "Profile",
+			"zone":  "header"
+		}
+	],
+
+	"contentSplits": [
+		{
+			"id":         "work",
+			"collection": "work",
+			"zone":       "main-body",
+			"minFirst":   1
+		}
+	]
 }

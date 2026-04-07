@@ -28,12 +28,13 @@ export default defineConfig({
 	server: { port: 5923, strictPort: true },
 	resolve: {
 		alias: {
-			'@lib':      resolve(__dirname, 'src/lib'),
+			'@lib':        resolve(__dirname, 'src/lib'),
 			'@lib/engine': resolve(__dirname, 'src/lib/engine'),
-			'@data':     resolve(__dirname, 'src/data'),
-			'@types':    resolve(__dirname, 'src/types'),
-			'@styles':   resolve(__dirname, 'src/styles'),
-			'@renderer': resolve(__dirname, 'src/renderer'),
+			'@data':       resolve(__dirname, 'src/data'),
+			'@types':      resolve(__dirname, 'src/types'),
+			'@cv':         resolve(__dirname, 'src/types'),
+			'@styles':     resolve(__dirname, 'src/styles'),
+			'@renderer':   resolve(__dirname, 'src/renderer'),
 		},
 	},
 	build: {
@@ -43,7 +44,7 @@ export default defineConfig({
 			input: resolve(__dirname, 'index.html'),
 		},
 	},
-	// Expose both prefixes — a single string replaces the default `VITE_` and would
+	// Expose both prefixes â€” a single string replaces the default `VITE_` and would
 	// hide `VITE_SUPABASE_*` from import.meta.env.
 	envPrefix: ['VITE_', 'CV_'],
 });

@@ -5,6 +5,23 @@ type ClampReport = {
 	overflowPx: number;
 };
 
+/** Desktop CV column narrowed by any right docked panel (review, chat, edit). */
+function desktopSidePanelActive(doc: Document, isDesktop: boolean): boolean {
+	if (!isDesktop) {
+		return false;
+	}
+	const html = doc.documentElement;
+	const review = doc.getElementById('blemmy-review-panel');
+	const reviewOpen = Boolean(
+		review && !review.hasAttribute('hidden'),
+	);
+	const unifiedOpen = Boolean(
+		html.classList.contains('cv-panel-open') &&
+			html.classList.contains('cv-panel-desktop'),
+	);
+	return reviewOpen || unifiedOpen;
+}
+
 function clearNodeStyles(node: HTMLElement): void {
 	node.style.removeProperty('max-width');
 	node.style.removeProperty('min-width');
@@ -28,16 +45,14 @@ export function applyReviewWidthClamp(
 	isDesktop = window.matchMedia('(min-width: 901px)').matches,
 ): ClampReport {
 	const html = doc.documentElement;
-	const panel = doc.getElementById('blemmy-review-panel');
 	const shell = doc.getElementById('cv-shell') as HTMLElement | null;
 	const card = doc.getElementById('cv-card') as HTMLElement | null;
 	if (
 		html.classList.contains('cv-share-readonly')
-		|| !panel
-		|| panel.hasAttribute('hidden')
 		|| !isDesktop
 		|| !shell
 		|| !card
+		|| !desktopSidePanelActive(doc, isDesktop)
 	) {
 		clearReviewWidthClamp(doc);
 		return { applied: false, shellWidth: 0, cardWidth: 0, overflowPx: 0 };

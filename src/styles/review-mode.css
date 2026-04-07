@@ -110,7 +110,7 @@
 .blemmy-review-mode .cv-shell .highlight-list li:hover,
 .blemmy-review-mode .cv-shell .cv-name:hover,
 .blemmy-review-mode .cv-shell .masthead-label:hover,
-.blemmy-review-mode .cv-shell [data-cv-field]:hover {
+.blemmy-review-mode .cv-shell [data-blemmy-field]:hover {
 	background:     rgba(217, 119, 6, 0.06);
 	border-radius:  2px;
 	cursor:         cell;

@@ -1,0 +1,299 @@
+/* ─── Generic editor styles ──────────────────────────────────────────────────
+   Covers all edit-mode visual feedback, drag-to-reorder, tag editing,
+   section toggles, and image upload hints for the generic editor.
+
+   Class prefix: blemmy-  (new generic classes)
+   Legacy:       cv-      (existing CV classes — kept for backward compat)
+
+   Imported via src/main.ts → import '@styles/generic-editor.css'
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Contenteditable visual feedback ─────────────────────────────────────── */
+
+@media screen {
+	/* Hover outline on any editable field */
+	html.blemmy-edit-mode [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover,
+	html.cv-edit-mode      [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
+		outline:        1px dashed rgba(26, 60, 64, 0.35);
+		outline-offset: 1px;
+		cursor:         text;
+	}
+
+	/* Focus ring while editing */
+	html.blemmy-edit-mode [contenteditable="true"]:focus,
+	html.cv-edit-mode      [contenteditable="true"]:focus {
+		outline:        2px solid rgba(26, 60, 64, 0.55);
+		outline-offset: 1px;
+		border-radius:  1px;
+	}
+
+	/* Image fields: pointer cursor + upload hint */
+	html.blemmy-edit-mode img[data-blemmy-field],
+	html.cv-edit-mode      img[data-blemmy-field] {
+		cursor: pointer;
+	}
+}
+
+/* ── Drag-to-reorder ──────────────────────────────────────────────────────── */
+
+@media screen {
+	/* Items in a drag group get a grab cursor on their handle */
+	html.blemmy-edit-mode [data-blemmy-drag-idx],
+	html.cv-edit-mode      [data-blemmy-drag-idx] {
+		cursor: text;
+	}
+
+	html.blemmy-edit-mode [data-blemmy-drag-idx]:hover,
+	html.cv-edit-mode      [data-blemmy-drag-idx]:hover {
+		outline:        1px dashed rgba(26, 60, 64, 0.35);
+		outline-offset: 2px;
+	}
+
+	/* Source item while dragging */
+	.blemmy-drag-source {
+		opacity: 0.45;
+	}
+
+	/* Drop insertion marker */
+	.blemmy-drag-marker {
+		position:       fixed;
+		left:           0;
+		width:          0;
+		height:         3px;
+		margin-top:     -1px;
+		border-radius:  2px;
+		background:     rgba(26, 60, 64, 0.85);
+		box-shadow:     0 0 0 1px rgba(255, 255, 255, 0.35);
+		z-index:        10050;
+		pointer-events: none;
+		transition:     top 0.05s ease-out, left 0.05s ease-out, width 0.05s ease-out;
+	}
+}
+
+/* ── Section hide/show toggles ────────────────────────────────────────────── */
+
+@media screen {
+	/* Hidden by default; shown on hover in edit mode */
+	.blemmy-section-toggle {
+		display:        none;
+		position:       absolute;
+		top:            0.35rem;
+		right:          0.35rem;
+		padding:        0.18rem 0.45rem;
+		font-size:      0.58rem;
+		font-family:    'DM Sans', system-ui, sans-serif;
+		font-weight:    500;
+		letter-spacing: 0.04em;
+		border:         1px solid rgba(26, 60, 64, 0.25);
+		border-radius:  0.2rem;
+		background:     rgba(255, 255, 255, 0.9);
+		color:          var(--color-ink-muted, #777);
+		cursor:         pointer;
+		white-space:    nowrap;
+		z-index:        10;
+		transition:     opacity 0.1s;
+	}
+
+	/* Make the target element position: relative so the button anchors */
+	html.blemmy-edit-mode [data-blemmy-section],
+	html.cv-edit-mode      [data-blemmy-section] {
+		position: relative;
+	}
+
+	html.blemmy-edit-mode [data-blemmy-section]:hover > .blemmy-section-toggle,
+	html.cv-edit-mode      [data-blemmy-section]:hover > .blemmy-section-toggle {
+		display: block;
+	}
+
+	.blemmy-section-toggle--hidden {
+		color:        var(--color-sidebar, #1a3c40);
+		border-color: var(--color-sidebar, #1a3c40);
+		opacity:      0.75;
+	}
+
+	.blemmy-section-toggle:hover {
+		opacity: 1;
+		background: #fff;
+	}
+
+	/* Sidebar context: invert colours */
+	.cv-sidebar .blemmy-section-toggle {
+		background:   rgba(0, 0, 0, 0.35);
+		color:        rgba(255, 255, 255, 0.7);
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+}
+
+/* ── Tag rows (edit mode) ─────────────────────────────────────────────────── */
+
+@media screen {
+	/* Hidden outside edit mode */
+	[data-blemmy-field]  .blemmy-tag-row { display: none; }
+	[data-blemmy-drag-idx] .blemmy-tag-row { display: none; }
+
+	html.blemmy-edit-mode [data-blemmy-field]    .blemmy-tag-row,
+	html.blemmy-edit-mode [data-blemmy-drag-idx] .blemmy-tag-row,
+	html.cv-edit-mode     [data-blemmy-field]    .blemmy-tag-row,
+	html.cv-edit-mode     [data-blemmy-drag-idx] .blemmy-tag-row {
+		display:     flex;
+		flex-wrap:   wrap;
+		gap:         0.3rem;
+		align-items: center;
+		margin-top:  0.45rem;
+		padding-top: 0.4rem;
+		border-top:  1px dashed rgba(0, 0, 0, 0.1);
+	}
+
+	.cv-sidebar .blemmy-tag-row {
+		border-top-color: rgba(255, 255, 255, 0.12);
+	}
+
+	/* Tag chip */
+	.blemmy-tag-chip {
+		display:        inline-flex;
+		align-items:    center;
+		gap:            0.2rem;
+		padding:        0.15rem 0.45rem;
+		border-radius:  2rem;
+		font-family:    'DM Sans', system-ui, sans-serif;
+		font-size:      0.58rem;
+		font-weight:    500;
+		letter-spacing: 0.04em;
+		white-space:    nowrap;
+		background:     rgba(26, 60, 64, 0.1);
+		color:          var(--color-teal-deep, #1a3c40);
+		border:         1px solid rgba(26, 60, 64, 0.2);
+		line-height:    1;
+	}
+
+	.cv-sidebar .blemmy-tag-chip {
+		background:   rgba(255, 255, 255, 0.12);
+		color:        rgba(255, 255, 255, 0.8);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.blemmy-tag-chip--edit .blemmy-tag-chip__remove {
+		background:  none;
+		border:      none;
+		cursor:      pointer;
+		font-size:   0.7rem;
+		line-height: 1;
+		color:       inherit;
+		opacity:     0.6;
+		padding:     0 0 0 0.1rem;
+		transition:  opacity 0.1s;
+	}
+
+	.blemmy-tag-chip--edit .blemmy-tag-chip__remove:hover { opacity: 1; }
+
+	/* Tag input */
+	.blemmy-tag-input-wrap {
+		display:     inline-flex;
+		align-items: center;
+	}
+
+	.blemmy-tag-input {
+		border:         none;
+		border-bottom:  1px dashed var(--color-ink-muted, #999);
+		background:     transparent;
+		font-family:    'DM Sans', system-ui, sans-serif;
+		font-size:      0.58rem;
+		color:          var(--color-ink-muted, #999);
+		width:          4rem;
+		padding:        0.1rem 0;
+		outline:        none;
+		transition:     border-color 0.1s, width 0.15s;
+	}
+
+	.cv-sidebar .blemmy-tag-input {
+		color:        rgba(255, 255, 255, 0.5);
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+
+	.blemmy-tag-input:focus {
+		width:        6rem;
+		border-color: var(--color-sidebar, #1a1a1a);
+	}
+
+	.blemmy-tag-input::placeholder { opacity: 0.6; }
+}
+
+/* ── Image upload hint overlay ────────────────────────────────────────────── */
+
+@media screen {
+	/* Wrapper must be position: relative for the hint to anchor */
+	.blemmy-image-wrap {
+		position: relative;
+		display:  inline-block;
+	}
+
+	.blemmy-image-upload-hint {
+		position:        absolute;
+		inset:           0;
+		display:         none;
+		align-items:     center;
+		justify-content: center;
+		gap:             0.5rem;
+		pointer-events:  none;
+		z-index:         2;
+		background:      rgba(0, 0, 0, 0.25);
+		color:           #ffffff;
+		font-family:     'DM Sans', system-ui, sans-serif;
+		font-size:       0.62rem;
+		font-weight:     600;
+		letter-spacing:  0.02em;
+		border-radius:   inherit;
+	}
+
+	.blemmy-image-upload-hint::before {
+		content:          '';
+		width:            20px;
+		height:           20px;
+		background:       center / contain no-repeat;
+		/* camera icon */
+		background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M23%2019a2%202%200%200%201-2%202H3a2%202%200%200%201-2-2V5a2%202%200%200%201%202-2h2l2-1h8l2%201h2a2%202%200%200%201%202%202z%22/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%223%22/%3E%3C/svg%3E");
+		opacity:          0.95;
+	}
+
+	html.blemmy-edit-mode .blemmy-image-upload-hint,
+	html.cv-edit-mode     .blemmy-image-upload-hint {
+		display: flex;
+	}
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+
+@media screen {
+	.dark .blemmy-section-toggle {
+		background:   rgba(30, 30, 30, 0.9);
+		color:        rgba(255, 255, 255, 0.5);
+		border-color: rgba(255, 255, 255, 0.15);
+	}
+
+	.dark .blemmy-drag-marker {
+		background: rgba(255, 255, 255, 0.7);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+	}
+
+	.dark .blemmy-tag-chip {
+		background:   rgba(255, 255, 255, 0.08);
+		color:        rgba(255, 255, 255, 0.7);
+		border-color: rgba(255, 255, 255, 0.15);
+	}
+
+	.dark .blemmy-tag-input {
+		color:        rgba(255, 255, 255, 0.4);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+}
+
+/* ── Print: suppress all edit UI ──────────────────────────────────────────── */
+
+@media print {
+	.blemmy-tag-row,
+	.blemmy-section-toggle,
+	.blemmy-drag-marker,
+	.blemmy-image-upload-hint {
+		display: none !important;
+	}
+}

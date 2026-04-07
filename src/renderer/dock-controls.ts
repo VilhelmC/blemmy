@@ -42,6 +42,13 @@ export const DOCK_CONTROLS = {
 		title: 'Download CV data as JSON',
 		icon: '↓',
 	},
+	printPdf: {
+		id: 'cv-download-pdf',
+		label: 'Preview PDF',
+		ariaLabel: 'Preview PDF',
+		title: 'Preview PDF',
+		icon: '⎙',
+	},
 	editMode: {
 		id: 'cv-edit-btn',
 		label: 'Edit',

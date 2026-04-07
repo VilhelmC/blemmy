@@ -140,7 +140,7 @@ function buildScenarioData(base, config) {
 		});
 	}
 
-	const buckets = ['programming', 'design_bim', 'strategic'];
+	const buckets = Object.keys(base.skills);
 	for (let bi = 0; bi < buckets.length; bi++) {
 		const k = buckets[bi];
 		data.skills[k] = [];

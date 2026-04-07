@@ -422,14 +422,14 @@ export function initChatPanel(
 
 	function resolveLetterPathElement(path: string): HTMLElement | null {
 		const direct = document.querySelector<HTMLElement>(
-			`[data-letter-field="${CSS.escape(path)}"]`,
+			`[data-blemmy-field="${CSS.escape(path)}"]`,
 		);
 		if (direct) { return direct; }
 		if (path.startsWith('body[')) {
 			const idx = Number(path.match(/^body\[(\d+)\]/)?.[1] ?? '-1');
 			if (idx >= 0) {
 				return document.querySelector<HTMLElement>(
-					`[data-letter-field="body.${idx}.text"]`,
+					`[data-blemmy-field="body.${idx}.text"]`,
 				);
 			}
 		}
@@ -444,21 +444,19 @@ export function initChatPanel(
 	}
 
 	function bestSelectableTarget(node: HTMLElement): HTMLElement {
-		return node.closest<HTMLElement>('[data-cv-field], [data-letter-field], .experience-block, .education-item')
-			?? node;
+		return node.closest<HTMLElement>(
+			'[data-blemmy-field], .experience-block, .education-item',
+		) ?? node;
 	}
 
 	function resolvePathFromTarget(target: HTMLElement): string | null {
-		const letterField = target.closest<HTMLElement>('[data-letter-field]')
-			?.getAttribute('data-letter-field');
-		if (letterField) {
-			return letterField.startsWith('body.')
-				? letterField.replace(/^body\.(\d+)\.text$/, 'body[$1].text')
-				: letterField;
+		const fieldPath = target.closest<HTMLElement>('[data-blemmy-field]')
+			?.getAttribute('data-blemmy-field');
+		if (fieldPath) {
+			return fieldPath.startsWith('body.')
+				? fieldPath.replace(/^body\.(\d+)\.text$/, 'body[$1].text')
+				: fieldPath;
 		}
-		const cvField = target.closest<HTMLElement>('[data-cv-field]')
-			?.getAttribute('data-cv-field');
-		if (cvField) { return `basics.${cvField}`; }
 		const workNode = target.closest<HTMLElement>('.experience-block');
 		if (workNode) {
 			const all = Array.from(document.querySelectorAll<HTMLElement>('.experience-block'));
@@ -900,11 +898,11 @@ export function initChatPanel(
 		}
 
 		const skills = root.skills;
-		if (skills && typeof skills === 'object') {
+		if (skills && typeof skills === 'object' && !Array.isArray(skills)) {
 			const s = skills as Record<string, unknown>;
-			s.programming = toTextList(s.programming);
-			s.design_bim  = toTextList(s.design_bim);
-			s.strategic   = toTextList(s.strategic);
+			for (const k of Object.keys(s)) {
+				s[k] = toTextList(s[k]);
+			}
 		}
 
 		const langs = Array.isArray(root.languages) ? root.languages : [];
@@ -1404,7 +1402,7 @@ export function initChatPanel(
 			if (!(target instanceof HTMLElement)) { return false; }
 			return Boolean(
 				target.closest(
-					'[data-cv-field], [data-letter-field], .experience-block, .education-item',
+					'[data-blemmy-field], [data-blemmy-field], .experience-block, .education-item',
 				),
 			);
 		},

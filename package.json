@@ -1,6 +1,6 @@
 {
 	"name": "blemmy",
-	"version": "3.2.0",
+	"version": "4.0.0",
 	"description": "Content-driven document system with a precision layout engine — Vite + TypeScript",
 	"homepage": "https://blemmy.dev",
 	"type": "module",
@@ -9,6 +9,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"pdf": "npm run build && node scripts/build-cv-pdf.mjs",
+		"pdf:letter": "npm run build && node scripts/build-pdf.mjs --doc-type letter",
+		"pdf:generic": "npm run build && node scripts/build-pdf.mjs",
 		"typecheck": "tsc --noEmit",
 		"test:layout": "npm run build && node scripts/evaluate-layout-engine.mjs",
 		"test:layout-recalc": "npm run build && node scripts/test-layout-recalc.mjs",

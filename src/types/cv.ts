@@ -5,6 +5,7 @@
  */
 
 import type { CVReview } from './cv-review';
+import type { RealisedLayout } from './document-type-spec';
 
 // ─── Meta ────────────────────────────────────────────────────────────────────
 
@@ -64,11 +65,11 @@ export interface CVWork {
 
 // ─── Skills ──────────────────────────────────────────────────────────────────
 
-export interface CVSkills {
-	programming: string[];
-	design_bim:  string[];
-	strategic:   string[];
-}
+/**
+ * Skill groups are dynamic: each top-level key in `skills` is a category whose
+ * value is a string array. Keys use `[a-zA-Z][a-zA-Z0-9_]*` (see validateSkills).
+ */
+export type CVSkills = Record<string, string[]>;
 
 // ─── Languages ───────────────────────────────────────────────────────────────
 
@@ -100,17 +101,13 @@ export type CVSectionId =
 	| 'skills'
 	| 'languages'
 	| 'interests'
-	| 'profile';
+	| 'profile'
+	| 'education';
 
 export type CVSidebarSectionId =
 	| 'skills'
 	| 'languages'
 	| 'interests';
-
-export type CVSkillsCategoryId =
-	| 'programming'
-	| 'design_bim'
-	| 'strategic';
 
 /**
  * Tracks which items and sections are hidden from the rendered CV.
@@ -126,8 +123,24 @@ export interface CVVisibility {
 	hiddenSections?:  CVSectionId[];
 	/** Preferred order of Page 2 sidebar sections. */
 	sidebarOrder?: CVSidebarSectionId[];
-	/** Preferred order of skill subsections. */
-	skillsOrder?: CVSkillsCategoryId[];
+	/** Preferred order of skill subsection keys (matches `Object.keys(skills)`). */
+	skillsOrder?: string[];
+	/**
+	 * Work index (string key) → highlight indices hidden from layout.
+	 * Indices refer to `work[i].highlights` in the source data.
+	 */
+	hiddenWorkHighlights?: Record<string, number[]>;
+	/**
+	 * Skill category key → skill tag indices hidden from layout
+	 * (indices into `skills[category]`).
+	 */
+	hiddenSkillItems?: Record<string, number[]>;
+	/**
+	 * Education index (string key) → highlight indices hidden from layout.
+	 */
+	hiddenEducationHighlights?: Record<string, number[]>;
+	/** Indices into `languages` hidden from layout. */
+	hiddenLanguages?: number[];
 }
 
 export interface CVLayoutSnapshot {
@@ -174,6 +187,11 @@ export interface CVData {
 	 */
 	activeFilters?: string[];
 	layoutSnapshot?: CVLayoutSnapshot;
+	/**
+	 * Generic solved layout (zone tree spec). When valid, share/readonly loads
+	 * can skip the layout engine via applyRealisedLayout().
+	 */
+	realisedLayout?: RealisedLayout;
 	/**
 	 * Optional review annotation layer.
 	 * When present and active, review mode is available.

@@ -138,7 +138,7 @@ export function applyCommentOps(
  * Returns null if the path cannot be resolved.
  *
  * Strategy:
- *  - basics.*       → masthead field (data-cv-field attribute)
+ *  - basics.*       → masthead field (`data-blemmy-field` attribute)
  *  - work[N]        → #cv-work-item-N (or matching entry-company text)
  *  - work[N].highlights[M] → specific <li> within that work item
  *  - education[N]   → #cv-edu-item-N
@@ -149,14 +149,18 @@ export function applyCommentOps(
 export function resolvePathToElement(path: ContentPath): HTMLElement | null {
 	// basics.summary → masthead profile area
 	if (path === 'basics.summary') {
-		return document.querySelector<HTMLElement>('[data-cv-field="summary"]')
+		return document.querySelector<HTMLElement>('[data-blemmy-field="basics.summary"]')
+			?? document.querySelector<HTMLElement>('[data-blemmy-field="summary"]')
 			?? document.getElementById('cv-p1-profile-main');
 	}
 
-	// basics.* → matching data-cv-field
+	// basics.* → full path on data-blemmy-field (e.g. basics.name)
 	const basicsMatch = path.match(/^basics\.(\w+)$/);
 	if (basicsMatch) {
-		return document.querySelector<HTMLElement>(`[data-cv-field="${basicsMatch[1]}"]`);
+		return document.querySelector<HTMLElement>(`[data-blemmy-field="${path}"]`)
+			?? document.querySelector<HTMLElement>(
+				`[data-blemmy-field="${basicsMatch[1]}"]`,
+			);
 	}
 
 	// work[N] or work[N].*

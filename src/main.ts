@@ -9,6 +9,7 @@ import '@styles/cv-print-surface.css';
 import '@styles/cv-print-parity.css';
 import '@styles/style-panel.css';
 import '@styles/review-mode.css';
+import '@styles/generic-editor.css';
 import '@styles/letter.css';
 
 document.documentElement.classList.add('cv-css-ready');
@@ -28,6 +29,8 @@ import { toggleFilter, extractAllTags } from '@lib/cv-filter';
 import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/engine/layout-audit';
 import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
 import { applyLayoutSnapshotToDom } from '@lib/engine/cv-layout-snapshot';
+import { applyRealisedLayout, migrateSnapshot } from '@lib/engine/layout-realised';
+import { getDocTypeSpec } from '@lib/document-type';
 import { CV_DOCUMENT_SPEC } from '@lib/cv-document-spec';
 import { LETTER_DOCUMENT_SPEC } from '@lib/letter-document-spec';
 import {
@@ -121,11 +124,16 @@ function setupMainReviewWidthClamp(): void {
 	window.addEventListener('resize', apply);
 	window.visualViewport?.addEventListener('resize', apply);
 	window.addEventListener('cv-layout-applied', apply);
+	window.addEventListener('cv-view-mode-changed', apply);
 	const observer = new MutationObserver(() => { apply(); });
 	observer.observe(document.body, {
 		subtree: true,
 		attributes: true,
 		attributeFilter: ['hidden', 'class'],
+	});
+	observer.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ['class'],
 	});
 }
 
@@ -155,43 +163,58 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 		if (!shell?.isConnected) {
 			return;
 		}
-		const vv = window.visualViewport;
-		const viewW = vv?.width ?? window.innerWidth;
-		const layoutW = document.documentElement?.clientWidth ?? viewW;
+		const html = document.documentElement;
+		const innerW = window.innerWidth;
 		const isDesktop = window.matchMedia('(min-width: 901px)').matches;
-		const appPanelOpen = Boolean(
-			document.querySelector('.cv-side-panel:not([hidden])'),
-		);
 		const shareReviewPanel = document.getElementById('blemmy-review-panel');
 		const shareReviewOpen = Boolean(
 			readonlyMode &&
 			shareReviewPanel &&
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
-		const reserveRight = isDesktop && (appPanelOpen || shareReviewOpen) ? 344 : 0;
+		/*
+		 * Match html.cv-panel-open.cv-panel-desktop + body padding-right — not
+		 * only .cv-side-panel visibility (edit panel has no [hidden] while open).
+		 */
+		const unifiedDesktopPanel =
+			html.classList.contains('cv-panel-open') &&
+			html.classList.contains('cv-panel-desktop');
+		const panelWStr = getComputedStyle(html).getPropertyValue('--cv-panel-w')
+			.trim();
+		const panelWPx = Number.parseFloat(panelWStr) || 344;
+		const reserveRight =
+			isDesktop && (unifiedDesktopPanel || shareReviewOpen) ? panelWPx : 0;
 		const horizPad = isDesktop ? 12 : 32;
-		const viewNarrow = Math.min(viewW, layoutW, window.innerWidth);
-		const viewportBudget = Math.max(
-			Math.floor(viewNarrow) - horizPad - reserveRight,
-			1,
-		);
+		/*
+		 * documentElement.clientWidth ignores body padding-right, so cap width
+		 * using innerWidth minus the same panel reserve as global.css.
+		 */
+		const columnBudget = Math.max(1, Math.floor(innerW - reserveRight - horizPad));
 		const root = document.getElementById('cv-root');
 		const rawRoot =
 			root instanceof HTMLElement && root.clientWidth > 0
 				? root.clientWidth
 				: 0;
+		const viewportBudget = Math.min(columnBudget, rawRoot > 0 ? rawRoot : columnBudget);
 		/*
-		 * Never let "available" width exceed the visual viewport budget: after a
-		 * remount, #cv-root can report ~794px (paper intrinsic width) on some
-		 * engines, which would set --cv-paper-scale to 1 and crop on phones.
+		 * Never let "available" width exceed the layout column: after a remount,
+		 * #cv-root can briefly report paper width (~794px) and over-scale.
 		 */
-		const availableW = Math.max(
-			1,
-			rawRoot > 0 ? Math.min(rawRoot, viewportBudget) : viewportBudget,
-		);
+		const availableW = Math.max(1, viewportBudget);
 		const hasFixedPaperStage = readonlyMode ||
 			Boolean(shell.classList.contains('cv-print-preview'));
-		const scale = hasFixedPaperStage ? Math.min(availableW / baseW, 1) : 1;
+		/*
+		 * Desktop edit/assistant: global.css zooms #cv-shell (like review). Keep
+		 * stage/scaler zoom at 1 so we do not compound two scales.
+		 */
+		const shellCssSidePanelZoom =
+			unifiedDesktopPanel &&
+			!html.classList.contains('cv-panel-kind-review');
+		const scale = hasFixedPaperStage
+			? shellCssSidePanelZoom
+				? 1
+				: Math.min(availableW / baseW, 1)
+			: 1;
 		document.documentElement.style.setProperty(
 			'--cv-paper-scale',
 			String(scale),
@@ -219,7 +242,7 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			typeof CSS !== 'undefined' &&
 			typeof CSS.supports === 'function' &&
 			CSS.supports('zoom', '1');
-		const useMobileTransform =
+		const useMobileScalerZoom =
 			zoomSupported &&
 			!isDesktop &&
 			!shareHtml &&
@@ -232,33 +255,46 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 				stage.style.removeProperty('width');
 				stage.style.removeProperty('max-width');
 				stage.style.removeProperty('overflow-x');
-				if (scaler instanceof HTMLElement) {
-					scaler.style.removeProperty('transform');
-					scaler.style.removeProperty('transform-origin');
-					scaler.style.removeProperty('width');
-				}
-			} else if (useMobileTransform) {
-				/*
-				 * Chrome Android: zoom on .cv-paper-stage is unreliable after DOM
-				 * remounts. Scale an inner .cv-paper-scaler with transform and clip
-				 * the stage layout box to the scaled width.
-				 */
-				stage.style.removeProperty('zoom');
-				const layW = Math.max(1, Math.round(baseW * scale));
-				stage.style.setProperty('width', `${layW}px`);
-				stage.style.setProperty('max-width', '100%');
-				stage.style.setProperty('overflow-x', 'clip');
-				stage.style.setProperty('margin-inline', 'auto');
-				scaler.style.setProperty('width', `${baseW}px`);
-				scaler.style.setProperty('transform', `scale(${scale})`);
-				scaler.style.setProperty('transform-origin', 'top center');
-			} else if (zoomSupported) {
-				stage.style.removeProperty('overflow-x');
+				stage.style.removeProperty('display');
+				stage.style.removeProperty('justify-content');
+				stage.style.removeProperty('min-width');
 				stage.style.removeProperty('margin-inline');
 				if (scaler instanceof HTMLElement) {
 					scaler.style.removeProperty('transform');
 					scaler.style.removeProperty('transform-origin');
 					scaler.style.removeProperty('width');
+					scaler.style.removeProperty('zoom');
+				}
+			} else if (useMobileScalerZoom) {
+				/*
+				 * Chrome Android: stage zoom can break after remount; transform on
+				 * the scaler keeps full layout height (huge scroll). Zoom on the
+				 * inner scaler shrinks layout width and height in Blink and recent
+				 * WebKit. Stage is a full-width flex row to center the paper.
+				 */
+				stage.style.removeProperty('zoom');
+				stage.style.setProperty('width', '100%');
+				stage.style.setProperty('max-width', '100%');
+				stage.style.setProperty('display', 'flex');
+				stage.style.setProperty('justify-content', 'center');
+				stage.style.setProperty('overflow-x', 'clip');
+				stage.style.setProperty('min-width', '0');
+				stage.style.removeProperty('margin-inline');
+				scaler.style.removeProperty('transform');
+				scaler.style.removeProperty('transform-origin');
+				scaler.style.setProperty('width', `${baseW}px`);
+				scaler.style.setProperty('zoom', String(scale));
+			} else if (zoomSupported) {
+				stage.style.removeProperty('overflow-x');
+				stage.style.removeProperty('margin-inline');
+				stage.style.removeProperty('display');
+				stage.style.removeProperty('justify-content');
+				stage.style.removeProperty('min-width');
+				if (scaler instanceof HTMLElement) {
+					scaler.style.removeProperty('transform');
+					scaler.style.removeProperty('transform-origin');
+					scaler.style.removeProperty('width');
+					scaler.style.removeProperty('zoom');
 				}
 				stage.style.setProperty('zoom', String(scale));
 				stage.style.setProperty('width', `${baseW}px`);
@@ -269,10 +305,14 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 				stage.style.removeProperty('max-width');
 				stage.style.removeProperty('overflow-x');
 				stage.style.removeProperty('margin-inline');
+				stage.style.removeProperty('display');
+				stage.style.removeProperty('justify-content');
+				stage.style.removeProperty('min-width');
 				if (scaler instanceof HTMLElement) {
 					scaler.style.removeProperty('transform');
 					scaler.style.removeProperty('transform-origin');
 					scaler.style.removeProperty('width');
+					scaler.style.removeProperty('zoom');
 				}
 			}
 		}
@@ -296,6 +336,10 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 		subtree: true,
 		attributes: true,
 		attributeFilter: ['hidden', 'class'],
+	});
+	observer.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ['class'],
 	});
 }
 
@@ -795,14 +839,30 @@ function mount(cv: CVData): void {
 	// Wire filter bar chip clicks
 	initFilterBar(cv);
 
-	const hasSharedSnapshot = Boolean(cv.layoutSnapshot);
-	engineCleanup = (isShareReadonlyMode() && hasSharedSnapshot)
+	const hasSharedLayout = Boolean(cv.layoutSnapshot || cv.realisedLayout);
+	let skipEngineForStaticLayout = false;
+	if (isShareReadonlyMode()) {
+		const cvSpec = getDocTypeSpec('cv');
+		if (cvSpec && cv.realisedLayout && applyRealisedLayout(cv.realisedLayout, cvSpec)) {
+			skipEngineForStaticLayout = true;
+		} else if (cvSpec && cv.layoutSnapshot) {
+			const migrated = migrateSnapshot(cv.layoutSnapshot, cvSpec);
+			if (applyRealisedLayout(migrated, cvSpec)) {
+				skipEngineForStaticLayout = true;
+			} else {
+				applyLayoutSnapshotToDom(cv.layoutSnapshot);
+				window.dispatchEvent(new Event('cv-layout-applied'));
+				skipEngineForStaticLayout = true;
+			}
+		} else if (cv.layoutSnapshot) {
+			applyLayoutSnapshotToDom(cv.layoutSnapshot);
+			window.dispatchEvent(new Event('cv-layout-applied'));
+			skipEngineForStaticLayout = true;
+		}
+	}
+	engineCleanup = (isShareReadonlyMode() && hasSharedLayout && skipEngineForStaticLayout)
 		? null
 		: initCvLayoutEngine(CV_DOCUMENT_SPEC) ?? null;
-	if (isShareReadonlyMode() && cv.layoutSnapshot) {
-		applyLayoutSnapshotToDom(cv.layoutSnapshot);
-		window.dispatchEvent(new Event('cv-layout-applied'));
-	}
 	persistSessionState();
 	/*
 	 * Android Chrome can measure viewport/root before the paper stage is layed
@@ -1036,6 +1096,15 @@ async function boot(): Promise<void> {
 			initialData,
 			loaded.changes.map((c) => ({ ...c })),
 		);
+	}
+	if (appMode === 'pdfEmbed' && resolvedMode.pdfDocType === 'letter') {
+		switchToLetter(loadLetterData());
+		const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
+		window.addEventListener('cv-layout-applied', () => {
+			window.clearTimeout(bootTimeout);
+			finishBootUi();
+		}, { once: true });
+		return;
 	}
 	if (!initialData.basics.portraitDataUrl) {
 		const cachedPortrait = await loadPortraitLocalCache();

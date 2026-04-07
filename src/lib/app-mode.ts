@@ -15,6 +15,8 @@ export type ResolvedAppMode = {
 	shareToken: string | null;
 	embedToken: string | null;
 	isEmbedLike: boolean;
+	/** When `blemmy-pdf=1` is set — doc-type to render for PDF export. */
+	pdfDocType?: string;
 };
 
 export function resolveAppModeFromLocation(
@@ -22,7 +24,8 @@ export function resolveAppModeFromLocation(
 	baseUrl = '/',
 ): ResolvedAppMode {
 	const params = new URLSearchParams(locationLike.search);
-	const isPdfEmbed = params.get('cv-embed') === '1';
+	const isPdfEmbed = params.get('cv-embed') === '1'
+		|| params.get('blemmy-pdf') === '1';
 	const isPortfolioEmbed = params.get('cv-portfolio') === '1';
 	const shareToken = shareTokenFromLocationParts(
 		locationLike.pathname,
@@ -56,6 +59,7 @@ export function resolveAppModeFromLocation(
 			shareToken: null,
 			embedToken: null,
 			isEmbedLike: true,
+			pdfDocType: params.get('doc-type') ?? 'cv',
 		};
 	}
 	if (shareToken) {

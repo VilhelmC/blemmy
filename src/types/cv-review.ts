@@ -19,7 +19,7 @@
  *   "work[2].highlights[1]"     a specific bullet
  *   "work[0]"                   an entire work entry
  *   "education[1]"              an entire education entry
- *   "skills.programming[3]"     a specific skill tag
+ *   "skills.<category>[3]"      a specific skill tag (category = JSON key)
  *   "languages[0]"              a language entry
  *
  * Non-content paths:

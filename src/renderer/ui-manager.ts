@@ -1,5 +1,17 @@
 /**
  * Central UI manager for viewport + zoom derived UI vars.
+ *
+ * `--cv-ui-zoom-comp` is the single pinch-zoom factor for fixed UI: `1/σ`
+ * from `visualViewport.scale`, written in `applyViewportVars()`. Dock rails,
+ * mobile utility chrome, and other overlays should consume **only** this CSS
+ * variable (via `startUiManager()`), not duplicate math — and should mirror
+ * the dock pattern: compensate **insets** with `× var(--cv-ui-zoom-comp)`
+ * on the outer anchor, apply `transform: scale(var(--cv-ui-zoom-comp))` on
+ * an **inner** shell only (never both transforms on the same box).
+ *
+ * Full-bleed strips also need `width: calc(100% * var(--cv-vv-scale))` on
+ * that shell (and flex centering) so `scale(var(--cv-ui-zoom-comp))` does not
+ * shrink the bar to a fraction of the column width.
  */
 
 import {

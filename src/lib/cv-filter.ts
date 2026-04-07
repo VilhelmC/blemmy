@@ -27,6 +27,19 @@
 import type { CVData, CVVisibility } from '@cv/cv';
 import { hashCvForAudit, layoutAuditLog } from '@lib/engine/layout-audit';
 
+function cloneHiddenIndexMap(
+	src: Record<string, number[]> | undefined,
+): Record<string, number[]> {
+	if (!src) {
+		return {};
+	}
+	const out: Record<string, number[]> = {};
+	for (const k of Object.keys(src)) {
+		out[k] = [...(src[k] ?? [])];
+	}
+	return out;
+}
+
 // ─── Tag extraction ───────────────────────────────────────────────────────────
 
 /**
@@ -79,11 +92,25 @@ export function resolveFilteredVisibility(
 	activeFilters: string[],
 ): Required<CVVisibility> {
 	const manual: Required<CVVisibility> = {
-		hiddenWork:      [...(data.visibility?.hiddenWork      ?? [])],
-		hiddenEducation: [...(data.visibility?.hiddenEducation ?? [])],
-		hiddenSections:  [...(data.visibility?.hiddenSections  ?? [])],
-		sidebarOrder:    [...(data.visibility?.sidebarOrder ?? ['skills', 'languages', 'interests'])],
-		skillsOrder:     [...(data.visibility?.skillsOrder ?? ['programming', 'design_bim', 'strategic'])],
+		hiddenWork:           [...(data.visibility?.hiddenWork      ?? [])],
+		hiddenEducation:      [...(data.visibility?.hiddenEducation ?? [])],
+		hiddenSections:       [...(data.visibility?.hiddenSections  ?? [])],
+		sidebarOrder:         [...(data.visibility?.sidebarOrder ?? ['skills', 'languages', 'interests'])],
+		skillsOrder:          [
+			...(data.visibility?.skillsOrder ?? Object.keys(data.skills)),
+		],
+		hiddenWorkHighlights: cloneHiddenIndexMap(
+			data.visibility?.hiddenWorkHighlights,
+		),
+		hiddenSkillItems:     cloneHiddenIndexMap(
+			data.visibility?.hiddenSkillItems,
+		),
+		hiddenEducationHighlights: cloneHiddenIndexMap(
+			data.visibility?.hiddenEducationHighlights,
+		),
+		hiddenLanguages: [
+			...(data.visibility?.hiddenLanguages ?? []),
+		],
 	};
 
 	// No active filters → return manual visibility as-is
@@ -119,12 +146,16 @@ export function resolveFilteredVisibility(
 		}
 	}
 
-	const merged = {
-		hiddenWork:      [...manual.hiddenWork,      ...filteredWork],
-		hiddenEducation: [...manual.hiddenEducation, ...filteredEdu],
-		hiddenSections:  manual.hiddenSections,
-		sidebarOrder:    manual.sidebarOrder,
-		skillsOrder:     manual.skillsOrder,
+	const merged: Required<CVVisibility> = {
+		hiddenWork:           [...manual.hiddenWork,      ...filteredWork],
+		hiddenEducation:      [...manual.hiddenEducation, ...filteredEdu],
+		hiddenSections:       manual.hiddenSections,
+		sidebarOrder:         manual.sidebarOrder,
+		skillsOrder:          manual.skillsOrder,
+		hiddenWorkHighlights: manual.hiddenWorkHighlights,
+		hiddenSkillItems:          manual.hiddenSkillItems,
+		hiddenEducationHighlights: manual.hiddenEducationHighlights,
+		hiddenLanguages:           manual.hiddenLanguages,
 	};
 	layoutAuditLog('filter-resolve', {
 		filters: filters.length,

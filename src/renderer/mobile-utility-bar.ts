@@ -46,6 +46,8 @@ export function initMobileUtilityBar(
 		hidden: '',
 	});
 	const row = h('div', { class: 'cv-mobile-utility-bar__row' });
+	const zoomShell = h('div', { class: 'cv-mobile-utility-bar__zoom-shell' });
+	zoomShell.appendChild(row);
 	const moreSheet = h('div', {
 		id: 'cv-mobile-utility-sheet',
 		class: 'cv-mobile-utility-sheet no-print',
@@ -56,6 +58,7 @@ export function initMobileUtilityBar(
 		class: 'cv-mobile-utility-sheet__backdrop',
 		'aria-label': 'Close actions menu',
 	});
+	const panelOuter = h('div', { class: 'cv-mobile-utility-sheet__panel-outer' });
 	const panel = h('div', {
 		class: 'cv-mobile-utility-sheet__panel',
 		role: 'dialog',
@@ -65,16 +68,28 @@ export function initMobileUtilityBar(
 	const panelHead = h('div', { class: 'cv-mobile-utility-sheet__head' }, 'More');
 	const panelBody = h('div', { class: 'cv-mobile-utility-sheet__body' });
 	panel.append(panelHead, panelBody);
-	moreSheet.append(backdrop, panel);
-	bar.appendChild(row);
+	panelOuter.append(panel);
+	moreSheet.append(backdrop, panelOuter);
+	bar.appendChild(zoomShell);
 	document.body.append(bar, moreSheet);
 
 	let moreOpen = false;
+	const readUtilityHeightPx = (): number => {
+		return Math.max(0, Math.round(zoomShell.getBoundingClientRect().height));
+	};
+	const bumpUtilityHeightVar = (): void => {
+		root.style.setProperty('--cv-mobile-utility-h', `${readUtilityHeightPx()}px`);
+	};
 	const ro = new ResizeObserver(() => {
-		const hPx = Math.max(0, Math.round(bar.getBoundingClientRect().height));
-		root.style.setProperty('--cv-mobile-utility-h', `${hPx}px`);
+		bumpUtilityHeightVar();
 	});
-	ro.observe(bar);
+	ro.observe(zoomShell);
+	const onUiViewport = (): void => {
+		if (!bar.hidden) {
+			bumpUtilityHeightVar();
+		}
+	};
+	window.addEventListener('cv-ui-viewport-changed', onUiViewport);
 
 	const clickTarget = (targetId: string): void => {
 		const target = document.getElementById(targetId);
@@ -141,9 +156,7 @@ export function initMobileUtilityBar(
 		bar.hidden = !enabled;
 		if (!enabled) { setMoreOpen(false); }
 		root.classList.toggle('cv-mobile-utility-active', enabled);
-		const hPx = enabled
-			? Math.max(0, Math.round(bar.getBoundingClientRect().height))
-			: 0;
+		const hPx = enabled ? readUtilityHeightPx() : 0;
 		root.style.setProperty('--cv-mobile-utility-h', `${hPx}px`);
 		body.classList.toggle('cv-mobile-utility-active', enabled);
 	};
@@ -152,6 +165,7 @@ export function initMobileUtilityBar(
 	return {
 		sync,
 		destroy: () => {
+			window.removeEventListener('cv-ui-viewport-changed', onUiViewport);
 			ro.disconnect();
 			setMoreOpen(false);
 			bar.remove();

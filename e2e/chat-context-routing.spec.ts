@@ -5,7 +5,7 @@ test.describe('chat context routing scope selection', () => {
 		await page.goto('/');
 		await page.locator('#cv-chat-trigger').click();
 
-		const firstField = page.locator('[data-cv-field]').first();
+		const firstField = page.locator('[data-blemmy-field="basics.name"]');
 		await firstField.click();
 
 		const chip = page.locator('.cv-chat-scope-chip').first();

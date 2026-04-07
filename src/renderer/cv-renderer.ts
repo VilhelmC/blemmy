@@ -19,7 +19,6 @@ import type {
 	CVLanguage,
 	CVVisibility,
 	CVSidebarSectionId,
-	CVSkillsCategoryId,
 } from '@cv/cv';
 
 import {
@@ -82,19 +81,38 @@ function parseHighlight(text: string): { lead: string | null; body: string } {
 	};
 }
 
-function renderWorkItem(entry: CVWork, idx: number): HTMLElement {
+function hiddenHighlightSet(
+	vis: Required<CVVisibility>,
+	workIdx: number,
+): Set<number> {
+	return new Set(vis.hiddenWorkHighlights[String(workIdx)] ?? []);
+}
+
+function hiddenEducationHighlightSet(
+	vis: Required<CVVisibility>,
+	eduIdx: number,
+): Set<number> {
+	return new Set(vis.hiddenEducationHighlights[String(eduIdx)] ?? []);
+}
+
+function renderWorkItem(
+	entry: CVWork,
+	idx: number,
+	hiddenHi: Set<number>,
+): HTMLElement {
 	const block = h('div', {
-		class:              'experience-block',
-		'data-work-idx':    String(idx),
-		draggable:          'false', // editor enables this
+		class:                   'experience-block',
+		'data-blemmy-drag-group': 'work',
+		'data-blemmy-drag-idx':   String(idx),
+		draggable:               'false', // editor enables this
 	});
 
 	const header = h('div', { class: 'entry-header' },
 		h('div', { class: 'entry-header-left' },
-			h('h3', { class: 'entry-company', 'data-cv-field': `work.${idx}.company` }, entry.company),
-			h('p',  { class: 'entry-position', 'data-cv-field': `work.${idx}.position` }, entry.position),
+			h('h3', { class: 'entry-company', 'data-blemmy-field': `work.${idx}.company` }, entry.company),
+			h('p',  { class: 'entry-position', 'data-blemmy-field': `work.${idx}.position` }, entry.position),
 		),
-		h('span', { class: 'entry-dates', 'data-cv-field': `work.${idx}.dates` },
+		h('span', { class: 'entry-dates', 'data-blemmy-field': `work.${idx}.dates` },
 			entry.startDate + THINSP + '–' + THINSP + entry.endDate,
 		),
 	);
@@ -103,16 +121,19 @@ function renderWorkItem(entry: CVWork, idx: number): HTMLElement {
 	if (entry.summary) {
 		block.appendChild(h('p', {
 			class:           'entry-summary',
-			'data-cv-field': `work.${idx}.summary`,
+			'data-blemmy-field': `work.${idx}.summary`,
 		}, entry.summary));
 	}
 
 	const ul = h('ul', { class: 'entry-highlights' });
 	for (let hi = 0; hi < entry.highlights.length; hi++) {
+		if (hiddenHi.has(hi)) {
+			continue;
+		}
 		const highlight        = entry.highlights[hi];
 		const { lead, body }   = parseHighlight(highlight);
 		const li               = document.createElement('li');
-		li.dataset.cvField     = `work.${idx}.highlights.${hi}`;
+		li.dataset.blemmyField = `work.${idx}.highlights.${hi}`;
 		if (lead) {
 			li.appendChild(h('strong', { class: 'highlight-lead' }, lead + ':'));
 			li.appendChild(document.createTextNode(' ' + body));
@@ -133,7 +154,10 @@ function renderWorkItem(entry: CVWork, idx: number): HTMLElement {
  * Hidden work items (in visibility.hiddenWork) are excluded entirely.
  * Engine moves items into [data-work-section] wrappers in main-1 / main-2.
  */
-function renderWorkPool(work: CVWork[], hiddenWork: number[]): HTMLElement {
+function renderWorkPool(
+	work: CVWork[],
+	vis: Required<CVVisibility>,
+): HTMLElement {
 	const pool = document.createElement('div');
 	pool.id              = 'cv-work-pool';
 	pool.setAttribute('aria-hidden', 'true');
@@ -142,10 +166,12 @@ function renderWorkPool(work: CVWork[], hiddenWork: number[]): HTMLElement {
 	// We use the original index (i) as data-work-index so editor field paths
 	// stay stable even when items are hidden. The engine sorts by this index.
 	work.forEach((entry, i) => {
-		if (hiddenWork.includes(i)) { return; }
+		if (vis.hiddenWork.includes(i)) { return; }
 		const wrapper = document.createElement('div');
 		wrapper.dataset.workIndex = String(i);
-		wrapper.appendChild(renderWorkItem(entry, i));
+		wrapper.appendChild(
+			renderWorkItem(entry, i, hiddenHighlightSet(vis, i)),
+		);
 		pool.appendChild(wrapper);
 	});
 
@@ -154,54 +180,95 @@ function renderWorkPool(work: CVWork[], hiddenWork: number[]): HTMLElement {
 
 // ─── EducationItem ────────────────────────────────────────────────────────────
 
-function renderEducationItem(entry: CVEducation, idx: number): HTMLElement {
+function renderEducationItem(
+	entry: CVEducation,
+	idx: number,
+	hiddenHi: Set<number>,
+): HTMLElement {
 	const p    = `education.${idx}`;
-	const block = h('div', { class: 'education-block' });
+	const block = h('div', {
+		class:                   'education-block',
+		'data-blemmy-education-idx': String(idx),
+	});
 
 	const degreeRow = h('div', { class: 'edu-degree-row' },
-		h('p', { class: 'edu-degree', 'data-cv-field': `${p}.degree` }, entry.degree),
+		h('p', { class: 'edu-degree', 'data-blemmy-field': `${p}.degree` }, entry.degree),
 	);
 	if (entry.score) {
-		degreeRow.appendChild(h('span', { class: 'edu-score', 'data-cv-field': `${p}.score` }, entry.score));
+		degreeRow.appendChild(h('span', { class: 'edu-score', 'data-blemmy-field': `${p}.score` }, entry.score));
 	}
 	block.appendChild(degreeRow);
-	block.appendChild(h('p', { class: 'edu-institution', 'data-cv-field': `${p}.institution` }, entry.institution));
-	block.appendChild(h('p', { class: 'edu-area',        'data-cv-field': `${p}.area` }, entry.area));
+	block.appendChild(h('p', { class: 'edu-institution', 'data-blemmy-field': `${p}.institution` }, entry.institution));
+	block.appendChild(h('p', { class: 'edu-area',        'data-blemmy-field': `${p}.area` }, entry.area));
 	block.appendChild(
-		h('p', { class: 'edu-dates', 'data-cv-field': `${p}.dates` },
+		h('p', { class: 'edu-dates', 'data-blemmy-field': `${p}.dates` },
 			entry.startDate + THINSP + '–' + THINSP + entry.endDate,
 		),
 	);
+
+	const ul = h('ul', { class: 'entry-highlights edu-entry-highlights' });
+	for (let hi = 0; hi < entry.highlights.length; hi++) {
+		if (hiddenHi.has(hi)) {
+			continue;
+		}
+		const highlight      = entry.highlights[hi];
+		const { lead, body } = parseHighlight(highlight);
+		const li             = document.createElement('li');
+		li.dataset.blemmyField = `education.${idx}.highlights.${hi}`;
+		if (lead) {
+			li.appendChild(h('strong', { class: 'highlight-lead' }, lead + ':'));
+			li.appendChild(document.createTextNode(' ' + body));
+		} else {
+			li.textContent = body;
+		}
+		ul.appendChild(li);
+	}
+	if (ul.firstChild) {
+		block.appendChild(ul);
+	}
 
 	return block;
 }
 
 // ─── SkillsBlock ──────────────────────────────────────────────────────────────
 
+function skillCategoryLabelFromKey(key: string): string {
+	return key
+		.replace(/_/g, ' ')
+		.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function renderSkillsBlock(
 	skills: CVSkills,
-	categoryOrder: CVSkillsCategoryId[],
+	categoryOrder: string[],
+	hiddenSkillItems: Record<string, number[]>,
 ): HTMLElement {
 	const wrapper = h('div', { class: 'skills-wrapper' });
-	const labels: Record<CVSkillsCategoryId, string> = {
-		programming: 'Programming',
-		design_bim: 'Design & BIM',
-		strategic: 'Strategy & ESG',
-	};
 	for (let ci = 0; ci < categoryOrder.length; ci++) {
 		const catKey = categoryOrder[ci];
 		const items = skills[catKey];
 		if (!items || items.length === 0) { continue; }
 		const catEl = h('div', { class: 'skill-category' },
-			h('p', { class: 'skill-category-label' }, labels[catKey]),
+			h(
+				'p',
+				{ class: 'skill-category-label' },
+				skillCategoryLabelFromKey(catKey),
+			),
 		);
 		catEl.dataset.skillCategory = catKey;
 		const tags = h('div', { class: 'skill-tags' });
+		const hiddenSi = new Set(hiddenSkillItems[catKey] ?? []);
 		for (let si = 0; si < items.length; si++) {
+			if (hiddenSi.has(si)) {
+				continue;
+			}
 			tags.appendChild(h('span', {
 				class:           'skill-tag',
-				'data-cv-field': `skills.${catKey}.${si}`,
+				'data-blemmy-field': `skills.${catKey}.${si}`,
 			}, items[si]));
+		}
+		if (!tags.firstChild) {
+			continue;
 		}
 		catEl.appendChild(tags);
 		wrapper.appendChild(catEl);
@@ -212,14 +279,23 @@ function renderSkillsBlock(
 
 // ─── LanguageList ─────────────────────────────────────────────────────────────
 
-function renderLanguageList(languages: CVLanguage[]): HTMLElement {
+function renderLanguageList(
+	languages: CVLanguage[],
+	hiddenLang: Set<number>,
+): HTMLElement {
 	const ul = h('ul', { class: 'language-list' });
 	for (let i = 0; i < languages.length; i++) {
+		if (hiddenLang.has(i)) {
+			continue;
+		}
 		const lang = languages[i];
 		ul.appendChild(
-			h('li', { class: 'language-item' },
-				h('span', { class: 'language-name',    'data-cv-field': `languages.${i}.language` }, lang.language),
-				h('span', { class: 'language-fluency', 'data-cv-field': `languages.${i}.fluency`  }, lang.fluency),
+			h('li', {
+				class:                  'language-item',
+				'data-blemmy-language-idx': String(i),
+			},
+			h('span', { class: 'language-name',    'data-blemmy-field': `languages.${i}.language` }, lang.language),
+			h('span', { class: 'language-fluency', 'data-blemmy-field': `languages.${i}.fluency`  }, lang.fluency),
 			),
 		);
 	}
@@ -238,13 +314,13 @@ function renderMastheadIdentity(basics: CVBasics): HTMLElement {
 	for (let i = 0; i < labelParts.length; i++) {
 		labelEl.appendChild(h('span', {
 			class:           'cv-label-part',
-			'data-cv-field': `basics.label.${i}`,
+			'data-blemmy-field': `basics.label.${i}`,
 		}, labelParts[i]));
 	}
 
 	const nameLabelBlock = h('div',
 		{ class: 'cv-name-label-block', id: 'cv-name-label-block' },
-		h('h1', { class: 'cv-name', 'data-cv-field': 'basics.name' }, basics.name),
+		h('h1', { class: 'cv-name', 'data-blemmy-field': 'basics.name' }, basics.name),
 		h('div', { id: 'cv-rebalance-label' }, labelEl),
 	);
 
@@ -255,8 +331,8 @@ function renderMastheadIdentity(basics: CVBasics): HTMLElement {
 		href?: string,
 	): HTMLElement {
 		const content = href
-			? h('a', { class: 'contact-link', href, 'data-cv-field': field }, text)
-			: h('span', { 'data-cv-field': field }, text);
+			? h('a', { class: 'contact-link', href, 'data-blemmy-field': field }, text)
+			: h('span', { 'data-blemmy-field': field }, text);
 		return h('li', { class: 'contact-item' },
 			h('span', { class: 'contact-icon', 'aria-hidden': 'true' }, icon),
 			content,
@@ -297,7 +373,7 @@ function renderPortraitCell(basics: CVBasics): HTMLElement {
 		width:            '160',
 		height:           '200',
 		fetchpriority:    'high',
-		'data-cv-field':  'portrait',
+		'data-blemmy-field':  'portrait',
 	});
 
 	return h('div', { id: 'cv-p1-portrait-cell', class: 'cv-p1-portrait-cell' },
@@ -318,7 +394,7 @@ function renderPortraitCell(basics: CVBasics): HTMLElement {
 function renderMasthead(basics: CVBasics, hiddenSections: string[]): HTMLElement {
 	const isProfileHidden = hiddenSections.includes('profile');
 
-	const summaryEl = h('p', { class: 'cv-summary', 'data-cv-field': 'basics.summary' }, basics.summary);
+	const summaryEl = h('p', { class: 'cv-summary', 'data-blemmy-field': 'basics.summary' }, basics.summary);
 	const profileDiv = h('div', {
 		id:               'cv-rebalance-profile',
 		'data-section-id': 'profile',
@@ -371,7 +447,17 @@ function renderPage1WithVisibility(
 	);
 	for (let i = 0; i < cv.education.length; i++) {
 		if (hiddenEdu.includes(i)) { continue; }
-		eduDiv.appendChild(renderEducationItem(cv.education[i], i));
+		eduDiv.appendChild(
+			renderEducationItem(
+				cv.education[i],
+				i,
+				hiddenEducationHighlightSet(vis, i),
+			),
+		);
+	}
+	if (hiddenSects.includes('education')) {
+		eduDiv.style.display  = 'none';
+		eduDiv.dataset.hidden = 'true';
 	}
 
 	const sidebar1 = h('aside', { class: 'cv-sidebar', id: 'cv-sidebar-1' },
@@ -384,7 +470,9 @@ function renderPage1WithVisibility(
 	);
 	for (let i = 0; i < page1WorkIdx.length; i++) {
 		const wi = page1WorkIdx[i];
-		main1Section.appendChild(renderWorkItem(cv.work[wi], wi));
+		main1Section.appendChild(
+			renderWorkItem(cv.work[wi], wi, hiddenHighlightSet(vis, wi)),
+		);
 	}
 
 	const main1   = h('main',   { class: 'cv-main', id: 'cv-main-1' }, main1Section);
@@ -441,15 +529,19 @@ function renderPage2WithVisibility(
 
 	const skillsDiv = sectionDiv('cv-rebalance-skills', 'skills',
 		h('span', { class: 'section-label' }, 'Technical Skills'),
-		renderSkillsBlock(cv.skills, vis.skillsOrder ?? ['programming', 'design_bim', 'strategic']),
+		renderSkillsBlock(
+			cv.skills,
+			vis.skillsOrder ?? Object.keys(cv.skills),
+			vis.hiddenSkillItems,
+		),
 	);
 	const langDiv = sectionDiv('cv-rebalance-languages', 'languages',
 		h('span', { class: 'section-label' }, 'Languages'),
-		renderLanguageList(cv.languages),
+		renderLanguageList(cv.languages, new Set(vis.hiddenLanguages)),
 	);
 	const intDiv = sectionDiv('cv-rebalance-interests', 'interests',
 		h('span', { class: 'section-label' }, 'Interests'),
-		h('p', { class: 'contact-item', 'data-cv-field': 'personal.interests' }, cv.personal.interests),
+		h('p', { class: 'contact-item', 'data-blemmy-field': 'personal.interests' }, cv.personal.interests),
 	);
 
 	const defaultSidebarOrder: CVSidebarSectionId[] = [
@@ -482,7 +574,9 @@ function renderPage2WithVisibility(
 		);
 		for (let i = 0; i < page2WorkIdx.length; i++) {
 			const wi = page2WorkIdx[i];
-			section.appendChild(renderWorkItem(cv.work[wi], wi));
+			section.appendChild(
+				renderWorkItem(cv.work[wi], wi, hiddenHighlightSet(vis, wi)),
+			);
 		}
 		main2.appendChild(section);
 	}
@@ -673,7 +767,7 @@ export function renderCV(cv: CVData): HTMLElement {
 	);
 
 	const shell = h('div', { id: 'cv-shell', class: 'cv-shell' },
-		renderWorkPool(cv.work, resolvedVis.hiddenWork),
+		renderWorkPool(cv.work, resolvedVis),
 		card,
 	);
 

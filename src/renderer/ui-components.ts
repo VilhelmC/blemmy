@@ -30,19 +30,21 @@ import {
 } from '@lib/cv-prefs';
 import { rehydrateStyle, type DocumentStyle } from '@lib/document-style';
 
-import {
-	uploadCvData,
-	clearUploadedCvData,
-	clearLegacyPortraitStorage,
-	hasUploadedData,
-} from '@lib/cv-loader';
+import { uploadCvData, hasUploadedData } from '@lib/cv-loader';
 
 import {
 	activateEditMode,
+	activateGenericEdit,
 	loadDraft,
 	clearDraft,
 	type EditModeInstance,
 } from '@renderer/cv-editor';
+import {
+	loadDraft as loadGenericDraft,
+	clearDraftByKey,
+	type EditModeInstance as GenericEditModeInstance,
+} from '@renderer/generic-editor';
+import { getDocTypeSpec } from '@lib/document-type';
 import { buildStyleSection } from '@renderer/style-panel';
 import { initReviewPanel } from '@renderer/review-panel';
 import { REVIEW_PANEL_OPEN_EVENT } from '@renderer/review-panel';
@@ -75,6 +77,7 @@ import {
 import { initDocumentPanel } from '@renderer/document-panel';
 
 import type { CVData } from '@cv/cv';
+import type { LetterData } from '@cv/letter';
 
 import {
 	columnSlackBelowDirectDivBlocksPx,
@@ -300,18 +303,17 @@ function initDebugToggle(): void {
 /** Web view → “Preview PDF”; Print view → “Print”. */
 function syncPrintFabLabel(): void {
 	const fab   = document.getElementById('cv-download-pdf');
-	const label = document.getElementById('cv-download-pdf-label');
 	const shell = document.getElementById('cv-shell');
-	if (!fab || !label || !shell) { return; }
+	if (!fab || !shell) { return; }
 	const printView = shell.classList.contains('cv-print-preview');
 	if (printView) {
 		fab.setAttribute('aria-label', 'Print or save as PDF');
 		fab.setAttribute('title', 'Print or save as PDF');
-		label.textContent = 'Print';
+		fab.textContent = 'Print';
 	} else {
 		fab.setAttribute('aria-label', 'Preview PDF');
 		fab.setAttribute('title', 'Preview PDF');
-		label.textContent = 'Preview PDF';
+		fab.textContent = 'Preview PDF';
 	}
 }
 
@@ -626,34 +628,10 @@ function initCandidateSelector(): void {
 // ─── Print / PDF button + modal ───────────────────────────────────────────────
 
 function buildPrintButton(): { fab: HTMLElement; modal: HTMLElement } {
-	const svgNS = 'http://www.w3.org/2000/svg';
-	const svg   = document.createElementNS(svgNS, 'svg');
-	svg.setAttribute('class',      'print-fab-icon');
-	svg.setAttribute('viewBox',    '0 0 16 16');
-	svg.setAttribute('fill',       'none');
-	svg.setAttribute('width',      '14');
-	svg.setAttribute('height',     '14');
-	svg.setAttribute('aria-hidden','true');
-	svg.innerHTML = `
-		<rect x="3" y="1" width="10" height="7" rx="0.5" stroke="currentColor" stroke-width="1.2"/>
-		<rect x="4" y="10" width="8" height="5" rx="0.5" stroke="currentColor" stroke-width="1.2"/>
-		<path d="M3 8H1.5A0.5 0.5 0 0 0 1 8.5V12.5A0.5 0.5 0 0 0 1.5 13H3" stroke="currentColor" stroke-width="1.2"/>
-		<path d="M13 8H14.5A0.5 0.5 0 0 1 15 8.5V12.5A0.5 0.5 0 0 1 14.5 13H13" stroke="currentColor" stroke-width="1.2"/>
-		<line x1="5.5" y1="12" x2="10.5" y2="12" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-		<line x1="5.5" y1="13.5" x2="8.5" y2="13.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
-		<circle cx="12.5" cy="6" r="0.75" fill="currentColor"/>
-	`;
-
-	const fab = h('button', {
-		class:        'print-fab cv-dock-btn no-print',
-		id:           'cv-download-pdf',
-		type:         'button',
-		'aria-label': 'Preview PDF',
-		title:        'Preview PDF',
+	const fab = buildDockButton(h, DOCK_CONTROLS.printPdf, {
+		id: DOCK_CONTROLS.printPdf.id,
+		className: 'cv-download-pdf-btn',
 	});
-	const fabLabel = h('span', { id: 'cv-download-pdf-label' }, 'Preview PDF');
-	fab.appendChild(svg);
-	fab.appendChild(fabLabel);
 
 	const backdrop     = h('div', { class: 'cv-pdf-modal-backdrop', id: 'cv-pdf-modal-backdrop' });
 	const downloadBtn  = h('button', { type: 'button', id: 'cv-pdf-modal-download', class: 'cv-pdf-modal-download-btn' }, 'Print / Save PDF');
@@ -842,18 +820,6 @@ function initUploadButton(
 	}
 
 	btn.addEventListener('click', () => {
-		// If using uploaded data, offer to reset
-		if (hasUploadedData()) {
-			const confirmed = window.confirm('Clear uploaded data and revert to default CV?');
-			if (confirmed) {
-				clearUploadedCvData();
-				clearDraft();
-				clearLegacyPortraitStorage();
-				showStatus('Reverted to default CV data.', 'ok');
-				setTimeout(hideStatus, 3000);
-			}
-			return;
-		}
 		input.click();
 	});
 
@@ -910,8 +876,11 @@ function syncUnifiedPanelState(): void {
 		&& !document.getElementById('blemmy-review-panel')?.hasAttribute('hidden'),
 	);
 	const editOpen = Boolean(
-		document.documentElement.classList.contains('cv-edit-mode')
-		&& document.getElementById('cv-edit-panel'),
+		document.getElementById('cv-edit-panel')
+		&& (
+			document.documentElement.classList.contains('cv-edit-mode')
+			|| document.documentElement.classList.contains('blemmy-edit-mode')
+		),
 	);
 	const anyOpen = chatOpen || reviewOpen || editOpen;
 	html.classList.toggle('cv-panel-open', anyOpen);
@@ -1086,8 +1055,8 @@ function initNarrowUtilityBar(): void {
 			{
 				id: 'print-pdf',
 				label: 'Print / PDF',
-				icon: '⎙',
-				targetId: 'cv-download-pdf',
+				icon: DOCK_CONTROLS.printPdf.icon,
+				targetId: DOCK_CONTROLS.printPdf.id,
 			},
 		],
 	});
@@ -1302,9 +1271,9 @@ function initChangeHighlighter(): void {
 	function applyHighlights(): void {
 		clearBadges();
 		if (latestChanges.length === 0) { return; }
-		const fields = document.querySelectorAll<HTMLElement>('[data-cv-field]');
+		const fields = document.querySelectorAll<HTMLElement>('[data-blemmy-field]');
 		fields.forEach((el) => {
-			const path = el.dataset.cvField ?? '';
+			const path = el.dataset.blemmyField ?? '';
 			if (!path) { return; }
 			for (const c of latestChanges) {
 				if (!isFieldAffected(path, c.path)) { continue; }
@@ -1695,18 +1664,18 @@ export function initUIComponents(
 		return out as ContentPath;
 	}
 	function resolveClickedPath(target: HTMLElement): ContentPath | null {
-		const fieldHost = target.closest<HTMLElement>('[data-cv-field]');
-		const fieldPath = fieldHost?.dataset.cvField?.trim();
+		const fieldHost = target.closest<HTMLElement>('[data-blemmy-field]');
+		const fieldPath = fieldHost?.dataset.blemmyField?.trim();
 		if (fieldPath) { return toContentPath(fieldPath); }
 		const workEl = target.closest<HTMLElement>('.experience-block');
-		const workIdx = workEl?.dataset.workIdx ?? workEl?.dataset.workIdx;
+		const workIdx = workEl?.dataset.blemmyDragIdx;
 		if (workIdx && /^\d+$/.test(workIdx)) {
 			return `work[${workIdx}]` as ContentPath;
 		}
 		const eduField = target
 			.closest<HTMLElement>('.education-block')
-			?.querySelector<HTMLElement>('[data-cv-field^="education."]')
-			?.dataset.cvField;
+			?.querySelector<HTMLElement>('[data-blemmy-field^="education."]')
+			?.dataset.blemmyField;
 		if (eduField) { return toContentPath(eduField).replace(/(\.\w+)+$/, '') as ContentPath; }
 		return null;
 	}
@@ -1802,7 +1771,7 @@ export function initUIComponents(
 	});
 
 	// Edit mode — toggle button + toolbar
-	let editInstance: EditModeInstance | null = null;
+	let editInstance: (EditModeInstance | GenericEditModeInstance) | null = null;
 	// Track whether edit mode was active before a remount
 	let editWasActive = false;
 
@@ -1853,28 +1822,61 @@ export function initUIComponents(
 	});
 
 	function activateEdit(): void {
-		const base = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-		if (!base) { return; }
-		const data = loadDraft() ?? base;
+		const win = window as Window & {
+			__CV_DATA__?: CVData;
+			__LETTER_DATA__?: LetterData;
+			__ACTIVE_DOC_TYPE__?: string;
+		};
+		const activeDocType = win.__ACTIVE_DOC_TYPE__ ?? 'cv';
 
-		editInstance = activateEditMode(
-			data,
-			(newData) => {
-				// Visibility changes trigger a remount; we auto-reactivate afterwards
-				editWasActive = true;
-				(window as Window & { __CV_DATA__?: CVData }).__CV_DATA__ = newData;
-				editInstance?.deactivate();
-				editInstance = null;
-				setEditActive(false);
-				remount(newData);
-				docPanelApi.onDataChange(newData);
-				// Re-activation happens in the cv-layout-applied listener below
-			},
-			(updatedData) => {
-				// Text edits — draft already saved; also queue cloud save if active.
-				docPanelApi.onDataChange(updatedData);
-			},
-		);
+		if (activeDocType === 'letter') {
+			const base = win.__LETTER_DATA__;
+			if (!base) { return; }
+			const draftKey = 'blemmy-letter-draft';
+			const letterSpec = getDocTypeSpec('letter');
+			if (!letterSpec) { return; }
+			const data = loadGenericDraft<LetterData>(draftKey) ?? base;
+			editInstance = activateGenericEdit(
+				data,
+				'letter-shell',
+				draftKey,
+				letterSpec,
+				(newData) => {
+					editWasActive = true;
+					win.__LETTER_DATA__ = newData as LetterData;
+					editInstance?.deactivate();
+					editInstance = null;
+					setEditActive(false);
+					const switchFn = (window as Window & {
+						__blemmySwitchToLetter__?: (d: LetterData) => void;
+					}).__blemmySwitchToLetter__;
+					switchFn?.(newData as LetterData);
+				},
+				(updatedData) => {
+					win.__LETTER_DATA__ = updatedData as LetterData;
+				},
+			);
+		} else {
+			const base = win.__CV_DATA__;
+			if (!base) { return; }
+			const data = loadDraft() ?? base;
+			editInstance = activateEditMode(
+				data,
+				(newData) => {
+					editWasActive = true;
+					win.__CV_DATA__ = newData;
+					editInstance?.deactivate();
+					editInstance = null;
+					setEditActive(false);
+					remount(newData);
+					docPanelApi.onDataChange(newData);
+				},
+				(updatedData) => {
+					docPanelApi.onDataChange(updatedData);
+				},
+			);
+		}
+
 		setEditActive(true);
 		dispatchDockedPanelOpen('cv-edit-panel');
 		closeChatPanelIfOpen();
@@ -1896,11 +1898,29 @@ export function initUIComponents(
 	});
 
 	resetDraftBtn?.addEventListener('click', () => {
-		if (window.confirm(
-			'Reset local draft edits and portrait to the currently loaded CV?',
-		)) {
-			editInstance?.clearDraft();
-			editInstance?.clearPortrait();
+		const activeDocType2 = (window as Window & {
+			__ACTIVE_DOC_TYPE__?: string;
+		}).__ACTIVE_DOC_TYPE__ ?? 'cv';
+		const confirmMsg = activeDocType2 === 'letter'
+			? 'Reset local draft edits to the currently loaded letter?'
+			: 'Reset local draft edits and portrait to the currently loaded CV?';
+		if (!window.confirm(confirmMsg)) { return; }
+		if (activeDocType2 === 'letter') {
+			clearDraftByKey('blemmy-letter-draft');
+			editInstance?.deactivate();
+			editInstance = null;
+			editWasActive = false;
+			setEditActive(false);
+			const switchFn = (window as Window & {
+				__blemmySwitchToLetter__?: (d: LetterData) => void;
+			}).__blemmySwitchToLetter__;
+			const base = (window as Window & { __LETTER_DATA__?: LetterData })
+				.__LETTER_DATA__;
+			if (base) { switchFn?.(base); }
+		} else {
+			const cvInst = editInstance as EditModeInstance | null;
+			cvInst?.clearDraft();
+			cvInst?.clearPortrait?.();
 			editWasActive = false;
 			const base = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
 			if (base) { remount(base); }
@@ -1953,18 +1973,18 @@ export function initSharedReviewComponents(autoOpen = false): void {
 		return out as ContentPath;
 	}
 	function resolveClickedPath(target: HTMLElement): ContentPath | null {
-		const fieldHost = target.closest<HTMLElement>('[data-cv-field]');
-		const fieldPath = fieldHost?.dataset.cvField?.trim();
+		const fieldHost = target.closest<HTMLElement>('[data-blemmy-field]');
+		const fieldPath = fieldHost?.dataset.blemmyField?.trim();
 		if (fieldPath) { return toContentPath(fieldPath); }
 		const workEl = target.closest<HTMLElement>('.experience-block');
-		const workIdx = workEl?.dataset.workIdx ?? workEl?.dataset.workIdx;
+		const workIdx = workEl?.dataset.blemmyDragIdx;
 		if (workIdx && /^\d+$/.test(workIdx)) {
 			return `work[${workIdx}]` as ContentPath;
 		}
 		const eduField = target
 			.closest<HTMLElement>('.education-block')
-			?.querySelector<HTMLElement>('[data-cv-field^="education."]')
-			?.dataset.cvField;
+			?.querySelector<HTMLElement>('[data-blemmy-field^="education."]')
+			?.dataset.blemmyField;
 		if (eduField) {
 			return toContentPath(eduField).replace(/(\.\w+)+$/, '') as ContentPath;
 		}

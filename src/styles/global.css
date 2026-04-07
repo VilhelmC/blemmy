@@ -1238,7 +1238,7 @@ h1, h2, h3, h4 {
 		background: transparent !important;
 	}
 
-	.print-fab {
+	.print-fab:not(.cv-dock-btn) {
 		position:         fixed;
 		bottom:           calc(
 			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
@@ -1268,7 +1268,7 @@ h1, h2, h3, h4 {
 			translateY(var(--cv-print-fab-lift));
 	}
 
-	.print-fab:hover {
+	.print-fab:not(.cv-dock-btn):hover {
 		--cv-print-fab-lift: -1px;
 		box-shadow: 0 4px 20px rgba(0,0,0,0.25);
 	}
@@ -1944,7 +1944,7 @@ html.cv-debug-mode .cv-sidebar > div {
 }
 
 /* ─── PDF modal (formerly scoped in PrintButton.astro) ─────── */
-.print-fab {
+.print-fab:not(.cv-dock-btn) {
 	display:     flex;
 	align-items: center;
 	gap:         0.5rem;
@@ -2093,6 +2093,7 @@ html.cv-embed-pdf .cv-chrome,
 html.cv-embed-pdf .cv-layout-status,
 html.cv-embed-pdf .cv-layout-debug-toggle,
 html.cv-embed-pdf .cv-view-mode-toggle,
+html.cv-embed-pdf #cv-download-pdf,
 html.cv-embed-pdf .print-fab,
 html.cv-embed-pdf .theme-toggle,
 html.cv-embed-pdf .cv-pdf-modal {
@@ -2111,6 +2112,7 @@ html.cv-portfolio-embed #cv-cloud-drawer,
 html.cv-portfolio-embed #cv-pdf-modal,
 html.cv-portfolio-embed #cv-about-modal,
 html.cv-portfolio-embed #cv-share-review-dock,
+html.cv-portfolio-embed #cv-download-pdf,
 html.cv-portfolio-embed .print-fab,
 html.cv-portfolio-embed .cv-about-corner-btn {
 	display: none !important;
@@ -2261,21 +2263,22 @@ html.cv-published-embed .cv-share-banner {
 /* ─── Edit mode: contenteditable visual feedback ────────────────────────────── */
 @media screen {
 	/* Subtle highlight on hover so fields are discoverable */
-	html.cv-edit-mode [data-cv-field]:not([data-cv-field="portrait"]):hover {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 1px;
 		cursor:         text;
 	}
 
 	/* Active focus ring while editing */
-	html.cv-edit-mode [contenteditable="true"]:focus {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode) [contenteditable="true"]:focus {
 		outline:          2px solid rgba(26, 60, 64, 0.55);
 		outline-offset:   1px;
 		border-radius:    1px;
 	}
 
 	/* Portrait cursor in edit mode */
-	html.cv-edit-mode #cv-portrait-img {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode) #cv-portrait-img {
 		cursor: pointer;
 	}
 
@@ -2306,21 +2309,25 @@ html.cv-published-embed .cv-share-banner {
 	opacity:        0.95;
 }
 
-html.cv-edit-mode .cv-portrait-upload-hint {
+:is(html.cv-edit-mode, html.blemmy-edit-mode) .cv-portrait-upload-hint {
 	display: flex;
 }
 
 	/* Work item drag handles */
-	html.cv-edit-mode [data-work-idx] {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"] {
 		cursor: text;
 	}
-	html.cv-edit-mode [data-work-idx] .cv-drag-handle {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"] .cv-drag-handle {
 		cursor: grab;
 	}
-	html.cv-edit-mode [data-work-idx] .cv-drag-handle:active {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"] .cv-drag-handle:active {
 		cursor: grabbing;
 	}
-	html.cv-edit-mode [data-work-idx]:hover {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"]:hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 2px;
 	}
@@ -2531,16 +2538,36 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 		background: rgba(30,30,30,0.88);
 	}
 
-	/* Show on parent hover */
-	html.cv-edit-mode [data-work-idx]:hover    > .cv-vis-toggle,
-	html.cv-edit-mode [data-section-id]:hover  > .cv-vis-toggle {
+	/* Eye inside ▲▼ strip (static, same row as move buttons) */
+	.cv-move-controls .cv-vis-toggle--inrow {
+		position: static;
 		opacity: 1;
+		width: 1.35rem;
+		height: 1.35rem;
+		font-size: 0.72rem;
+		transform: none;
+		flex-shrink: 0;
+		z-index: auto;
+		padding: 0;
+		line-height: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: rgba(255,255,255,0.88);
+		border: 1px solid transparent;
+		cursor: pointer;
 	}
-
-	.cv-vis-toggle:hover {
+	.dark .cv-move-controls .cv-vis-toggle--inrow {
+		background: rgba(30,30,30,0.88);
+	}
+	.cv-move-controls .cv-vis-toggle--inrow:hover {
 		border-color: rgba(220,38,38,0.6);
 		background:   rgba(254,226,226,0.95);
-		opacity:      1 !important;
+	}
+	.dark .cv-move-controls .cv-vis-toggle--inrow:hover {
+		background: rgba(60,20,20,0.92);
+		border-color: rgba(248,113,113,0.5);
 	}
 
 	.cv-move-controls {
@@ -2558,7 +2585,7 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 	}
 	.cv-move-controls--inline {
 		top: -0.25rem;
-		right: -0.15rem;
+		right: 0.2rem;
 	}
 	.cv-move-btn {
 		width: 1.35rem;
@@ -2583,7 +2610,7 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 	.cv-drag-handle {
 		position: absolute;
 		top: 0.35rem;
-		right: 5.45rem;
+		right: 6.85rem;
 		width: 1.45rem;
 		height: 1.45rem;
 		border: 1px solid transparent;
@@ -2601,20 +2628,34 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 		border-color: rgba(26, 60, 64, 0.45);
 	}
 
-	html.cv-edit-mode [data-work-idx]:hover > .cv-move-controls,
-	html.cv-edit-mode [data-section-id]:hover > .cv-move-controls,
-	html.cv-edit-mode li[data-cv-field]:hover > .cv-move-controls,
-	html.cv-edit-mode .skill-tag[data-cv-field]:hover > .cv-move-controls,
-	html.cv-edit-mode .skill-category:hover > .cv-move-controls,
-	html.cv-edit-mode [data-work-idx]:hover > .cv-drag-handle {
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"]:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		.education-block:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		#cv-rebalance-profile:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		#cv-education:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-section-id]:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		li[data-blemmy-field]:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		.skill-tag[data-blemmy-field]:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		.language-item:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		.skill-category:hover > .cv-move-controls,
+	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"]:hover > .cv-drag-handle {
 		opacity: 1;
 	}
 
-	/* When the CV shell is in print preview mode, ensure panel doesn't
-	   overlap the A4 card — nudge the shell rightward */
-	html.cv-edit-mode .cv-shell {
-		margin-right: 244px;
-	}
+	/*
+	 * Edit mode + docked panel: layout is handled by html.cv-panel-open /
+	 * .cv-panel-desktop (body padding + shell max-width). A fixed margin here
+	 * fought that math and under-reserved space vs --cv-panel-w (344px).
+	 */
 }
 
 /* ─── Tag filter bar ─────────────────────────────────────────────────────────── */
@@ -2787,8 +2828,10 @@ html.cv-edit-mode .cv-portrait-upload-hint {
 
 /* ─── Tag chips read-only (filter bar) ───────────────────────────────────────── */
 /* Show tags on CV items in view mode when filters are active */
-[data-cv-field] .cv-tag-row { display: none; }
-html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
+[data-blemmy-field] .cv-tag-row { display: none; }
+:is(html.cv-edit-mode, html.blemmy-edit-mode) [data-blemmy-field] .cv-tag-row {
+	display: flex;
+}
 
 /* ─── Chat trigger button ────────────────────────────────────────────────────── */
 @media screen {
@@ -2857,6 +2900,51 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		max-width: 100% !important;
 		min-width: 0 !important;
 		box-sizing: border-box;
+	}
+
+	/*
+	 * Paper stage wraps #cv-root; when a right panel is open, cap stage width
+	 * to the same column as #cv-root so scaled print preview is not clipped.
+	 */
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
+	.cv-paper-stage:has(#cv-shell.cv-print-preview) {
+		max-width: min(
+			var(--cv-paper-width, 794px),
+			calc(100vw - var(--cv-panel-w) - 2rem)
+		) !important;
+		box-sizing: border-box;
+	}
+
+	/*
+	 * Print preview: .cv-card / pages stay 210mm wide. Review-mode.css zooms
+	 * #cv-shell when the review drawer is open; do the same for assistant + edit
+	 * so inner paper never overflows a correctly-sized shell (not .cv-panel-
+	 * kind-review — that path is already handled in review-mode.css).
+	 */
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
+		.cv-panel-kind-review
+	) {
+		--cv-main-side-panel-scale: min(
+			1,
+			calc((100vw - var(--cv-panel-w) - 2rem) / 794)
+		);
+	}
+	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
+		.cv-panel-kind-review
+	)
+	#cv-shell.cv-print-preview {
+		zoom: var(--cv-main-side-panel-scale);
+		transform-origin: top center;
+	}
+	@supports not (zoom: 1) {
+		html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
+			.cv-panel-kind-review
+		)
+		#cv-shell.cv-print-preview {
+			zoom: unset;
+			transform: scale(var(--cv-main-side-panel-scale));
+			transform-origin: top center;
+		}
 	}
 
 	.cv-side-panel {
@@ -3408,7 +3496,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 
 /* ─── Floating UI collision guards ─────────────────────────────────────────── */
 @media screen and (max-width: 1500px) {
-	.print-fab { right: 1rem; }
+	.print-fab:not(.cv-dock-btn) { right: 1rem; }
 	.theme-toggle { right: 6.5rem; }
 	.cv-view-mode-toggle { right: 10.5rem; }
 
@@ -3428,12 +3516,12 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	.cv-download-json-btn,
 	.cv-view-mode-toggle,
 	.theme-toggle,
-	.print-fab {
+	.print-fab:not(.cv-dock-btn) {
 		right: 1rem !important;
 		left: auto !important;
 	}
 
-	.print-fab { bottom: 1rem; }
+	.print-fab:not(.cv-dock-btn) { bottom: 1rem; }
 	.theme-toggle { bottom: 4.2rem; }
 	.cv-view-mode-toggle { bottom: 7.4rem; }
 	.cv-download-json-btn { bottom: 10.6rem; }
@@ -3775,7 +3863,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 
 	.cv-history-controls {
 		display: flex;
-		align-items: stretch;
+		align-items: center;
 		gap: 0.35rem;
 	}
 
@@ -4001,7 +4089,7 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 	#cv-ui-dock-right .cv-edit-btn,
 	#cv-ui-dock-right .blemmy-review-toggle,
 	#cv-ui-dock-right .cv-layout-debug-toggle,
-	#cv-ui-dock-right #cv-download-pdf,
+	#cv-ui-dock-right .cv-download-pdf-btn,
 	#cv-ui-dock-right .cv-view-mode-toggle,
 	#cv-ui-dock-right .theme-toggle,
 	#cv-ui-dock-right .cv-chat-trigger,
@@ -4213,35 +4301,8 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		pointer-events: none;
 	}
 
-	/* Print + About: centered column above docks (narrow screens). */
-	#print-fab,
-	#cv-download-pdf.print-fab {
-		position: fixed !important;
-		left: calc(
-			var(--cv-vv-left) + var(--cv-vv-width) * 0.5
-		) !important;
-		right: auto !important;
-		top: auto !important;
-		bottom: calc(
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-			var(--cv-vv-bottom) +
-			(0.35rem * var(--cv-ui-zoom-comp)) +
-			(2.85rem * var(--cv-ui-zoom-comp))
-		) !important;
-		z-index: 226;
-		transform-origin: center bottom;
-		transform: translateX(-50%) scale(var(--cv-ui-zoom-comp))
-			translateY(var(--cv-print-fab-lift, 0px));
-	}
-
-	#cv-download-pdf.print-fab #cv-download-pdf-label {
-		font-size: 0.62rem;
-	}
-
 	html.cv-mobile-utility-active #cv-ui-dock-left-anchor,
-	html.cv-mobile-utility-active #cv-ui-dock-right-anchor,
-	html.cv-mobile-utility-active #print-fab,
-	html.cv-mobile-utility-active #cv-download-pdf.print-fab {
+	html.cv-mobile-utility-active #cv-ui-dock-right-anchor {
 		display: none !important;
 	}
 }
@@ -4257,6 +4318,13 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 }
 
 @media screen {
+	/*
+	 * Pinch-zoom: same 1/σ scale as `.cv-ui-dock__zoom-shell` (via
+	 * `--cv-ui-zoom-comp`). Docks are auto-width pills; this bar is full-bleed,
+	 * so a bare `scale(1/σ)` shrinks painted width to 1/σ of the column —
+	 * widen the inner box by `--cv-vv-scale` (σ) first, then scale, so visual
+	 * width matches the inset column (see ui-manager `--cv-vv-scale`).
+	 */
 	.cv-mobile-utility-bar {
 		position: fixed;
 		left: calc(
@@ -4272,8 +4340,18 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp))
 		);
 		z-index: 240;
-		transform-origin: center bottom;
+		display: flex;
+		justify-content: center;
+		align-items: flex-end;
+		pointer-events: none;
+	}
+	.cv-mobile-utility-bar__zoom-shell {
+		flex: 0 0 auto;
+		width: calc(100% * var(--cv-vv-scale));
+		box-sizing: border-box;
 		transform: scale(var(--cv-ui-zoom-comp));
+		transform-origin: center bottom;
+		pointer-events: auto;
 	}
 	.cv-mobile-utility-bar[hidden] {
 		display: none !important;
@@ -4324,15 +4402,30 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		border: 0;
 		background: rgba(0, 0, 0, 0.32);
 	}
-	.cv-mobile-utility-sheet__panel {
+	.cv-mobile-utility-sheet__panel-outer {
 		position: absolute;
-		left: max(0.7rem, var(--cv-vv-left));
-		right: max(0.7rem, var(--cv-vv-right));
+		left: calc(
+			var(--cv-vv-left) +
+			(0.55rem * var(--cv-ui-zoom-comp))
+		);
+		right: calc(
+			var(--cv-vv-right) +
+			(0.55rem * var(--cv-ui-zoom-comp))
+		);
 		bottom: calc(
 			var(--cv-vv-bottom) +
 			var(--cv-mobile-utility-h) +
-			0.45rem
+			(0.45rem * var(--cv-ui-zoom-comp))
 		);
+		display: flex;
+		justify-content: center;
+		align-items: flex-end;
+		pointer-events: none;
+	}
+	.cv-mobile-utility-sheet__panel {
+		flex: 0 0 auto;
+		width: calc(100% * var(--cv-vv-scale));
+		box-sizing: border-box;
 		border-radius: 0.95rem;
 		background: rgba(255, 255, 255, 0.96);
 		border: 1px solid rgba(0, 0, 0, 0.08);
@@ -4340,8 +4433,9 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		padding: 0.6rem;
 		max-height: 62dvh;
 		overflow: auto;
-		transform-origin: bottom center;
 		transform: scale(var(--cv-ui-zoom-comp));
+		transform-origin: bottom center;
+		pointer-events: auto;
 	}
 	.cv-mobile-utility-sheet__head {
 		font: 600 0.72rem 'DM Sans', sans-serif;
@@ -4410,17 +4504,26 @@ html.cv-edit-mode [data-cv-field] .cv-tag-row { display: flex; }
 		padding: 0.4rem !important;
 	}
 	/*
-	 * Mobile Chrome: stylesheet zoom on .cv-paper-stage fights JS transform on
-	 * .cv-paper-scaler; disable zoom here so inline/layout styles control fit.
+	 * Mobile + zoom-capable engines: JS uses zoom on .cv-paper-scaler, not the
+	 * stage. Keep stage zoom unset. Scoped with @supports so Firefox (no zoom)
+	 * still uses the transform-on-stage rule from the main screen block.
 	 */
-	html:not(.cv-share-readonly) .cv-paper-stage:has(.cv-paper-scaler) {
-		zoom: unset !important;
-		transform: none !important;
-		max-width: 100%;
-		box-sizing: border-box;
-	}
-	.cv-paper-scaler {
-		box-sizing: border-box;
+	@supports (zoom: 1) {
+		html:not(.cv-share-readonly) .cv-paper-stage:has(.cv-paper-scaler) {
+			zoom: unset !important;
+			transform: none !important;
+			width: 100%;
+			max-width: 100%;
+			box-sizing: border-box;
+			display: flex;
+			justify-content: center;
+			overflow-x: clip;
+			min-width: 0;
+		}
+		.cv-paper-scaler {
+			box-sizing: border-box;
+			flex-shrink: 0;
+		}
 	}
 }
 

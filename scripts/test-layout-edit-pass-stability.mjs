@@ -131,10 +131,13 @@ async function main() {
 	await waitLayoutReady(page);
 
 	await page.click('#cv-edit-btn');
-	await page.waitForSelector('[data-work-idx] .cv-vis-toggle', { timeout: 15000 });
+	await page.waitForSelector(
+		'[data-blemmy-drag-group="work"] .cv-vis-toggle',
+		{ timeout: 15000 },
+	);
 
 	await performActionAndReadTwoPasses(page, 'hide-work', async () => {
-		await page.click('[data-work-idx] .cv-vis-toggle');
+		await page.click('[data-blemmy-drag-group="work"] .cv-vis-toggle');
 	});
 	await performActionAndReadTwoPasses(page, 'show-work', async () => {
 		await page.click('#cv-edit-panel [data-panel-type="work"] .cv-edit-panel__restore');

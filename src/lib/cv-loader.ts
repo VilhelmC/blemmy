@@ -178,13 +178,51 @@ function validateWork(raw: unknown, idx: number): CVWork {
 	};
 }
 
+/** Allowed skill category keys in JSON (stable field paths / DOM ids). */
+const SKILL_CATEGORY_KEY_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+
 function validateSkills(raw: unknown): CVSkills {
+	if (raw == null) {
+		return {};
+	}
 	const o = assertObject(raw, 'skills');
-	return {
-		programming: assertStringArray(o.programming ?? [], 'skills.programming'),
-		design_bim:  assertStringArray(o.design_bim  ?? [], 'skills.design_bim'),
-		strategic:   assertStringArray(o.strategic   ?? [], 'skills.strategic'),
-	};
+	const out: CVSkills = {};
+	for (const k of Object.keys(o)) {
+		assert(
+			SKILL_CATEGORY_KEY_RE.test(k),
+			`invalid skill category key "${k}" — ` +
+				'use letter-first alphanumeric or underscore',
+			`skills.${k}`,
+		);
+		out[k] = assertStringArray(o[k], `skills.${k}`);
+	}
+	return out;
+}
+
+/**
+ * Keeps `visibility.skillsOrder` aligned with `skills` keys: drops removed
+ * categories, appends new ones, preserves manual order where still valid.
+ */
+export function syncSkillsOrderInData(data: CVData): void {
+	const keys = Object.keys(data.skills);
+	const vis = data.visibility;
+	if (!vis) {
+		return;
+	}
+	const cur = vis.skillsOrder;
+	if (cur == null || cur.length === 0) {
+		vis.skillsOrder = [...keys];
+		return;
+	}
+	const keySet = new Set(keys);
+	const kept = cur.filter((k) => keySet.has(k));
+	for (let i = 0; i < keys.length; i++) {
+		const k = keys[i];
+		if (!kept.includes(k)) {
+			kept.push(k);
+		}
+	}
+	vis.skillsOrder = kept;
 }
 
 function validateLanguage(raw: unknown, idx: number): CVLanguage {
@@ -213,7 +251,7 @@ export function validateCvData(raw: unknown): CVData {
 	const workArr  = assertArray(o.work      ?? [], 'work');
 	const langArr  = assertArray(o.languages ?? [], 'languages');
 
-	return {
+	const data: CVData = {
 		meta:      validateMeta(o.meta),
 		basics:    validateBasics(o.basics),
 		education: eduArr.map((e, i)  => validateEducation(e, i)),
@@ -222,6 +260,8 @@ export function validateCvData(raw: unknown): CVData {
 		languages: langArr.map((l, i) => validateLanguage(l, i)),
 		personal:  validatePersonal(o.personal),
 	};
+	syncSkillsOrderInData(data);
+	return data;
 }
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
