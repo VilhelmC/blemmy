@@ -181,7 +181,7 @@ async function evaluateScenario(browser, baseUrl, scenario) {
 	}, data, PREFS);
 	await page.goto(`${baseUrl}?cv-pdf=1`, { waitUntil: 'networkidle0', timeout: 30000 });
 	await page.waitForFunction(
-		() => document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+		() => document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 		{ timeout: 30000 },
 	);
 
@@ -195,7 +195,7 @@ async function evaluateScenario(browser, baseUrl, scenario) {
 			for (let i = 0; i < kids.length; i++) {
 				const el = kids[i];
 				if (!(el instanceof HTMLElement)) continue;
-				if (el.classList.contains('cv-sidebar-tail-spacer')) continue;
+				if (el.classList.contains('blemmy-sidebar-tail-spacer')) continue;
 				const st = getComputedStyle(el);
 				if (st.display === 'none' || st.visibility === 'hidden') continue;
 				const r = el.getBoundingClientRect();
@@ -204,32 +204,32 @@ async function evaluateScenario(browser, baseUrl, scenario) {
 			return Math.max(0, colRect.bottom - maxBottom);
 		}
 
-		const card = document.getElementById('cv-card');
+		const card = document.getElementById('blemmy-card');
 		const cols = [
-			document.getElementById('cv-sidebar-1'),
-			document.getElementById('cv-main-1'),
-			document.getElementById('cv-sidebar-2'),
-			document.getElementById('cv-main-2'),
+			document.getElementById('blemmy-sidebar-1'),
+			document.getElementById('blemmy-main-1'),
+			document.getElementById('blemmy-sidebar-2'),
+			document.getElementById('blemmy-main-2'),
 		];
 		const slacksPx = cols.map((c) => (c instanceof HTMLElement ? slackPx(c) : 0));
 		const slacksMm = slacksPx.map((v) => Number((v / MM_TO_PX).toFixed(1)));
 		return {
-			disposition: card?.dataset.cvDisposition ?? 'unknown',
-			pages: Number(card?.dataset.cvPages ?? 0),
-			sidebarMm: Number(card?.dataset.cvSidebarMm ?? 0),
-			alignApplied: card?.dataset.cvAlignApplied ?? '',
-			layoutMs: Number(card?.dataset.cvLayoutMs ?? 0),
-			winnerId: card?.dataset.cvWinnerId ?? '',
-			layoutError: card?.dataset.cvLayoutError ?? '',
+			disposition: card?.dataset.blemmyLayoutDisposition ?? 'unknown',
+			pages: Number(card?.dataset.blemmyLayoutPages ?? 0),
+			sidebarMm: Number(card?.dataset.blemmyLayoutSidebarMm ?? 0),
+			alignApplied: card?.dataset.blemmyLayoutAlignApplied ?? '',
+			layoutMs: Number(card?.dataset.blemmyLayoutMs ?? 0),
+			winnerId: card?.dataset.blemmyLayoutWinnerId ?? '',
+			layoutError: card?.dataset.blemmyLayoutError ?? '',
 			candidates: {
-				total: Number(card?.dataset.cvCandidatesTotal ?? 0),
-				single: Number(card?.dataset.cvCandidatesSingle ?? 0),
-				two: Number(card?.dataset.cvCandidatesTwo ?? 0),
+				total: Number(card?.dataset.blemmyLayoutCandidatesTotal ?? 0),
+				single: Number(card?.dataset.blemmyLayoutCandidatesSingle ?? 0),
+				two: Number(card?.dataset.blemmyLayoutCandidatesTwo ?? 0),
 			},
 			scored: {
-				total: Number(card?.dataset.cvScoredTotal ?? 0),
-				single: Number(card?.dataset.cvScoredSingle ?? 0),
-				two: Number(card?.dataset.cvScoredTwo ?? 0),
+				total: Number(card?.dataset.blemmyLayoutScoredTotal ?? 0),
+				single: Number(card?.dataset.blemmyLayoutScoredSingle ?? 0),
+				two: Number(card?.dataset.blemmyLayoutScoredTwo ?? 0),
 			},
 			slackMm: {
 				sidebar1: slacksMm[0],

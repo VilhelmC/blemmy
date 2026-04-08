@@ -1,16 +1,16 @@
 /**
  * Central UI manager for viewport + zoom derived UI vars.
  *
- * `--cv-ui-zoom-comp` is the single pinch-zoom factor for fixed UI: `1/σ`
+ * `--blemmy-ui-zoom-comp` is the single pinch-zoom factor for fixed UI: `1/σ`
  * from `visualViewport.scale`, written in `applyViewportVars()`. Dock rails,
  * mobile utility chrome, and other overlays should consume **only** this CSS
  * variable (via `startUiManager()`), not duplicate math — and should mirror
- * the dock pattern: compensate **insets** with `× var(--cv-ui-zoom-comp)`
- * on the outer anchor, apply `transform: scale(var(--cv-ui-zoom-comp))` on
+ * the dock pattern: compensate **insets** with `× var(--blemmy-ui-zoom-comp)`
+ * on the outer anchor, apply `transform: scale(var(--blemmy-ui-zoom-comp))` on
  * an **inner** shell only (never both transforms on the same box).
  *
- * Full-bleed strips also need `width: calc(100% * var(--cv-vv-scale))` on
- * that shell (and flex centering) so `scale(var(--cv-ui-zoom-comp))` does not
+ * Full-bleed strips also need `width: calc(100% * var(--blemmy-vv-scale))` on
+ * that shell (and flex centering) so `scale(var(--blemmy-ui-zoom-comp))` does not
  * shrink the bar to a fraction of the column width.
  */
 
@@ -21,7 +21,7 @@ import {
 	uiZoomCompensation,
 } from '@renderer/viewport-space';
 
-const UI_VIEWPORT_EVENT = 'cv-ui-viewport-changed';
+const UI_VIEWPORT_EVENT = 'blemmy-ui-viewport-changed';
 
 /**
  * Extra strip clearance in *client-reference* CSS px (with σ=1 convention:
@@ -30,10 +30,10 @@ const UI_VIEWPORT_EVENT = 'cv-ui-viewport-changed';
 const PEEK_SLIDE_CLEAR_REF_PX = 58;
 const PEEK_GAP_REF_PX = 6;
 
-const DOCK_LEFT_SHELL_SEL = '#cv-ui-dock-left .cv-ui-dock__zoom-shell';
-const DOCK_RIGHT_SHELL_SEL = '#cv-ui-dock-right .cv-ui-dock__zoom-shell';
-const DOCK_LEFT_HANDLE_SEL = '#cv-ui-dock-left-handle';
-const DOCK_RIGHT_HANDLE_SEL = '#cv-ui-dock-right-handle';
+const DOCK_LEFT_SHELL_SEL = '#blemmy-ui-dock-left .blemmy-ui-dock__zoom-shell';
+const DOCK_RIGHT_SHELL_SEL = '#blemmy-ui-dock-right .blemmy-ui-dock__zoom-shell';
+const DOCK_LEFT_HANDLE_SEL = '#blemmy-ui-dock-left-handle';
+const DOCK_RIGHT_HANDLE_SEL = '#blemmy-ui-dock-right-handle';
 
 let started = false;
 let dockPeekRo: ResizeObserver | null = null;
@@ -75,11 +75,11 @@ function updateDockPeekSlideDistances(): void {
 		document.querySelector(DOCK_RIGHT_SHELL_SEL),
 	);
 	root.style.setProperty(
-		'--cv-dock-peek-slide-l',
+		'--blemmy-dock-peek-slide-l',
 		`${left ?? fallback}px`,
 	);
 	root.style.setProperty(
-		'--cv-dock-peek-slide-r',
+		'--blemmy-dock-peek-slide-r',
 		`${right ?? fallback}px`,
 	);
 	const handleFallback =
@@ -91,11 +91,11 @@ function updateDockPeekSlideDistances(): void {
 		document.querySelector(DOCK_RIGHT_HANDLE_SEL),
 	);
 	root.style.setProperty(
-		'--cv-dock-peek-handle-space-l',
+		'--blemmy-dock-peek-handle-space-l',
 		`${leftHandleSpace ?? handleFallback}px`,
 	);
 	root.style.setProperty(
-		'--cv-dock-peek-handle-space-r',
+		'--blemmy-dock-peek-handle-space-r',
 		`${rightHandleSpace ?? handleFallback}px`,
 	);
 
@@ -130,15 +130,15 @@ function applyViewportVars(): void {
 	const root = document.documentElement;
 	const vv = window.visualViewport;
 	if (!vv) {
-		root.style.setProperty('--cv-vv-top', '0px');
-		root.style.setProperty('--cv-vv-left', '0px');
-		root.style.setProperty('--cv-vv-right', '0px');
-		root.style.setProperty('--cv-vv-bottom', '0px');
-		root.style.setProperty('--cv-vv-width', `${window.innerWidth}px`);
-		root.style.setProperty('--cv-vv-height', `${window.innerHeight}px`);
-		root.style.setProperty('--cv-vv-scale', '1');
-		root.style.setProperty('--cv-ui-zoom-comp', '1');
-		root.style.setProperty('--cv-dock-peek-gap', '6px');
+		root.style.setProperty('--blemmy-vv-top', '0px');
+		root.style.setProperty('--blemmy-vv-left', '0px');
+		root.style.setProperty('--blemmy-vv-right', '0px');
+		root.style.setProperty('--blemmy-vv-bottom', '0px');
+		root.style.setProperty('--blemmy-vv-width', `${window.innerWidth}px`);
+		root.style.setProperty('--blemmy-vv-height', `${window.innerHeight}px`);
+		root.style.setProperty('--blemmy-vv-scale', '1');
+		root.style.setProperty('--blemmy-ui-zoom-comp', '1');
+		root.style.setProperty('--blemmy-dock-peek-gap', '6px');
 		updateDockPeekSlideDistances();
 		window.dispatchEvent(new CustomEvent(UI_VIEWPORT_EVENT));
 		return;
@@ -158,15 +158,15 @@ function applyViewportVars(): void {
 		Math.round(clientCssDeltaToLayoutTransformShift(6)),
 	);
 
-	root.style.setProperty('--cv-vv-top', `${top}px`);
-	root.style.setProperty('--cv-vv-left', `${left}px`);
-	root.style.setProperty('--cv-vv-right', `${right}px`);
-	root.style.setProperty('--cv-vv-bottom', `${bottom}px`);
-	root.style.setProperty('--cv-vv-width', `${vv.width}px`);
-	root.style.setProperty('--cv-vv-height', `${vv.height}px`);
-	root.style.setProperty('--cv-vv-scale', `${scale}`);
-	root.style.setProperty('--cv-ui-zoom-comp', `${zoomComp}`);
-	root.style.setProperty('--cv-dock-peek-gap', `${peekGap}px`);
+	root.style.setProperty('--blemmy-vv-top', `${top}px`);
+	root.style.setProperty('--blemmy-vv-left', `${left}px`);
+	root.style.setProperty('--blemmy-vv-right', `${right}px`);
+	root.style.setProperty('--blemmy-vv-bottom', `${bottom}px`);
+	root.style.setProperty('--blemmy-vv-width', `${vv.width}px`);
+	root.style.setProperty('--blemmy-vv-height', `${vv.height}px`);
+	root.style.setProperty('--blemmy-vv-scale', `${scale}`);
+	root.style.setProperty('--blemmy-ui-zoom-comp', `${zoomComp}`);
+	root.style.setProperty('--blemmy-dock-peek-gap', `${peekGap}px`);
 	updateDockPeekSlideDistances();
 	window.dispatchEvent(new CustomEvent(UI_VIEWPORT_EVENT));
 }

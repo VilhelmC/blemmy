@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="200" viewBox="0 0 160 200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F7F5"/>
+      <stop offset="1" stop-color="#E8E8E2"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="160" height="200" rx="8" fill="url(#bg)"/>
+  <text x="80" y="72" text-anchor="middle" font-family="DM Sans, system-ui, sans-serif"
+    font-size="42" font-weight="700" fill="#1A1A1A" letter-spacing="-0.06em">B</text>
+  <text x="80" y="108" text-anchor="middle" font-family="DM Sans, system-ui, sans-serif"
+    font-size="11" font-weight="600" fill="#505050" letter-spacing="0.12em">BLEMMY</text>
+  <text x="80" y="192" text-anchor="middle" font-family="DM Sans, system-ui, sans-serif"
+    font-size="10" fill="#707070">Demo portrait</text>
+</svg>

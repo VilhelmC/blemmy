@@ -1,0 +1,73 @@
+/**
+ * blemmy-print-parity.css
+ * One place for layout that must match **PDF** (@media print) and **print
+ * preview** (html.blemmy-print-surface .blemmy-shell.blemmy-print-preview). Puppeteer does
+ * not load blemmy-print-surface.css; it only uses @media print here.
+ *
+ * Page 1 row 1 uses `.blemmy-p1-top-band` (subgrid + fallback) so portrait and
+ * masthead share one row height; bottom edges align via flex-end /
+ * align-content end + height 100% on the masthead.
+ *
+ * Imported after print.css and blemmy-print-surface.css so these rules win.
+ */
+
+@media print {
+	.blemmy-p1-top-band {
+		align-items:           stretch !important;
+		grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr !important;
+	}
+
+	@supports (grid-template-columns: subgrid) {
+		.blemmy-p1-top-band {
+			grid-template-columns: subgrid !important;
+		}
+	}
+
+	#blemmy-p1-portrait-cell {
+		justify-content: flex-end !important;
+	}
+
+	#blemmy-p1-portrait-cell .blemmy-header-block {
+		justify-content: flex-end !important;
+	}
+
+	#blemmy-page-1-masthead:not(.blemmy-masthead-collapsed) {
+		grid-template-columns: minmax(0, 0.36fr) minmax(0, 0.64fr) !important;
+		height:                100% !important;
+		align-content:         end !important;
+		align-items:           end !important;
+	}
+}
+
+@media screen {
+	html.blemmy-print-surface .blemmy-shell.blemmy-print-preview .blemmy-p1-top-band {
+		align-items:           stretch !important;
+		grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr !important;
+	}
+
+	@supports (grid-template-columns: subgrid) {
+		html.blemmy-print-surface .blemmy-shell.blemmy-print-preview .blemmy-p1-top-band {
+			grid-template-columns: subgrid !important;
+		}
+	}
+
+	html.blemmy-print-surface .blemmy-shell.blemmy-print-preview #blemmy-p1-portrait-cell {
+		justify-content: flex-end !important;
+	}
+
+	html.blemmy-print-surface
+		.blemmy-shell.blemmy-print-preview
+		#blemmy-p1-portrait-cell
+		.blemmy-header-block {
+		justify-content: flex-end !important;
+	}
+
+	html.blemmy-print-surface
+		.blemmy-shell.blemmy-print-preview
+		#blemmy-page-1-masthead:not(.blemmy-masthead-collapsed) {
+		grid-template-columns: minmax(0, 0.36fr) minmax(0, 0.64fr) !important;
+		height:                100% !important;
+		align-content:         end !important;
+		align-items:           end !important;
+	}
+}

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+/* Fonts: bundled via @fontsource in src/styles/fonts.css (imported from main). */
 
 /* ============================================================
    global.css
@@ -62,17 +62,17 @@ a {
    To self-host: add /public/fonts/, use @font-face instead.
    or after Tailwind. */
 
-/* ─── Alignment gap variables (set by cv-align.ts, read by gap calc) ─────────
+/* ─── Alignment gap variables (set by layout-align.ts, read by gap calc) ──────
    These are separate from the slack vars so alignment adjustments can be
    independently cleared and inspected. Both layers are additive on top of
    the base gap token.
    Default 0px — JS writes non-zero values during the alignment pass.
    ────────────────────────────────────────────────────────────────────────── */
 :root {
-	--cv-align-gap-p1-sidebar: 0px;
-	--cv-align-gap-p1-main:    0px;
-	--cv-align-gap-p2-sidebar: 0px;
-	--cv-align-gap-p2-main:    0px;
+	--blemmy-align-gap-p1-sidebar: 0px;
+	--blemmy-align-gap-p1-main:    0px;
+	--blemmy-align-gap-p2-sidebar: 0px;
+	--blemmy-align-gap-p2-main:    0px;
 }
 
 /* ─── Design Tokens (single source for screen + print) ───── */
@@ -91,6 +91,14 @@ a {
 	--color-teal-deep:   #1A1A1A; /* bullet, accent on dark */
 	/* Paper (print body bg) */
 	--color-paper:       #ffffff;
+	/* Screen: sheets float above app chrome (not used in print) */
+	--blemmy-paper-screen-radius: 3px;
+	/* Offset layers: left + bottom so the sheet reads lifted on both edges */
+	--blemmy-paper-screen-shadow:
+		0 0 0 1px color-mix(in srgb, var(--color-ink) 8%, transparent),
+		-8px 6px 18px color-mix(in srgb, var(--color-ink) 7%, transparent),
+		-3px 2px 8px color-mix(in srgb, var(--color-ink) 5%, transparent),
+		6px 16px 36px color-mix(in srgb, var(--color-ink) 9%, transparent);
 	/* Font family tokens — written by document-style.ts */
 	--font-body:         'DM Sans', system-ui, sans-serif;
 	--font-heading:      'DM Sans', system-ui, sans-serif;
@@ -122,8 +130,8 @@ a {
 	--print-sidebar-padding-single: 6mm var(--print-sidebar-single-pad-inline-end) 6mm
 		var(--print-sidebar-single-pad-inline-start);
 	--print-main-padding-single: 6mm 6mm 6mm 6mm;
-	/* Screen: matches .cv-sidebar > div horizontal padding. */
-	--cv-sidebar-div-pad-x: 1.15rem;
+	/* Screen: matches .blemmy-sidebar > div horizontal padding. */
+	--blemmy-sidebar-div-pad-x: 1.15rem;
 	/* Typography — screen (rem) */
 	--text-name:      1.95rem;
 	--text-label:     0.8rem;
@@ -171,46 +179,46 @@ a {
 	--print-experience-sep:         4.5mm;
 	--print-main-section-label-mb:  3.2mm;
 	--print-contact-gap:    1.9mm;   /* 0.45rem */
-	/* Fixed flex tail below sidebar content (see `.cv-sidebar-tail-spacer`). */
+	/* Fixed flex tail below sidebar content (see `.blemmy-sidebar-tail-spacer`). */
 	--print-sidebar-column-tail: 8mm;
 
 	/* Surface-adaptive UI tokens (light defaults). */
-	--cv-surface-contact:       var(--color-ink-mid);
-	--cv-surface-contact-icon:  var(--color-ink-muted);
-	--cv-surface-skill-label:   var(--color-ink-muted);
-	--cv-surface-skill-text:    var(--color-ink-mid);
-	--cv-surface-skill-bg:      rgba(0, 0, 0, 0.04);
-	--cv-surface-skill-border:  rgba(0, 0, 0, 0.14);
-	--cv-surface-language:      var(--color-ink-mid);
-	--cv-surface-language-sub:  var(--color-ink-muted);
+	--blemmy-surface-contact:       var(--color-ink-mid);
+	--blemmy-surface-contact-icon:  var(--color-ink-muted);
+	--blemmy-surface-skill-label:   var(--color-ink-muted);
+	--blemmy-surface-skill-text:    var(--color-ink-mid);
+	--blemmy-surface-skill-bg:      rgba(0, 0, 0, 0.04);
+	--blemmy-surface-skill-border:  rgba(0, 0, 0, 0.14);
+	--blemmy-surface-language:      var(--color-ink-mid);
+	--blemmy-surface-language-sub:  var(--color-ink-muted);
 }
 
 /* Dark surfaces (sidebar / portrait cell) override adaptive tokens. */
-.cv-sidebar,
-#cv-p1-portrait-cell {
-	--cv-surface-contact:       var(--color-sidebar-muted-5);
-	--cv-surface-contact-icon:  var(--color-sidebar-muted);
-	--cv-surface-skill-label:   var(--color-sidebar-muted-7);
-	--cv-surface-skill-text:    var(--color-sidebar-muted-6);
-	--cv-surface-skill-bg:      var(--color-skill-tag-bg);
-	--cv-surface-skill-border:  var(--color-skill-tag-border);
-	--cv-surface-language:      var(--color-sidebar-muted-5);
-	--cv-surface-language-sub:  var(--color-sidebar-muted-2);
+.blemmy-sidebar,
+#blemmy-p1-portrait-cell {
+	--blemmy-surface-contact:       var(--color-sidebar-muted-5);
+	--blemmy-surface-contact-icon:  var(--color-sidebar-muted);
+	--blemmy-surface-skill-label:   var(--color-sidebar-muted-7);
+	--blemmy-surface-skill-text:    var(--color-sidebar-muted-6);
+	--blemmy-surface-skill-bg:      var(--color-skill-tag-bg);
+	--blemmy-surface-skill-border:  var(--color-skill-tag-border);
+	--blemmy-surface-language:      var(--color-sidebar-muted-5);
+	--blemmy-surface-language-sub:  var(--color-sidebar-muted-2);
 }
 
 /* Work item pool — off-screen holding area; engine moves items to pages */
-#cv-work-pool {
+#blemmy-work-pool {
 	display: none !important;
 }
 
-/* Work section wrappers injected by the engine into .cv-main */
+/* Work section wrappers injected by the engine into .blemmy-main */
 [data-work-section] {
 	display:        flex;
 	flex-direction: column;
 }
 
 /* Tighter padding for adaptive one-page fit (print + print-surface use vars) */
-.cv-card.cv-density-1 {
+.blemmy-card.blemmy-density-1 {
 	--print-sidebar-pad-inline-start: 7mm;
 	--print-sidebar-pad-inline-end:   5.8mm;
 	--print-sidebar-padding: 7mm var(--print-sidebar-pad-inline-end) 7mm
@@ -223,7 +231,7 @@ a {
 	--print-main-padding-single:    5.4mm 5.4mm 5.4mm 5.4mm;
 }
 
-.cv-card.cv-density-2 {
+.blemmy-card.blemmy-density-2 {
 	--print-sidebar-pad-inline-start: 6.2mm;
 	--print-sidebar-pad-inline-end:   4.9mm;
 	--print-sidebar-padding: 6.2mm var(--print-sidebar-pad-inline-end) 6.2mm
@@ -240,7 +248,7 @@ a {
  * Sidebar-heavy CVs: narrower single-page column + minimal pads so the
  * portrait (4:5) and stacked blocks fit one sheet when main still has slack.
  */
-.cv-card.cv-density-3 {
+.blemmy-card.blemmy-density-3 {
 	--sidebar-width-single: 47mm;
 	--print-sidebar-pad-inline-start: 5.2mm;
 	--print-sidebar-pad-inline-end:   4mm;
@@ -254,7 +262,7 @@ a {
 	--print-main-padding-single:    3.8mm 3.8mm 3.8mm 3.8mm;
 }
 
-.cv-card.cv-density-3 .skills-wrapper {
+.blemmy-card.blemmy-density-3 .skills-wrapper {
 	gap: 0.72rem;
 }
 
@@ -263,7 +271,7 @@ a {
  * overflows. Stacks with whichever density won; narrows single-page column
  * and pads further (print uses --*-single vars).
  */
-.cv-card.cv-merge-squeeze-1 {
+.blemmy-card.blemmy-merge-squeeze-1 {
 	--sidebar-width-single:               44mm;
 	--print-sidebar-single-pad-inline-start: 3mm;
 	--print-sidebar-single-pad-inline-end:   2.65mm;
@@ -272,7 +280,7 @@ a {
 	--print-main-padding-single:    3.35mm 3.35mm 3.35mm 3.35mm;
 }
 
-.cv-card.cv-merge-squeeze-2 {
+.blemmy-card.blemmy-merge-squeeze-2 {
 	--sidebar-width-single:               40.5mm;
 	--print-sidebar-single-pad-inline-start: 2.5mm;
 	--print-sidebar-single-pad-inline-end:   2.15mm;
@@ -282,141 +290,146 @@ a {
 }
 
 /*
- * Single-page fill: after merge, JS may set cv-fill-1..3 when slack remains.
+ * Single-page fill: after merge, JS may set blemmy-fill-1..3 when slack remains.
  * Scales main-column type + rhythm (stays under page budget).
  */
-.cv-card.cv-single-page.cv-fill-1 .cv-main {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main {
 	gap: 1.15rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .section-label {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .section-label {
 	margin-bottom: 0.75rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .cv-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .blemmy-summary {
 	font-size:   0.86rem;
 	line-height: 1.58;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .entry-company {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .entry-company {
 	font-size: 1.06rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .entry-position,
-.cv-card.cv-single-page.cv-fill-1 .cv-main .entry-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .entry-position,
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .entry-summary {
 	font-size: 0.82rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .entry-highlights {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .entry-highlights {
 	gap:       0.38rem;
 	margin-top: 0.55rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .entry-highlights li {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .entry-highlights li {
 	font-size:   0.84rem;
 	line-height: 1.62;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .experience-block {
 	padding-bottom: 1.35rem;
 }
 
-.cv-card.cv-single-page.cv-fill-1 .cv-main .experience-block + .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-1 .blemmy-main .experience-block + .experience-block {
 	padding-top: 1.1rem;
 	margin-top:  1.1rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main {
 	gap: 1.35rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .section-label {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .section-label {
 	margin-bottom: 0.85rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .cv-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .blemmy-summary {
 	font-size:   0.9rem;
 	line-height: 1.6;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-company {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-company {
 	font-size: 1.1rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-position,
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-position,
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-summary {
 	font-size: 0.85rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-dates {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-dates {
 	font-size: 0.74rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-highlights {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-highlights {
 	gap:       0.45rem;
 	margin-top: 0.62rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .entry-highlights li {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .entry-highlights li {
 	font-size:   0.88rem;
 	line-height: 1.65;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .experience-block {
 	padding-bottom: 1.5rem;
 }
 
-.cv-card.cv-single-page.cv-fill-2 .cv-main .experience-block + .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-2 .blemmy-main .experience-block + .experience-block {
 	padding-top: 1.2rem;
 	margin-top:  1.2rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main {
 	gap: 1.55rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .section-label {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .section-label {
 	margin-bottom: 0.95rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .cv-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .blemmy-summary {
 	font-size:   0.94rem;
 	line-height: 1.62;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-company {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-company {
 	font-size: 1.14rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-position,
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-summary {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-position,
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-summary {
 	font-size: 0.88rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-dates {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-dates {
 	font-size: 0.76rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-highlights {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-highlights {
 	gap:       0.5rem;
 	margin-top: 0.68rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .entry-highlights li {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .entry-highlights li {
 	font-size:   0.92rem;
 	line-height: 1.68;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .experience-block {
 	padding-bottom: 1.65rem;
 }
 
-.cv-card.cv-single-page.cv-fill-3 .cv-main .experience-block + .experience-block {
+.blemmy-card.blemmy-single-page.blemmy-fill-3 .blemmy-main .experience-block + .experience-block {
 	padding-top: 1.35rem;
 	margin-top:  1.35rem;
 }
 
 .dark {
+	--blemmy-paper-screen-shadow:
+		0 0 0 1px color-mix(in srgb, #fff 12%, transparent),
+		-10px 8px 22px rgba(0, 0, 0, 0.4),
+		-4px 3px 10px rgba(0, 0, 0, 0.28),
+		8px 20px 44px rgba(0, 0, 0, 0.42);
 	--color-ink-bg:      #0F0F0F;
 	--color-ink:         #F0F0EE;
 	--color-ink-black:   #F0F0EE;
@@ -433,7 +446,7 @@ a {
  * Scope “ink” token overrides to the CV document shell so text color is
  * always relative to the background behind the text.
  */
-.cv-shell {
+.blemmy-shell {
 	--color-ink:         #0A0A0A;
 	--color-ink-black:   #0A0A0A;
 	--color-ink-dark:    #1A1A1A;
@@ -465,19 +478,19 @@ h1, h2, h3, h4 {
    Use only var() and rem so print uses same layout.
 */
 
-.cv-shell,
-.cv-shell * {
+.blemmy-shell,
+.blemmy-shell * {
 	hyphens:             none;
 	-webkit-hyphens:     none;
 	hyphenate-character: '';
 }
 
-.cv-grid {
+.blemmy-grid {
 	display:               grid;
-	/* --cv-sidebar-width-override is written by the engine (continuous search).
+	/* --blemmy-sidebar-width-override is written by the engine (continuous search).
 	   Falls back to the token default so static render and web-idle mode are
 	   identical to the previous behaviour. */
-	grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr;
+	grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr;
 	min-height:            100%;
 }
 
@@ -485,15 +498,15 @@ h1, h2, h3, h4 {
  * Page 1: row1 = masthead (main col), row2 = main, row3 = body footer.
  * Page 2: row1 = main, row2 = footer. Sidebar spans all rows on each page.
  */
-#cv-page-1,
-#cv-page-2 {
+#blemmy-page-1,
+#blemmy-page-2 {
 	display:        flex;
 	flex-direction: column;
 }
 
-#cv-page-1 .cv-grid {
+#blemmy-page-1 .blemmy-grid {
 	display:               grid;
-	grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr;
+	grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr;
 	grid-template-rows:    auto minmax(0, 1fr) auto;
 	flex:                  1 1 auto;
 	min-height:            0;
@@ -502,9 +515,9 @@ h1, h2, h3, h4 {
 	align-items:           stretch;
 }
 
-#cv-page-2 .cv-grid {
+#blemmy-page-2 .blemmy-grid {
 	display:               grid;
-	grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr;
+	grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr;
 	grid-template-rows:    minmax(0, 1fr) auto;
 	flex:                  1 1 auto;
 	min-height:            0;
@@ -513,7 +526,7 @@ h1, h2, h3, h4 {
 	align-items:           stretch;
 }
 
-#cv-page-2 .cv-sidebar {
+#blemmy-page-2 .blemmy-sidebar {
 	grid-column: 1;
 	grid-row:    1 / -1;
 	align-self:  stretch;
@@ -525,23 +538,23 @@ h1, h2, h3, h4 {
  * supported). Both cells stretch to one height; content sits on a shared
  * bottom edge (portrait: flex-end; masthead: align-content end).
  */
-.cv-p1-top-band {
+.blemmy-p1-top-band {
 	grid-column:           1 / -1;
 	grid-row:              1;
 	display:               grid;
-	grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr;
+	grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr;
 	align-items:           stretch;
 	min-height:            0;
 	box-sizing:            border-box;
 }
 
 @supports (grid-template-columns: subgrid) {
-	.cv-p1-top-band {
+	.blemmy-p1-top-band {
 		grid-template-columns: subgrid;
 	}
 }
 
-#cv-p1-portrait-cell {
+#blemmy-p1-portrait-cell {
 	grid-column:      1;
 	align-self:       stretch;
 	min-height:       0;
@@ -554,7 +567,7 @@ h1, h2, h3, h4 {
 	box-sizing:       border-box;
 }
 
-#cv-p1-portrait-cell .cv-header-block {
+#blemmy-p1-portrait-cell .blemmy-header-block {
 	display:         flex;
 	flex-direction:  column;
 	justify-content: flex-start;
@@ -565,14 +578,14 @@ h1, h2, h3, h4 {
 	flex-shrink:     1;
 }
 
-#cv-sidebar-1 {
+#blemmy-sidebar-1 {
 	grid-column: 1;
 	grid-row:    2 / -1;
 	align-self:  stretch;
 	min-height:  0;
 }
 
-#cv-page-1-masthead {
+#blemmy-page-1-masthead {
 	grid-column:           2;
 	display:               grid;
 	grid-template-columns: minmax(0, 0.36fr) minmax(0, 0.64fr);
@@ -589,27 +602,27 @@ h1, h2, h3, h4 {
 	box-sizing:            border-box;
 }
 
-#cv-page-1-masthead.cv-masthead-collapsed {
+#blemmy-page-1-masthead.blemmy-masthead-collapsed {
 	display: none;
 }
 
-#cv-page-1-masthead .cv-label {
+#blemmy-page-1-masthead .blemmy-label {
 	color: var(--color-ink-muted);
 }
 
-#cv-page-1-masthead .section-label {
+#blemmy-page-1-masthead .section-label {
 	color: var(--color-ink-muted);
 }
 
-#cv-page-1-masthead .contact-item {
+#blemmy-page-1-masthead .contact-item {
 	color: var(--color-ink-mid);
 }
 
-#cv-page-1-masthead .contact-link {
+#blemmy-page-1-masthead .contact-link {
 	color: var(--color-ink-mid);
 }
 
-.cv-masthead-right {
+.blemmy-masthead-right {
 	display:        flex;
 	flex-direction: column;
 	gap:            0.55rem;
@@ -617,26 +630,26 @@ h1, h2, h3, h4 {
 	align-self:     end;
 }
 
-.cv-masthead-col-profile {
+.blemmy-masthead-col-profile {
 	min-width:  0;
 	align-self: end;
 }
 
-#cv-page-1 .cv-main {
+#blemmy-page-1 .blemmy-main {
 	grid-column: 2;
 	grid-row:    2;
 	min-height:  0;
 	align-self:  stretch;
 }
 
-#cv-page-2 .cv-main {
+#blemmy-page-2 .blemmy-main {
 	grid-column: 2;
 	grid-row:    1;
 	min-height:  0;
 	align-self:  stretch;
 }
 
-#cv-page-1 .cv-body-column-footer {
+#blemmy-page-1 .blemmy-body-column-footer {
 	grid-column: 2;
 	grid-row:    3;
 	display:     none;
@@ -644,7 +657,7 @@ h1, h2, h3, h4 {
 	box-sizing:  border-box;
 }
 
-#cv-page-2 .cv-body-column-footer {
+#blemmy-page-2 .blemmy-body-column-footer {
 	grid-column: 2;
 	grid-row:    2;
 	display:     none;
@@ -652,13 +665,13 @@ h1, h2, h3, h4 {
 	box-sizing:  border-box;
 }
 
-#cv-page-1 .cv-body-column-footer:not(:empty),
-#cv-page-2 .cv-body-column-footer:not(:empty) {
+#blemmy-page-1 .blemmy-body-column-footer:not(:empty),
+#blemmy-page-2 .blemmy-body-column-footer:not(:empty) {
 	display:               grid;
-	/* --cv-footer-cols is set by the engine (0 = hidden, 1–3 = explicit cols).
+	/* --blemmy-footer-cols is set by the engine (0 = hidden, 1–3 = explicit cols).
 	   Fallback to auto-fit for graceful degradation if JS hasn't run yet. */
 	grid-template-columns: repeat(
-		var(--cv-footer-cols, auto-fit),
+		var(--blemmy-footer-cols, auto-fit),
 		minmax(10.5rem, 1fr)
 	);
 	gap:                   0.55rem 1.15rem;
@@ -669,47 +682,47 @@ h1, h2, h3, h4 {
 	color:                 var(--color-ink);
 }
 
-#cv-page-1 .cv-body-column-footer .section-label,
-#cv-page-2 .cv-body-column-footer .section-label {
+#blemmy-page-1 .blemmy-body-column-footer .section-label,
+#blemmy-page-2 .blemmy-body-column-footer .section-label {
 	color: var(--color-ink-muted);
 }
 
-#cv-page-1 .cv-body-column-footer .contact-item,
-#cv-page-2 .cv-body-column-footer .contact-item {
+#blemmy-page-1 .blemmy-body-column-footer .contact-item,
+#blemmy-page-2 .blemmy-body-column-footer .contact-item {
 	color: var(--color-ink-mid);
 }
 
-#cv-page-1 .cv-body-column-footer .language-item,
-#cv-page-2 .cv-body-column-footer .language-item {
+#blemmy-page-1 .blemmy-body-column-footer .language-item,
+#blemmy-page-2 .blemmy-body-column-footer .language-item {
 	border-bottom-color: var(--color-ink-border);
 }
 
-#cv-page-1 .cv-body-column-footer .language-name,
-#cv-page-2 .cv-body-column-footer .language-name {
+#blemmy-page-1 .blemmy-body-column-footer .language-name,
+#blemmy-page-2 .blemmy-body-column-footer .language-name {
 	color: var(--color-ink-dark);
 }
 
-#cv-page-1 .cv-body-column-footer .language-fluency,
-#cv-page-2 .cv-body-column-footer .language-fluency {
+#blemmy-page-1 .blemmy-body-column-footer .language-fluency,
+#blemmy-page-2 .blemmy-body-column-footer .language-fluency {
 	color: var(--color-ink-muted);
 }
 
-/* Sidebar width is now set via --cv-sidebar-width-override by the engine.
-   Legacy data-cv-sidebar-mm attribute selectors are kept for backwards
+/* Sidebar width is now set via --blemmy-sidebar-width-override by the engine.
+   Legacy data-blemmy-layout-sidebar-mm attribute selectors are kept for backwards
    compatibility with any cached HTML but the variable takes precedence. */
-.cv-card[data-cv-sidebar-mm='54'] .cv-page .cv-grid {
-	grid-template-columns: var(--cv-sidebar-width-override, 54mm) 1fr;
+.blemmy-card[data-blemmy-layout-sidebar-mm='54'] .blemmy-page .blemmy-grid {
+	grid-template-columns: var(--blemmy-sidebar-width-override, 54mm) 1fr;
 }
 
-.cv-card[data-cv-sidebar-mm='48'] .cv-page .cv-grid {
-	grid-template-columns: var(--cv-sidebar-width-override, 48mm) 1fr;
+.blemmy-card[data-blemmy-layout-sidebar-mm='48'] .blemmy-page .blemmy-grid {
+	grid-template-columns: var(--blemmy-sidebar-width-override, 48mm) 1fr;
 }
 
-.cv-single-page .cv-grid {
-	grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width-single)) 1fr;
+.blemmy-single-page .blemmy-grid {
+	grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width-single)) 1fr;
 }
 
-.cv-sidebar {
+.blemmy-sidebar {
 	background-color: var(--color-sidebar);
 	color:            var(--color-sidebar-text);
 	padding:          0;
@@ -719,24 +732,24 @@ h1, h2, h3, h4 {
 	gap:              0;
 }
 
-.cv-sidebar > div {
-	padding: 0 var(--cv-sidebar-div-pad-x) 1.35rem var(--cv-sidebar-div-pad-x);
+.blemmy-sidebar > div {
+	padding: 0 var(--blemmy-sidebar-div-pad-x) 1.35rem var(--blemmy-sidebar-div-pad-x);
 }
 
 /*
  * Page-1 portrait cell: no top pad (portrait bleeds). Education block keeps
  * top inset like page-2 sidebar.
  */
-#cv-sidebar-1 > div:first-child {
+#blemmy-sidebar-1 > div:first-child {
 	padding-top: 1.25rem;
 }
 
 /* Screen: sidebar rows use top 0 in shorthand; restore page-2 top breathing room. */
-#cv-sidebar-2 > div:first-child {
+#blemmy-sidebar-2 > div:first-child {
 	padding-top: 1.25rem;
 }
 
-.cv-header-block {
+.blemmy-header-block {
 	display:        flex;
 	flex-direction: column;
 	gap:            0.65rem;
@@ -746,17 +759,17 @@ h1, h2, h3, h4 {
  * Sidebar-only portrait bleed (padded column). Page-1 corner portrait is
  * flush to the grid column — same width as the sidebar, no wider.
  */
-.cv-sidebar .cv-portrait-wrap {
+.blemmy-sidebar .blemmy-portrait-wrap {
 	position:      relative;
 	overflow:      hidden;
 	margin-bottom: 0;
-	margin-left:   calc(-1 * var(--cv-sidebar-div-pad-x));
-	margin-right:  calc(-1 * var(--cv-sidebar-div-pad-x));
-	width:         calc(100% + 2 * var(--cv-sidebar-div-pad-x));
+	margin-left:   calc(-1 * var(--blemmy-sidebar-div-pad-x));
+	margin-right:  calc(-1 * var(--blemmy-sidebar-div-pad-x));
+	width:         calc(100% + 2 * var(--blemmy-sidebar-div-pad-x));
 	aspect-ratio:  4 / 5;
 }
 
-.cv-p1-portrait-cell .cv-portrait-wrap {
+.blemmy-p1-portrait-cell .blemmy-portrait-wrap {
 	position:      relative;
 	overflow:      hidden;
 	margin:        0;
@@ -768,8 +781,8 @@ h1, h2, h3, h4 {
 	aspect-ratio:  auto;
 }
 
-.cv-sidebar .cv-portrait,
-.cv-p1-portrait-cell .cv-portrait {
+.blemmy-sidebar .blemmy-portrait,
+.blemmy-p1-portrait-cell .blemmy-portrait {
 	position:   absolute;
 	inset:      0;
 	display:    block;
@@ -779,16 +792,16 @@ h1, h2, h3, h4 {
 	border-radius: 0;
 }
 
-.cv-p1-portrait-cell .cv-name-label-block {
-	padding: 0 var(--cv-sidebar-div-pad-x);
+.blemmy-p1-portrait-cell .blemmy-name-label-block {
+	padding: 0 var(--blemmy-sidebar-div-pad-x);
 }
 
 @media screen {
-	#cv-page-1-masthead .cv-masthead-right .contact-link:hover {
+	#blemmy-page-1-masthead .blemmy-masthead-right .contact-link:hover {
 		color: var(--color-ink);
 	}
 
-	.cv-p1-portrait-cell .cv-masthead-right .contact-link:hover {
+	.blemmy-p1-portrait-cell .blemmy-masthead-right .contact-link:hover {
 		color: var(--color-sidebar-text);
 	}
 }
@@ -799,7 +812,7 @@ h1, h2, h3, h4 {
 	gap:            1rem;
 }
 
-.cv-main {
+.blemmy-main {
 	padding:           2rem 2rem;
 	display:           flex;
 	flex-direction:    column;
@@ -807,8 +820,8 @@ h1, h2, h3, h4 {
 	gap:               1.35rem;
 }
 
-.cv-main > div,
-.cv-sidebar > div {
+.blemmy-main > div,
+.blemmy-sidebar > div {
 	flex-shrink: 0;
 }
 
@@ -824,11 +837,11 @@ h1, h2, h3, h4 {
 	border-bottom:  none;
 }
 
-.cv-sidebar .section-label {
+.blemmy-sidebar .section-label {
 	color: var(--color-sidebar-muted);
 }
 
-.cv-name {
+.blemmy-name {
 	font-family:   'DM Sans', system-ui, sans-serif;
 	font-size:     var(--text-name);
 	font-weight:   600;
@@ -837,26 +850,26 @@ h1, h2, h3, h4 {
 	color:         var(--color-ink);
 }
 
-.cv-sidebar .cv-name,
-.cv-p1-portrait-cell .cv-name {
+.blemmy-sidebar .blemmy-name,
+.blemmy-p1-portrait-cell .blemmy-name {
 	color: var(--color-sidebar-text);
 }
 
-.cv-sidebar .cv-label,
-.cv-p1-portrait-cell .cv-label {
+.blemmy-sidebar .blemmy-label,
+.blemmy-p1-portrait-cell .blemmy-label {
 	color: var(--color-sidebar-muted-4);
 }
 
-.cv-p1-portrait-cell .section-label {
+.blemmy-p1-portrait-cell .section-label {
 	color: var(--color-sidebar-muted);
 }
 
-.dark .cv-name {
+.dark .blemmy-name {
 	color: var(--color-ink);
 }
 
-.dark .cv-sidebar .cv-name,
-.dark .cv-p1-portrait-cell .cv-name {
+.dark .blemmy-sidebar .blemmy-name,
+.dark .blemmy-p1-portrait-cell .blemmy-name {
 	color: var(--color-sidebar-text);
 }
 
@@ -873,7 +886,7 @@ h1, h2, h3, h4 {
 	border-top:  1px solid var(--color-ink-border);
 }
 
-.cv-label {
+.blemmy-label {
 	display:        flex;
 	flex-direction: column;
 	align-items:    flex-start;
@@ -887,7 +900,7 @@ h1, h2, h3, h4 {
 	line-height:    1.35;
 }
 
-.cv-label-part {
+.blemmy-label-part {
 	display: block;
 }
 
@@ -983,7 +996,7 @@ h1, h2, h3, h4 {
 	border-radius: 1px;
 }
 
-.cv-sidebar .entry-highlights li::before {
+.blemmy-sidebar .entry-highlights li::before {
 	background: var(--color-sidebar-muted-2);
 }
 
@@ -992,7 +1005,7 @@ h1, h2, h3, h4 {
 	color:       var(--color-ink-black);
 }
 
-.cv-summary {
+.blemmy-summary {
 	font-family:     'DM Sans', system-ui, sans-serif;
 	font-size:       var(--text-body);
 	font-weight:     400;
@@ -1083,7 +1096,7 @@ h1, h2, h3, h4 {
 	flex-direction:  column;
 	gap:             0.45rem;
 	container-type:  inline-size;
-	container-name:  cv-contact;
+	container-name:  blemmy-contact;
 }
 
 .contact-item {
@@ -1093,7 +1106,7 @@ h1, h2, h3, h4 {
 		calc(0.38rem + 3.1cqi),
 		var(--text-label)
 	);
-	color:          var(--cv-surface-contact);
+	color:          var(--blemmy-surface-contact);
 	line-height:    1.45;
 	letter-spacing: -0.02em;
 	overflow-wrap:  normal;
@@ -1114,7 +1127,7 @@ h1, h2, h3, h4 {
 }
 
 .contact-icon {
-	color: var(--cv-surface-contact-icon);
+	color: var(--blemmy-surface-contact-icon);
 }
 
 .skill-category-label {
@@ -1123,7 +1136,7 @@ h1, h2, h3, h4 {
 	font-weight:    600;
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
-	color:          var(--cv-surface-skill-label);
+	color:          var(--blemmy-surface-skill-label);
 	margin:         0 0 0.25rem 0;
 }
 
@@ -1137,9 +1150,9 @@ h1, h2, h3, h4 {
 	font-family:    'DM Sans', system-ui, sans-serif;
 	font-size:      var(--text-skill-tag);
 	font-weight:    400;
-	color:          var(--cv-surface-skill-text);
-	background:     var(--cv-surface-skill-bg);
-	border:         1px solid var(--cv-surface-skill-border);
+	color:          var(--blemmy-surface-skill-text);
+	background:     var(--blemmy-surface-skill-bg);
+	border:         1px solid var(--blemmy-surface-skill-border);
 	padding:        0.2rem 0.5rem;
 	border-radius:  2px;
 	line-height:    1.35;
@@ -1158,14 +1171,14 @@ h1, h2, h3, h4 {
 	align-items:     baseline;
 	font-family:     'DM Sans', system-ui, sans-serif;
 	font-size:       var(--text-label);
-	color:           var(--cv-surface-language);
+	color:           var(--blemmy-surface-language);
 	padding:         0.2rem 0;
 	border-bottom:  none;
 }
 
 .language-fluency {
 	font-size:  var(--text-meta);
-	color:      var(--cv-surface-language-sub);
+	color:      var(--blemmy-surface-language-sub);
 	font-style: italic;
 }
 
@@ -1177,14 +1190,14 @@ h1, h2, h3, h4 {
 		transition: background-color 0.2s ease;
 	}
 
-	#cv-root {
+	#blemmy-doc-root {
 		width:       100%;
 		max-width:   100%;
 		min-width:   0;
 		box-sizing: border-box;
 	}
 
-	.cv-shell {
+	.blemmy-shell {
 		max-width:     900px;
 		width:         100%;
 		min-width:     0;
@@ -1192,7 +1205,7 @@ h1, h2, h3, h4 {
 		background:    transparent;
 		box-sizing:    border-box;
 	}
-	.cv-ui-deck {
+	.blemmy-ui-deck {
 		max-width:     900px;
 		width:         100%;
 		min-width:     0;
@@ -1204,50 +1217,64 @@ h1, h2, h3, h4 {
 	 * Screen UI must stay within the viewport; only the shell/paper is A4-wide.
 	 * A fixed 210mm deck clips filters + layout alternatives on narrow screens.
 	 */
-	#cv-root:has(#cv-shell.cv-print-preview) .cv-ui-deck {
+	#blemmy-doc-root:has(.blemmy-shell.blemmy-print-preview) .blemmy-ui-deck {
 		width:     100%;
 		max-width: min(210mm, 100%);
 		min-width: 0;
 	}
 
-	.cv-card {
+	.blemmy-card {
 		background:    transparent;
 		border-radius: 0;
-		box-shadow:    0 1px 0 var(--color-ink-border);
+		box-shadow:    none;
 		overflow:      hidden;
 	}
 
-	.dark .cv-card {
+	.dark .blemmy-card {
 		background: transparent;
-		box-shadow:  0 1px 0 var(--color-ink-border);
+		box-shadow:  none;
 	}
 
 	/* Keep page content on paper; controls + inter-page gaps use body canvas. */
-	.cv-shell:not(.cv-print-preview) .cv-card {
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-card {
 		display:        flex;
 		flex-direction: column;
 		gap:            3rem;
+		overflow:       visible;
+		box-shadow:     none;
 	}
-	.cv-shell:not(.cv-print-preview) .cv-page .cv-grid {
-		background: var(--color-paper);
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-page .blemmy-grid {
+		background:    var(--color-paper);
+		border-radius: var(--blemmy-paper-screen-radius);
+		box-shadow:    var(--blemmy-paper-screen-shadow);
 	}
-	#cv-filter-bar,
-	.cv-filter-bar,
-	#cv-candidate-selector,
-	.cv-candidate-selector {
+	/*
+	 * Letter (no .blemmy-grid): one sheet is the whole page stack.
+	 */
+	.blemmy-shell:not(.blemmy-print-preview)
+	.blemmy-page:not(:has(.blemmy-grid)) {
+		background:    var(--color-paper);
+		border-radius: var(--blemmy-paper-screen-radius);
+		box-shadow:    var(--blemmy-paper-screen-shadow);
+		overflow:      hidden;
+	}
+	#blemmy-filter-bar,
+	.blemmy-filter-bar,
+	#blemmy-layout-alternatives,
+	.blemmy-layout-alternatives {
 		background: transparent !important;
 	}
 
-	.print-fab:not(.cv-dock-btn) {
+	.print-fab:not(.blemmy-dock-btn) {
 		position:         fixed;
 		bottom:           calc(
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-			var(--cv-vv-bottom) +
-			(3rem * var(--cv-ui-zoom-comp))
+			(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp)) +
+			var(--blemmy-vv-bottom) +
+			(3rem * var(--blemmy-ui-zoom-comp))
 		);
 		right:            calc(
-			var(--cv-vv-right) +
-			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-right) +
+			(var(--blemmy-ui-dock-edge) * var(--blemmy-ui-zoom-comp))
 		);
 		background-color: var(--color-sidebar);
 		color:            white;
@@ -1263,18 +1290,18 @@ h1, h2, h3, h4 {
 		transition:       transform 0.15s ease, box-shadow 0.15s ease;
 		z-index:          100;
 		transform-origin: right bottom;
-		--cv-print-fab-lift: 0px;
-		transform: scale(var(--cv-ui-zoom-comp))
-			translateY(var(--cv-print-fab-lift));
+		--blemmy-print-fab-lift: 0px;
+		transform: scale(var(--blemmy-ui-zoom-comp))
+			translateY(var(--blemmy-print-fab-lift));
 	}
 
-	.print-fab:not(.cv-dock-btn):hover {
-		--cv-print-fab-lift: -1px;
+	.print-fab:not(.blemmy-dock-btn):hover {
+		--blemmy-print-fab-lift: -1px;
 		box-shadow: 0 4px 20px rgba(0,0,0,0.25);
 	}
 
 	/* Dark mode toggle button */
-	.theme-toggle:not(.cv-dock-btn) {
+	.theme-toggle:not(.blemmy-dock-btn) {
 		position:         fixed;
 		bottom:           2rem;
 		right:            10rem;
@@ -1293,11 +1320,11 @@ h1, h2, h3, h4 {
 		z-index:          100;
 	}
 
-	.theme-toggle:not(.cv-dock-btn):hover {
+	.theme-toggle:not(.blemmy-dock-btn):hover {
 		border-color: var(--color-ink-muted);
 	}
 
-	.cv-view-mode-toggle:not(.cv-dock-btn) {
+	.blemmy-view-mode-toggle:not(.blemmy-dock-btn) {
 		position:        fixed;
 		bottom:          2rem;
 		right:           15rem;
@@ -1316,7 +1343,7 @@ h1, h2, h3, h4 {
 		white-space:     nowrap;
 	}
 
-	.cv-view-mode-toggle:not(.cv-dock-btn):hover {
+	.blemmy-view-mode-toggle:not(.blemmy-dock-btn):hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink-mid);
 	}
@@ -1330,8 +1357,8 @@ h1, h2, h3, h4 {
 		font-size:     var(--text-meta);
 	}
 
-	/* Sits above `.cv-layout-debug-toggle` (same x, higher bottom inset). */
-	.cv-layout-status {
+	/* Sits above `.blemmy-layout-debug-toggle` (same x, higher bottom inset). */
+	.blemmy-layout-status {
 		position:      fixed;
 		left:          2rem;
 		bottom:        5.35rem;
@@ -1345,60 +1372,60 @@ h1, h2, h3, h4 {
 		border-radius: 2px;
 		z-index:       100;
 	}
-	.cv-layout-status:empty {
+	.blemmy-layout-status:empty {
 		display: none;
 	}
-	.cv-status-ok {
+	.blemmy-status-ok {
 		background: var(--color-ink-border);
 		color:      var(--color-ink-mid);
 	}
-	.cv-status-warn {
+	.blemmy-status-warn {
 		background: #f5e6c8;
 		color:       #7a5a20;
 		border:      1px solid #d4b896;
 	}
 
-	html.cv-debug-mode .cv-debug-ws-highlight {
+	html.blemmy-debug-mode .blemmy-debug-ws-highlight {
 		position:       absolute;
 		pointer-events: none;
 		z-index:        25;
 		box-sizing:     border-box;
 	}
 
-	html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-page-band {
+	html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-page-band {
 		left:       0;
 		right:      0;
 		background: rgba(220, 38, 38, 0.09);
 		outline:    1px dashed rgba(185, 28, 28, 0.55);
 	}
 
-	html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-col-slack--sidebar {
+	html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-col-slack--sidebar {
 		background: rgba(37, 99, 235, 0.12);
 		outline:    1px dashed rgba(29, 78, 216, 0.55);
 	}
 
-	html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-col-slack--main {
+	html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-col-slack--main {
 		background: rgba(217, 119, 6, 0.12);
 		outline:    1px dashed rgba(180, 83, 9, 0.55);
 	}
 
-	html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-grid-short {
+	html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-grid-short {
 		left:       0;
 		right:      0;
 		background: rgba(147, 51, 234, 0.1);
 		outline:    1px dashed rgba(126, 34, 206, 0.5);
 	}
 
-html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-align-line {
+html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-align-line {
 	background: rgba(6, 182, 212, 0.65);
 }
 
-html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-portrait-gap {
+html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-portrait-gap {
 	background: rgba(190, 24, 93, 0.13);
 	outline:    1px dashed rgba(157, 23, 77, 0.55);
 }
 
-html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-label {
+html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-label {
 	display:       inline-flex;
 	align-items:   center;
 	padding:       0.08rem 0.3rem;
@@ -1412,11 +1439,11 @@ html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-label {
 	text-transform: uppercase;
 }
 
-html.cv-debug-mode .cv-debug-ws-highlight.cv-debug-ws-dim {
+html.blemmy-debug-mode .blemmy-debug-ws-highlight.blemmy-debug-ws-dim {
 	width: 16px;
 }
 
-html.cv-debug-mode .cv-debug-ws-dim__line {
+html.blemmy-debug-mode .blemmy-debug-ws-dim__line {
 	position: absolute;
 	left: 7px;
 	top: 5px;
@@ -1425,7 +1452,7 @@ html.cv-debug-mode .cv-debug-ws-dim__line {
 	background: rgba(10, 10, 10, 0.82);
 }
 
-html.cv-debug-mode .cv-debug-ws-dim__arrow {
+html.blemmy-debug-mode .blemmy-debug-ws-dim__arrow {
 	position: absolute;
 	left: 4px;
 	width: 0;
@@ -1434,17 +1461,17 @@ html.cv-debug-mode .cv-debug-ws-dim__arrow {
 	border-right: 4px solid transparent;
 }
 
-html.cv-debug-mode .cv-debug-ws-dim__arrow--top {
+html.blemmy-debug-mode .blemmy-debug-ws-dim__arrow--top {
 	top: 0;
 	border-bottom: 6px solid rgba(10, 10, 10, 0.82);
 }
 
-html.cv-debug-mode .cv-debug-ws-dim__arrow--bottom {
+html.blemmy-debug-mode .blemmy-debug-ws-dim__arrow--bottom {
 	bottom: 0;
 	border-top: 6px solid rgba(10, 10, 10, 0.82);
 }
 
-html.cv-debug-mode .cv-debug-ws-dim__label {
+html.blemmy-debug-mode .blemmy-debug-ws-dim__label {
 	position: absolute;
 	left: -54px;
 	top: 50%;
@@ -1465,16 +1492,16 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 	/*
 	 * Print preview: fixed A4 width/height on screen so HTML matches PDF.
 	 */
-	.cv-shell.cv-print-preview {
+	.blemmy-shell.blemmy-print-preview {
 		max-width:     210mm;
 		width:        210mm;
 		margin-inline: auto;
-		counter-reset: cv-sheet;
+		counter-reset: blemmy-sheet;
 		background:    transparent;
 	}
 
-	.cv-shell.cv-print-preview .cv-page {
-		counter-increment: cv-sheet;
+	.blemmy-shell.blemmy-print-preview .blemmy-page {
+		counter-increment: blemmy-sheet;
 		min-height:        297mm;
 		height:            297mm;
 		box-sizing:        border-box;
@@ -1485,44 +1512,44 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 	}
 
 	/*
-	 * JS merge probe: fixed A4 + min-height 100% on .cv-grid makes
+	 * JS merge probe: fixed A4 + min-height 100% on .blemmy-grid makes
 	 * scrollHeight ~= full sheet, so one-page fit never triggers.
 	 */
-	.cv-shell.cv-print-preview .cv-page.cv-layout-measure-intrinsic {
+	.blemmy-shell.blemmy-print-preview .blemmy-page.blemmy-layout-measure-intrinsic {
 		height:     auto;
 		min-height: 0;
 		overflow:   visible;
 	}
 
-	.cv-shell.cv-print-preview .cv-page.cv-layout-measure-intrinsic .cv-grid {
+	.blemmy-shell.blemmy-print-preview .blemmy-page.blemmy-layout-measure-intrinsic .blemmy-grid {
 		min-height:         0;
 		height:             auto;
 		grid-template-rows: auto;
 		align-items:        start;
 	}
 
-	.cv-shell.cv-print-preview #cv-page-1.cv-layout-measure-intrinsic .cv-grid {
+	.blemmy-shell.blemmy-print-preview #blemmy-page-1.blemmy-layout-measure-intrinsic .blemmy-grid {
 		grid-template-rows: auto auto auto;
 	}
 
-	.cv-shell.cv-print-preview #cv-page-2.cv-layout-measure-intrinsic .cv-grid {
+	.blemmy-shell.blemmy-print-preview #blemmy-page-2.blemmy-layout-measure-intrinsic .blemmy-grid {
 		grid-template-rows: auto auto;
 	}
 
-	.dark .cv-shell.cv-print-preview .cv-page {
+	.dark .blemmy-shell.blemmy-print-preview .blemmy-page {
 		background:   #f2f2f0;
 		border-color: #3a3a3a;
 		box-shadow:   0 2px 12px rgba(0, 0, 0, 0.35),
 		              0 10px 32px rgba(0, 0, 0, 0.25);
 	}
 
-	.cv-shell.cv-print-preview .cv-page + .cv-page {
+	.blemmy-shell.blemmy-print-preview .blemmy-page + .blemmy-page {
 		position:   relative;
 		margin-top: 9mm;
 	}
 
-	.cv-shell.cv-print-preview .cv-page + .cv-page::before {
-		content:        'Page ' counter(cv-sheet);
+	.blemmy-shell.blemmy-print-preview .blemmy-page + .blemmy-page::before {
+		content:        'Page ' counter(blemmy-sheet);
 		position:       absolute;
 		left:           50%;
 		top:            0;
@@ -1536,11 +1563,11 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		white-space:    nowrap;
 	}
 
-	/* Wide web view: show where page 2 starts (no fixed A4 block). */
-	.cv-shell:not(.cv-print-preview) .cv-page {
+	/* Wide web view: CV paper lives on .blemmy-grid; page wrapper stays clear. */
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-page:has(.blemmy-grid) {
 		background: transparent !important;
 	}
-	.cv-shell:not(.cv-print-preview) .cv-page + .cv-page {
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-page + .blemmy-page {
 		position:   relative;
 		margin-top: 0;
 		padding-top: 0;
@@ -1548,7 +1575,7 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		background: transparent;
 	}
 
-	.cv-shell:not(.cv-print-preview) .cv-page + .cv-page::before {
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-page + .blemmy-page::before {
 		content:        'Page 2';
 		position:       absolute;
 		left:           0;
@@ -1562,7 +1589,7 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		margin:         0;
 		background:     transparent;
 	}
-	.cv-shell:not(.cv-print-preview) .cv-page + .cv-page::after {
+	.blemmy-shell:not(.blemmy-print-preview) .blemmy-page + .blemmy-page::after {
 		content:        '';
 		position:       absolute;
 		left:           0;
@@ -1570,7 +1597,7 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		top:            -1.2rem;
 		border-top:     2px solid var(--color-ink-border);
 	}
-	.cv-layout-debug-toggle {
+	.blemmy-layout-debug-toggle {
 		position:       fixed;
 		bottom:         2rem;
 		left:           2rem;
@@ -1584,7 +1611,7 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
-	.cv-layout-debug-badge {
+	.blemmy-layout-debug-badge {
 		position: fixed;
 		right: 1rem;
 		top: 1rem;
@@ -1600,23 +1627,23 @@ html.cv-debug-mode .cv-debug-ws-dim__label {
 		border-radius: 0.24rem;
 		cursor: pointer;
 	}
-	.cv-card[data-cv-measuring='true'] .no-print {
+	.blemmy-card[data-blemmy-layout-measuring='true'] .no-print {
 		display: none !important;
 	}
 }
 
-html.cv-debug-mode .cv-page {
+html.blemmy-debug-mode .blemmy-page {
 	outline: 2px solid #166534;
 	outline-offset: -2px;
 }
 
-html.cv-debug-mode [data-cv-box="1"] {
+html.blemmy-debug-mode [data-blemmy-debug-box="1"] {
 	outline: 1px dashed #0ea5e9;
 	outline-offset: -1px;
 }
 
-html.cv-debug-mode .cv-main > div,
-html.cv-debug-mode .cv-sidebar > div {
+html.blemmy-debug-mode .blemmy-main > div,
+html.blemmy-debug-mode .blemmy-sidebar > div {
 	background-image:
 		linear-gradient(
 			to bottom,
@@ -1627,7 +1654,7 @@ html.cv-debug-mode .cv-sidebar > div {
 
 /* ─── Preferences panel ────────────────────────────────────────────────────── */
 @media screen {
-	.cv-prefs-trigger {
+	.blemmy-prefs-trigger {
 		position:         fixed;
 		bottom:           2rem;
 		left:             7rem;
@@ -1645,16 +1672,16 @@ html.cv-debug-mode .cv-sidebar > div {
 		transition:       border-color 0.15s, color 0.15s, background 0.15s;
 		z-index:          101;
 	}
-	.cv-prefs-trigger:hover,
-	.cv-prefs-trigger--open {
+	.blemmy-prefs-trigger:hover,
+	.blemmy-prefs-trigger--open {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
-	.cv-prefs-trigger--open {
+	.blemmy-prefs-trigger--open {
 		background: var(--color-ink-border);
 	}
 
-	.cv-prefs-panel {
+	.blemmy-prefs-panel {
 		position:      fixed;
 		bottom:        5rem;
 		left:          2rem;
@@ -1666,19 +1693,19 @@ html.cv-debug-mode .cv-sidebar > div {
 		z-index:       102;
 		font-family:   'DM Sans', sans-serif;
 	}
-	.dark .cv-prefs-panel {
+	.dark .blemmy-prefs-panel {
 		background: #1a1a1a;
 		border-color: #333;
 	}
 
-	.cv-prefs-inner {
+	.blemmy-prefs-inner {
 		padding: 1rem 1.1rem 0.85rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.85rem;
 	}
 
-	.cv-prefs-heading {
+	.blemmy-prefs-heading {
 		font-size:      0.65rem;
 		font-weight:    600;
 		letter-spacing: 0.18em;
@@ -1687,13 +1714,13 @@ html.cv-debug-mode .cv-sidebar > div {
 		margin:         0 0 -0.2rem;
 	}
 
-	.cv-prefs-row {
+	.blemmy-prefs-row {
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
 	}
 
-	.cv-prefs-label {
+	.blemmy-prefs-label {
 		display:         flex;
 		justify-content: space-between;
 		align-items:     baseline;
@@ -1703,41 +1730,47 @@ html.cv-debug-mode .cv-sidebar > div {
 		cursor:          default;
 	}
 
-	.cv-prefs-val {
+	.blemmy-prefs-assistant-hint {
+		font-weight:    400;
+		color:          var(--color-ink-muted);
+		font-size:      0.62rem;
+	}
+
+	.blemmy-prefs-val {
 		font-weight:    400;
 		color:          var(--color-ink-muted);
 		font-size:      0.65rem;
 		letter-spacing: 0.02em;
 	}
 
-	.cv-prefs-track-row {
+	.blemmy-prefs-track-row {
 		display:     flex;
 		align-items: center;
 		gap:         0.5rem;
 	}
 
-	.cv-prefs-tick-label {
+	.blemmy-prefs-tick-label {
 		font-size:  0.58rem;
 		color:      var(--color-ink-muted);
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
 
-	.cv-prefs-slider {
+	.blemmy-prefs-slider {
 		flex:        1;
 		accent-color: var(--color-sidebar, #1a1a1a);
 		cursor:      pointer;
 		height:      2px;
 	}
 
-	.cv-prefs-page-toggle {
+	.blemmy-prefs-page-toggle {
 		display:       flex;
 		border:        1px solid var(--color-ink-border);
 		border-radius: 2px;
 		overflow:      hidden;
 	}
 
-	.cv-prefs-page-btn {
+	.blemmy-prefs-page-btn {
 		flex:           1;
 		padding:        0.3rem 0;
 		font-family:    'DM Sans', sans-serif;
@@ -1751,19 +1784,19 @@ html.cv-debug-mode .cv-sidebar > div {
 		transition:     background 0.12s, color 0.12s;
 		text-align:     center;
 	}
-	.cv-prefs-page-btn:not(:last-child) {
+	.blemmy-prefs-page-btn:not(:last-child) {
 		border-right: 1px solid var(--color-ink-border);
 	}
-	.cv-prefs-page-btn--active {
+	.blemmy-prefs-page-btn--active {
 		background: var(--color-sidebar, #1a1a1a);
 		color:      #fff;
 	}
-	.cv-prefs-page-btn:hover:not(.cv-prefs-page-btn--active) {
+	.blemmy-prefs-page-btn:hover:not(.blemmy-prefs-page-btn--active) {
 		background: var(--color-ink-border);
 		color:      var(--color-ink);
 	}
 
-	.cv-prefs-reset {
+	.blemmy-prefs-reset {
 		align-self:     flex-end;
 		background:     none;
 		border:         none;
@@ -1775,12 +1808,12 @@ html.cv-debug-mode .cv-sidebar > div {
 		text-decoration: underline;
 		text-underline-offset: 2px;
 	}
-	.cv-prefs-reset:hover { color: var(--color-ink); }
+	.blemmy-prefs-reset:hover { color: var(--color-ink); }
 }
 
 /* ─── Candidate selector ────────────────────────────────────────────────────── */
 @media screen {
-	.cv-candidate-selector {
+	.blemmy-layout-alternatives {
 		display:                 grid;
 		grid-template-columns:   minmax(0, 1fr);
 		gap:                     0.45rem;
@@ -1794,7 +1827,7 @@ html.cv-debug-mode .cv-sidebar > div {
 		overflow:                visible;
 	}
 
-	.cv-candidate-selector__label {
+	.blemmy-layout-alternatives__label {
 		font-size:      0.6rem;
 		font-weight:    600;
 		letter-spacing: 0.18em;
@@ -1808,7 +1841,7 @@ html.cv-debug-mode .cv-sidebar > div {
 		justify-self:   start;
 	}
 
-	.cv-candidate-options {
+	.blemmy-layout-alternative-options {
 		display:         flex;
 		flex-flow:       row wrap;
 		gap:             0.4rem;
@@ -1825,7 +1858,7 @@ html.cv-debug-mode .cv-sidebar > div {
 		max-height:      none !important;
 	}
 
-	.cv-candidate-option {
+	.blemmy-layout-alternative {
 		box-sizing:      border-box;
 		display:         inline-flex;
 		justify-content: center;
@@ -1849,17 +1882,17 @@ html.cv-debug-mode .cv-sidebar > div {
 		max-width:       100%;
 		max-inline-size: 100%;
 	}
-	.cv-candidate-option:hover {
+	.blemmy-layout-alternative:hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
-	.cv-candidate-option--active {
+	.blemmy-layout-alternative--active {
 		background:   var(--color-sidebar, #1a1a1a);
 		border-color: var(--color-sidebar, #1a1a1a);
 		color:        #fff;
 		font-weight:  500;
 	}
-	.cv-candidate-option__inner {
+	.blemmy-layout-alternative__inner {
 		pointer-events: none;
 		min-width:      0;
 		overflow-wrap:  anywhere;
@@ -1867,33 +1900,33 @@ html.cv-debug-mode .cv-sidebar > div {
 		text-align:     center;
 	}
 
-	.cv-candidate-selector--s {
+	.blemmy-layout-alternatives--s {
 		gap: 0.32rem;
 	}
-	.cv-candidate-selector--s .cv-candidate-selector__label {
+	.blemmy-layout-alternatives--s .blemmy-layout-alternatives__label {
 		font-size: 0.56rem;
 		letter-spacing: 0.14em;
 	}
-	.cv-candidate-selector--s .cv-candidate-options {
+	.blemmy-layout-alternatives--s .blemmy-layout-alternative-options {
 		gap: 0.28rem;
 	}
-	.cv-candidate-selector--s .cv-candidate-option {
+	.blemmy-layout-alternatives--s .blemmy-layout-alternative {
 		font-size: 0.6rem;
 		padding: 0.22rem 0.56rem;
 	}
 
-	.cv-candidate-selector--m .cv-candidate-options {
+	.blemmy-layout-alternatives--m .blemmy-layout-alternative-options {
 		gap: 0.34rem;
 	}
-	.cv-candidate-selector--m .cv-candidate-option {
+	.blemmy-layout-alternatives--m .blemmy-layout-alternative {
 		font-size: 0.63rem;
 		padding: 0.26rem 0.64rem;
 	}
 
-	.cv-candidate-selector--l .cv-candidate-options {
+	.blemmy-layout-alternatives--l .blemmy-layout-alternative-options {
 		gap: 0.4rem;
 	}
-	.cv-candidate-selector--l .cv-candidate-option {
+	.blemmy-layout-alternatives--l .blemmy-layout-alternative {
 		font-size: 0.65rem;
 		padding: 0.3rem 0.75rem;
 	}
@@ -1944,7 +1977,7 @@ html.cv-debug-mode .cv-sidebar > div {
 }
 
 /* ─── PDF modal (formerly scoped in PrintButton.astro) ─────── */
-.print-fab:not(.cv-dock-btn) {
+.print-fab:not(.blemmy-dock-btn) {
 	display:     flex;
 	align-items: center;
 	gap:         0.5rem;
@@ -1955,7 +1988,7 @@ html.cv-debug-mode .cv-sidebar > div {
 	opacity:     0.85;
 }
 
-.cv-pdf-modal {
+.blemmy-pdf-modal {
 	position:        fixed;
 	inset:           0;
 	z-index:         1000;
@@ -1966,16 +1999,16 @@ html.cv-debug-mode .cv-sidebar > div {
 	box-sizing:      border-box;
 }
 
-.cv-pdf-modal[hidden] { display: none; }
+.blemmy-pdf-modal[hidden] { display: none; }
 
-.cv-pdf-modal-backdrop {
+.blemmy-pdf-modal-backdrop {
 	position:   absolute;
 	inset:      0;
 	background: rgba(0, 0, 0, 0.6);
 	cursor:     pointer;
 }
 
-.cv-pdf-modal-panel {
+.blemmy-pdf-modal-panel {
 	position:       relative;
 	display:        flex;
 	flex-direction: column;
@@ -1989,7 +2022,7 @@ html.cv-debug-mode .cv-sidebar > div {
 	overflow:       hidden;
 }
 
-.cv-pdf-modal-header {
+.blemmy-pdf-modal-header {
 	display:         flex;
 	align-items:     center;
 	justify-content: space-between;
@@ -1998,20 +2031,20 @@ html.cv-debug-mode .cv-sidebar > div {
 	flex-shrink:     0;
 }
 
-.cv-pdf-modal-title {
+.blemmy-pdf-modal-title {
 	margin:      0;
 	font-size:   1rem;
 	font-weight: 600;
 	color:       var(--color-ink, #111);
 }
 
-.cv-pdf-modal-actions {
+.blemmy-pdf-modal-actions {
 	display:     flex;
 	align-items: center;
 	gap:         0.75rem;
 }
 
-.cv-pdf-modal-download-btn {
+.blemmy-pdf-modal-download-btn {
 	padding:         0;
 	border:          none;
 	background:      none;
@@ -2021,9 +2054,9 @@ html.cv-debug-mode .cv-sidebar > div {
 	text-decoration: none;
 }
 
-.cv-pdf-modal-download-btn:hover { text-decoration: underline; }
+.blemmy-pdf-modal-download-btn:hover { text-decoration: underline; }
 
-.cv-pdf-modal-close {
+.blemmy-pdf-modal-close {
 	padding:       0.35rem 0.75rem;
 	font-size:     0.875rem;
 	border:        1px solid var(--color-ink-border, #e5e7eb);
@@ -2033,7 +2066,7 @@ html.cv-debug-mode .cv-sidebar > div {
 	cursor:        pointer;
 }
 
-.cv-pdf-modal-body {
+.blemmy-pdf-modal-body {
 	position:       relative;
 	flex:           1;
 	min-height:     0;
@@ -2042,7 +2075,7 @@ html.cv-debug-mode .cv-sidebar > div {
 	flex-direction: column;
 }
 
-.cv-pdf-modal-loading {
+.blemmy-pdf-modal-loading {
 	position:        absolute;
 	inset:           0;
 	display:         flex;
@@ -2054,14 +2087,14 @@ html.cv-debug-mode .cv-sidebar > div {
 	background:      var(--color-paper, #fff);
 }
 
-.cv-pdf-modal-scroll {
+.blemmy-pdf-modal-scroll {
 	flex:       1;
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: auto;
 }
 
-.cv-pdf-modal-embed {
+.blemmy-pdf-modal-embed {
 	width:          100%;
 	min-width:      100%;
 	min-height:     100%;
@@ -2071,58 +2104,59 @@ html.cv-debug-mode .cv-sidebar > div {
 }
 
 /*
- * Live PDF iframe (?cv-embed=1): force A4 document width so the layout engine
+ * Live PDF iframe (?blemmy-embed=1): force A4 document width so the layout engine
  * sees the same width as print; hide in-document UI deck (Vite).
  * Astro: also hides page chrome listed below.
  */
-html.cv-embed-pdf {
+html.blemmy-embed-pdf {
 	min-width:  210mm;
 	box-sizing: border-box;
 }
 
-html.cv-embed-pdf body {
+html.blemmy-embed-pdf body {
 	min-width: 210mm;
 	margin:    0;
 }
 
-html.cv-embed-pdf #cv-ui-deck {
+html.blemmy-embed-pdf #blemmy-ui-deck {
 	display: none !important;
 }
 
-html.cv-embed-pdf .cv-chrome,
-html.cv-embed-pdf .cv-layout-status,
-html.cv-embed-pdf .cv-layout-debug-toggle,
-html.cv-embed-pdf .cv-view-mode-toggle,
-html.cv-embed-pdf #cv-download-pdf,
-html.cv-embed-pdf .print-fab,
-html.cv-embed-pdf .theme-toggle,
-html.cv-embed-pdf .cv-pdf-modal {
+html.blemmy-embed-pdf .blemmy-chrome,
+html.blemmy-embed-pdf .blemmy-layout-status,
+html.blemmy-embed-pdf .blemmy-layout-debug-toggle,
+html.blemmy-embed-pdf .blemmy-view-mode-toggle,
+html.blemmy-embed-pdf #blemmy-download-pdf,
+html.blemmy-embed-pdf .print-fab,
+html.blemmy-embed-pdf .theme-toggle,
+html.blemmy-embed-pdf .blemmy-pdf-modal {
 	display: none !important;
 }
 
 /* Portfolio/public embeds: strip interactive app chrome, keep CV content. */
-html.cv-portfolio-embed #cv-ui-dock-left-anchor,
-html.cv-portfolio-embed #cv-ui-dock-right-anchor,
-html.cv-portfolio-embed #cv-layout-status,
-html.cv-portfolio-embed #cv-upload-status,
-html.cv-portfolio-embed #cv-candidate-selector,
-html.cv-portfolio-embed #cv-edit-toolbar,
-html.cv-portfolio-embed #cv-prefs-panel,
-html.cv-portfolio-embed #cv-cloud-drawer,
-html.cv-portfolio-embed #cv-pdf-modal,
-html.cv-portfolio-embed #cv-about-modal,
-html.cv-portfolio-embed #cv-share-review-dock,
-html.cv-portfolio-embed #cv-download-pdf,
-html.cv-portfolio-embed .print-fab,
-html.cv-portfolio-embed .cv-about-corner-btn {
+html.blemmy-portfolio-embed #blemmy-ui-dock-left-anchor,
+html.blemmy-portfolio-embed #blemmy-ui-dock-right-anchor,
+html.blemmy-portfolio-embed #blemmy-layout-status,
+html.blemmy-portfolio-embed #blemmy-upload-status,
+html.blemmy-portfolio-embed #blemmy-layout-alternatives,
+html.blemmy-portfolio-embed #blemmy-edit-toolbar,
+html.blemmy-portfolio-embed #blemmy-prefs-panel,
+html.blemmy-portfolio-embed #blemmy-dev-console-help-panel,
+html.blemmy-portfolio-embed #blemmy-cloud-drawer,
+html.blemmy-portfolio-embed #blemmy-pdf-modal,
+html.blemmy-portfolio-embed #blemmy-about-modal,
+html.blemmy-portfolio-embed #blemmy-share-review-dock,
+html.blemmy-portfolio-embed #blemmy-download-pdf,
+html.blemmy-portfolio-embed .print-fab,
+html.blemmy-portfolio-embed .blemmy-about-corner-btn {
 	display: none !important;
 }
 
-html.cv-portfolio-embed body {
+html.blemmy-portfolio-embed body {
 	overflow-x: hidden;
 }
 
-html.cv-published-embed .cv-share-banner {
+html.blemmy-published-embed .blemmy-share-banner {
 	display: none !important;
 }
 
@@ -2143,7 +2177,7 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── JSON upload button ────────────────────────────────────────────────────── */
 @media screen {
-	.cv-upload-btn {
+	.blemmy-upload-btn {
 		position:      fixed;
 		bottom:        2rem;
 		left:          11rem;
@@ -2161,12 +2195,12 @@ html.cv-published-embed .cv-share-banner {
 		z-index:       101;
 		transition:    border-color 0.12s, color 0.12s;
 	}
-	.cv-upload-btn:hover {
+	.blemmy-upload-btn:hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
 
-	.cv-upload-status {
+	.blemmy-upload-status {
 		position:       fixed;
 		bottom:         4.25rem;
 		left:           11rem;
@@ -2178,13 +2212,13 @@ html.cv-published-embed .cv-share-banner {
 		max-width:      clamp(200px, 30vw, 320px);
 		word-break:     break-all;
 	}
-	.cv-upload-status--ok  { background: #dcfce7; color: #166534; }
-	.cv-upload-status--err { background: #fee2e2; color: #991b1b; }
+	.blemmy-upload-status--ok  { background: #dcfce7; color: #166534; }
+	.blemmy-upload-status--err { background: #fee2e2; color: #991b1b; }
 }
 
 /* ─── Edit button + toolbar ─────────────────────────────────────────────────── */
 @media screen {
-	.cv-edit-btn:not(.cv-dock-btn) {
+	.blemmy-edit-btn:not(.blemmy-dock-btn) {
 		position:      fixed;
 		bottom:        2rem;
 		left:          18.5rem;
@@ -2202,14 +2236,14 @@ html.cv-published-embed .cv-share-banner {
 		z-index:       101;
 		transition:    border-color 0.12s, background 0.12s, color 0.12s;
 	}
-	.cv-edit-btn:not(.cv-dock-btn):hover,
-	.cv-edit-btn:not(.cv-dock-btn).cv-edit-btn--active {
+	.blemmy-edit-btn:not(.blemmy-dock-btn):hover,
+	.blemmy-edit-btn:not(.blemmy-dock-btn).blemmy-edit-btn--active {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
 	}
 
-	.cv-edit-toolbar {
+	.blemmy-edit-toolbar {
 		position:       fixed;
 		bottom:         4.25rem;
 		left:           1rem;
@@ -2227,16 +2261,16 @@ html.cv-published-embed .cv-share-banner {
 		flex-wrap:      wrap;
 		max-width:      clamp(260px, 45vw, 520px);
 	}
-	.dark .cv-edit-toolbar { background: #1a1a1a; border-color: #333; }
+	.dark .blemmy-edit-toolbar { background: #1a1a1a; border-color: #333; }
 
-	.cv-edit-toolbar__hint {
+	.blemmy-edit-toolbar__hint {
 		color:        var(--color-ink-muted);
 		white-space:  normal;
 		flex:         1;
 		min-width:    140px;
 	}
 
-	.cv-edit-toolbar__btn {
+	.blemmy-edit-toolbar__btn {
 		padding:       0.25rem 0.6rem;
 		border:        1px solid var(--color-ink-border);
 		border-radius: 2px;
@@ -2249,11 +2283,11 @@ html.cv-published-embed .cv-share-banner {
 		flex-shrink:   0;
 		transition:    background 0.1s, color 0.1s;
 	}
-	.cv-edit-toolbar__btn:hover {
+	.blemmy-edit-toolbar__btn:hover {
 		background: var(--color-ink-border);
 		color:      var(--color-ink);
 	}
-	.cv-edit-toolbar__btn--danger:hover {
+	.blemmy-edit-toolbar__btn--danger:hover {
 		background:   #fee2e2;
 		border-color: #fca5a5;
 		color:        #991b1b;
@@ -2263,7 +2297,7 @@ html.cv-published-embed .cv-share-banner {
 /* ─── Edit mode: contenteditable visual feedback ────────────────────────────── */
 @media screen {
 	/* Subtle highlight on hover so fields are discoverable */
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
 		[data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 1px;
@@ -2271,19 +2305,19 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	/* Active focus ring while editing */
-	:is(html.cv-edit-mode, html.blemmy-edit-mode) [contenteditable="true"]:focus {
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode) [contenteditable="true"]:focus {
 		outline:          2px solid rgba(26, 60, 64, 0.55);
 		outline-offset:   1px;
 		border-radius:    1px;
 	}
 
 	/* Portrait cursor in edit mode */
-	:is(html.cv-edit-mode, html.blemmy-edit-mode) #cv-portrait-img {
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode) #blemmy-portrait-img {
 		cursor: pointer;
 	}
 
 /* Edit-mode portrait hint (placeholder when no real image exists). */
-.cv-portrait-upload-hint {
+.blemmy-portrait-upload-hint {
 	position:       absolute;
 	inset:          0;
 	display:       none;
@@ -2300,7 +2334,7 @@ html.cv-published-embed .cv-share-banner {
 	letter-spacing: 0.02em;
 }
 
-.cv-portrait-upload-hint::before {
+.blemmy-portrait-upload-hint::before {
 	content:        '';
 	width:          20px;
 	height:         20px;
@@ -2309,31 +2343,31 @@ html.cv-published-embed .cv-share-banner {
 	opacity:        0.95;
 }
 
-:is(html.cv-edit-mode, html.blemmy-edit-mode) .cv-portrait-upload-hint {
+:is(html.blemmy-edit-mode, html.blemmy-edit-mode) .blemmy-portrait-upload-hint {
 	display: flex;
 }
 
 	/* Work item drag handles */
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
 		[data-blemmy-drag-group="work"] {
 		cursor: text;
 	}
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		[data-blemmy-drag-group="work"] .cv-drag-handle {
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"] .blemmy-drag-handle {
 		cursor: grab;
 	}
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		[data-blemmy-drag-group="work"] .cv-drag-handle:active {
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"] .blemmy-drag-handle:active {
 		cursor: grabbing;
 	}
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
 		[data-blemmy-drag-group="work"]:hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 2px;
 	}
 
 	/* Drag source: fade the item being dragged */
-	.cv-drag-source {
+	.blemmy-drag-source {
 		opacity: 0.45;
 	}
 
@@ -2341,7 +2375,7 @@ html.cv-published-embed .cv-share-banner {
 
 /* Work reorder: horizontal insertion bar (fixed to viewport while dragging) */
 @media screen {
-	.cv-work-insert-marker {
+	.blemmy-work-insert-marker {
 		position:       fixed;
 		left:           0;
 		width:          0;
@@ -2356,45 +2390,54 @@ html.cv-published-embed .cv-share-banner {
 	}
 }
 
-/* ─── Always-visible download JSON + export HTML buttons ────────────────────── */
+/* ─── Export menu (JSON + HTML) fallback layout (dock overrides position) ───── */
 @media screen {
-	.cv-download-json-btn,
-	.blemmy-export-html-btn {
-		position:      fixed;
-		bottom:        2rem;
-		left:          26rem;
-		padding:       0.3rem 0.65rem;
+	.blemmy-export-menu-wrap {
+		position:   relative;
+		display:    inline-flex;
+		align-items: flex-end;
+	}
+	.blemmy-export-menu-dropdown {
+		position:      absolute;
+		right:         0;
+		bottom:        calc(100% + 0.35rem);
+		display:       flex;
+		flex-direction: column;
+		gap:           0.35rem;
+		min-width:     10.5rem;
+		padding:       0.4rem;
+		border-radius: 0.65rem;
+		background:    rgba(255, 255, 255, 0.96);
 		border:        1px solid var(--color-ink-border);
-		border-radius: 2rem;
-		background:    transparent;
-		color:         var(--color-ink-muted);
-		font-family:   'DM Sans', sans-serif;
-		font-size:     0.62rem;
-		font-weight:   500;
-		letter-spacing: 0.05em;
-		cursor:        pointer;
-		white-space:   nowrap;
-		z-index:       101;
-		transition:    border-color 0.12s, color 0.12s;
+		box-shadow:    0 6px 22px rgba(0, 0, 0, 0.12);
+		z-index:       230;
 	}
-	.blemmy-export-html-btn {
-		left: 31.5rem;
+	.dark .blemmy-export-menu-dropdown {
+		background: #1a1a1a;
+		border-color: #2a2a2a;
+		box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
 	}
-	.cv-download-json-btn:hover,
-	.blemmy-export-html-btn:hover {
-		border-color: var(--color-ink-muted);
-		color:        var(--color-ink);
+	.blemmy-export-menu-dropdown[hidden] {
+		display: none !important;
+	}
+	.blemmy-export-menu__item {
+		width:           100%;
+		min-width:       0;
+		box-sizing:      border-box;
+		justify-content: flex-start;
+		text-align:      left;
+		white-space:     nowrap;
 	}
 }
 
 /* ─── Edit mode side panel ───────────────────────────────────────────────────── */
 @media screen {
-	.cv-edit-panel {
+	.blemmy-edit-panel {
 		position:       fixed;
 		top:            0;
 		right:          0;
 		bottom:         0;
-		width:          var(--cv-panel-w);
+		width:          var(--blemmy-panel-w);
 		background:     var(--color-paper, #fff);
 		border-left:    1px solid var(--color-ink-border);
 		display:        flex;
@@ -2404,13 +2447,13 @@ html.cv-published-embed .cv-share-banner {
 		box-shadow:     -4px 0 20px rgba(0,0,0,0.06);
 		overflow:       hidden;
 	}
-	.dark .cv-edit-panel {
+	.dark .blemmy-edit-panel {
 		background:  #111;
 		border-color: #2a2a2a;
 		box-shadow:  -4px 0 20px rgba(0,0,0,0.35);
 	}
 
-	.cv-edit-panel__header {
+	.blemmy-edit-panel__header {
 		padding:        0.85rem 0.9rem 0.7rem;
 		border-bottom:  1px solid var(--color-ink-border);
 		flex-shrink:    0;
@@ -2418,9 +2461,9 @@ html.cv-published-embed .cv-share-banner {
 		flex-direction: column;
 		gap:            0.15rem;
 	}
-	.dark .cv-edit-panel__header { border-color: #2a2a2a; }
+	.dark .blemmy-edit-panel__header { border-color: #2a2a2a; }
 
-	.cv-edit-panel__title {
+	.blemmy-edit-panel__title {
 		font-size:      0.7rem;
 		font-weight:    600;
 		letter-spacing: 0.14em;
@@ -2429,13 +2472,13 @@ html.cv-published-embed .cv-share-banner {
 		display:        block;
 	}
 
-	.cv-edit-panel__hint {
+	.blemmy-edit-panel__hint {
 		font-size:  0.58rem;
 		color:      var(--color-ink-muted);
 		opacity:    0.7;
 	}
 
-	.cv-edit-panel__list {
+	.blemmy-edit-panel__list {
 		flex:       1;
 		overflow-y: auto;
 		padding:    0.5rem 0.6rem;
@@ -2444,7 +2487,7 @@ html.cv-published-embed .cv-share-banner {
 		gap:        0.4rem;
 	}
 
-	.cv-edit-panel__empty {
+	.blemmy-edit-panel__empty {
 		font-size:   0.65rem;
 		color:       var(--color-ink-muted);
 		line-height: 1.55;
@@ -2452,7 +2495,7 @@ html.cv-published-embed .cv-share-banner {
 		margin:      0;
 	}
 
-	.cv-edit-panel__tile {
+	.blemmy-edit-panel__tile {
 		position:       relative;
 		display:        flex;
 		flex-direction: column;
@@ -2463,15 +2506,15 @@ html.cv-published-embed .cv-share-banner {
 		background:     var(--color-ink-bg, #f7f7f5);
 		transition:     border-color 0.12s;
 	}
-	.dark .cv-edit-panel__tile {
+	.dark .blemmy-edit-panel__tile {
 		background: #1a1a1a;
 		border-color: #2a2a2a;
 	}
-	.cv-edit-panel__tile:hover {
+	.blemmy-edit-panel__tile:hover {
 		border-color: var(--color-ink-muted);
 	}
 
-	.cv-edit-panel__tile-badge {
+	.blemmy-edit-panel__tile-badge {
 		font-size:      0.52rem;
 		font-weight:    600;
 		letter-spacing: 0.1em;
@@ -2479,20 +2522,20 @@ html.cv-published-embed .cv-share-banner {
 		color:          var(--color-ink-muted);
 	}
 
-	.cv-edit-panel__tile-label {
+	.blemmy-edit-panel__tile-label {
 		font-size:   0.68rem;
 		font-weight: 500;
 		color:       var(--color-ink-dark);
 		line-height: 1.3;
 	}
 
-	.cv-edit-panel__tile-sub {
+	.blemmy-edit-panel__tile-sub {
 		font-size:  0.6rem;
 		color:      var(--color-ink-muted);
 		font-style: italic;
 	}
 
-	.cv-edit-panel__restore {
+	.blemmy-edit-panel__restore {
 		position:   absolute;
 		top:        50%;
 		right:      0.4rem;
@@ -2510,7 +2553,7 @@ html.cv-published-embed .cv-share-banner {
 		border-radius: 2px;
 		transition: background 0.1s, color 0.1s;
 	}
-	.cv-edit-panel__restore:hover {
+	.blemmy-edit-panel__restore:hover {
 		background: var(--color-sidebar, #1a1a1a);
 		color:      #fff;
 	}
@@ -2518,7 +2561,7 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Visibility toggle eye buttons ─────────────────────────────────────────── */
 @media screen {
-	.cv-vis-toggle {
+	.blemmy-vis-toggle {
 		position:       absolute;
 		top:            0.35rem;
 		right:          0.35rem;
@@ -2539,12 +2582,12 @@ html.cv-published-embed .cv-share-banner {
 		padding:        0;
 		line-height:    1;
 	}
-	.dark .cv-vis-toggle {
+	.dark .blemmy-vis-toggle {
 		background: rgba(30,30,30,0.88);
 	}
 
 	/* Eye inside ▲▼ strip (static, same row as move buttons) */
-	.cv-move-controls .cv-vis-toggle--inrow {
+	.blemmy-move-controls .blemmy-vis-toggle--inrow {
 		position: static;
 		opacity: 1;
 		width: 1.35rem;
@@ -2563,19 +2606,19 @@ html.cv-published-embed .cv-share-banner {
 		border: 1px solid transparent;
 		cursor: pointer;
 	}
-	.dark .cv-move-controls .cv-vis-toggle--inrow {
+	.dark .blemmy-move-controls .blemmy-vis-toggle--inrow {
 		background: rgba(30,30,30,0.88);
 	}
-	.cv-move-controls .cv-vis-toggle--inrow:hover {
+	.blemmy-move-controls .blemmy-vis-toggle--inrow:hover {
 		border-color: rgba(220,38,38,0.6);
 		background:   rgba(254,226,226,0.95);
 	}
-	.dark .cv-move-controls .cv-vis-toggle--inrow:hover {
+	.dark .blemmy-move-controls .blemmy-vis-toggle--inrow:hover {
 		background: rgba(60,20,20,0.92);
 		border-color: rgba(248,113,113,0.5);
 	}
 
-	.cv-move-controls {
+	.blemmy-move-controls {
 		position: absolute;
 		display: flex;
 		gap: 0.2rem;
@@ -2583,16 +2626,16 @@ html.cv-published-embed .cv-share-banner {
 		transition: opacity 0.15s ease;
 		z-index: 11;
 	}
-	.cv-move-controls--work,
-	.cv-move-controls--section {
+	.blemmy-move-controls--work,
+	.blemmy-move-controls--section {
 		top: 0.35rem;
 		right: 2.1rem;
 	}
-	.cv-move-controls--inline {
+	.blemmy-move-controls--inline {
 		top: -0.25rem;
 		right: 0.2rem;
 	}
-	.cv-move-btn {
+	.blemmy-move-btn {
 		width: 1.35rem;
 		height: 1.35rem;
 		border: 1px solid transparent;
@@ -2603,16 +2646,16 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 		padding: 0;
 	}
-	.cv-move-btn:hover {
+	.blemmy-move-btn:hover {
 		border-color: rgba(26, 60, 64, 0.45);
 		background: rgba(223, 247, 249, 0.95);
 	}
-	.cv-move-btn:disabled {
+	.blemmy-move-btn:disabled {
 		opacity: 0.32;
 		cursor: default;
 		filter: saturate(0);
 	}
-	.cv-drag-handle {
+	.blemmy-drag-handle {
 		position: absolute;
 		top: 0.35rem;
 		right: 6.85rem;
@@ -2629,43 +2672,43 @@ html.cv-published-embed .cv-share-banner {
 		transition: opacity 0.15s ease, border-color 0.12s ease;
 		z-index: 11;
 	}
-	.cv-drag-handle:hover {
+	.blemmy-drag-handle:hover {
 		border-color: rgba(26, 60, 64, 0.45);
 	}
 
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		[data-blemmy-drag-group="work"]:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		.education-block:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		#cv-rebalance-profile:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		#cv-education:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		[data-section-id]:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		li[data-blemmy-field]:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		.skill-tag[data-blemmy-field]:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		.language-item:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		.skill-category:hover > .cv-move-controls,
-	:is(html.cv-edit-mode, html.blemmy-edit-mode)
-		[data-blemmy-drag-group="work"]:hover > .cv-drag-handle {
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"]:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		.education-block:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		#blemmy-rebalance-profile:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		#blemmy-education:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		[data-section-id]:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		li[data-blemmy-field]:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		.skill-tag[data-blemmy-field]:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		.language-item:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		.skill-category:hover > .blemmy-move-controls,
+	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
+		[data-blemmy-drag-group="work"]:hover > .blemmy-drag-handle {
 		opacity: 1;
 	}
 
 	/*
-	 * Edit mode + docked panel: layout is handled by html.cv-panel-open /
-	 * .cv-panel-desktop (body padding + shell max-width). A fixed margin here
-	 * fought that math and under-reserved space vs --cv-panel-w (344px).
+	 * Edit mode + docked panel: layout is handled by html.blemmy-panel-open /
+	 * .blemmy-panel-desktop (body padding + shell max-width). A fixed margin here
+	 * fought that math and under-reserved space vs --blemmy-panel-w (344px).
 	 */
 }
 
 /* ─── Tag filter bar ─────────────────────────────────────────────────────────── */
 @media screen {
-	.cv-filter-bar {
+	.blemmy-filter-bar {
 		display:     grid;
 		grid-template-columns: 1fr;
 		gap:         0.35rem;
@@ -2678,9 +2721,9 @@ html.cv-published-embed .cv-share-banner {
 		box-sizing:  border-box;
 		overflow:    visible;
 	}
-	.cv-filter-bar[hidden] { display: none; }
+	.blemmy-filter-bar[hidden] { display: none; }
 
-	.cv-filter-bar__label {
+	.blemmy-filter-bar__label {
 		font-size:      0.58rem;
 		font-weight:    600;
 		letter-spacing: 0.16em;
@@ -2690,7 +2733,7 @@ html.cv-published-embed .cv-share-banner {
 		flex-shrink:    0;
 	}
 
-	.cv-filter-bar__chips {
+	.blemmy-filter-bar__chips {
 		display:  flex;
 		gap:      0.3rem;
 		flex-wrap: wrap;
@@ -2702,7 +2745,7 @@ html.cv-published-embed .cv-share-banner {
 		align-items: flex-start;
 	}
 
-	.cv-filter-chip {
+	.blemmy-filter-chip {
 		padding:        0.2rem 0.6rem;
 		border:         1px solid var(--color-ink-border);
 		border-radius:  2rem;
@@ -2718,21 +2761,21 @@ html.cv-published-embed .cv-share-banner {
 		max-inline-size: 100%;
 		transition:     border-color 0.1s, background 0.1s, color 0.1s;
 	}
-	.cv-filter-chip:hover {
+	.blemmy-filter-chip:hover {
 		border-color: var(--color-ink-mid);
 		color:        var(--color-ink);
 	}
-	.cv-filter-chip--active {
+	.blemmy-filter-chip--active {
 		background:   var(--color-sidebar, #1a1a1a);
 		border-color: var(--color-sidebar, #1a1a1a);
 		color:        #fff;
 		font-weight:  500;
 	}
-	.cv-filter-chip--active:hover {
+	.blemmy-filter-chip--active:hover {
 		opacity: 0.85;
 	}
 
-	.cv-filter-clear {
+	.blemmy-filter-clear {
 		padding:       0.2rem 0.55rem;
 		border:        1px solid var(--color-ink-border);
 		border-radius: 2rem;
@@ -2743,10 +2786,10 @@ html.cv-published-embed .cv-share-banner {
 		cursor:        pointer;
 		transition:    border-color 0.1s, color 0.1s;
 	}
-	.cv-filter-clear:hover  { border-color: var(--color-ink-mid); color: var(--color-ink); }
-	.cv-filter-clear--hidden { display: none; }
+	.blemmy-filter-clear:hover  { border-color: var(--color-ink-mid); color: var(--color-ink); }
+	.blemmy-filter-clear--hidden { display: none; }
 
-	.cv-filter-count {
+	.blemmy-filter-count {
 		font-size:   0.6rem;
 		color:       var(--color-ink-muted);
 		white-space: nowrap;
@@ -2756,7 +2799,7 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Tag chips on CV items (edit mode) ──────────────────────────────────────── */
 @media screen {
-	.cv-tag-row {
+	.blemmy-tag-row {
 		display:     flex;
 		flex-wrap:   wrap;
 		gap:         0.3rem;
@@ -2765,11 +2808,11 @@ html.cv-published-embed .cv-share-banner {
 		padding-top: 0.4rem;
 		border-top:  1px dashed rgba(0,0,0,0.1);
 	}
-	.cv-sidebar .cv-tag-row {
+	.blemmy-sidebar .blemmy-tag-row {
 		border-top-color: rgba(255,255,255,0.12);
 	}
 
-	.cv-tag-chip {
+	.blemmy-tag-chip {
 		display:        inline-flex;
 		align-items:    center;
 		gap:            0.2rem;
@@ -2785,12 +2828,12 @@ html.cv-published-embed .cv-share-banner {
 		border:         1px solid rgba(26, 60, 64, 0.2);
 		line-height:    1;
 	}
-	.cv-sidebar .cv-tag-chip {
+	.blemmy-sidebar .blemmy-tag-chip {
 		background: rgba(255,255,255,0.12);
 		color:      rgba(255,255,255,0.8);
 		border-color: rgba(255,255,255,0.2);
 	}
-	.cv-tag-chip--edit .cv-tag-chip__remove {
+	.blemmy-tag-chip--edit .blemmy-tag-chip__remove {
 		background:  none;
 		border:      none;
 		cursor:      pointer;
@@ -2801,14 +2844,14 @@ html.cv-published-embed .cv-share-banner {
 		padding:     0 0 0 0.1rem;
 		transition:  opacity 0.1s;
 	}
-	.cv-tag-chip--edit .cv-tag-chip__remove:hover { opacity: 1; }
+	.blemmy-tag-chip--edit .blemmy-tag-chip__remove:hover { opacity: 1; }
 
-	.cv-tag-input-wrap {
+	.blemmy-tag-input-wrap {
 		display: inline-flex;
 		align-items: center;
 	}
 
-	.cv-tag-input {
+	.blemmy-tag-input {
 		border:         none;
 		border-bottom:  1px dashed var(--color-ink-muted);
 		background:     transparent;
@@ -2820,27 +2863,27 @@ html.cv-published-embed .cv-share-banner {
 		outline:        none;
 		transition:     border-color 0.1s, width 0.15s;
 	}
-	.cv-sidebar .cv-tag-input {
+	.blemmy-sidebar .blemmy-tag-input {
 		color:        rgba(255,255,255,0.5);
 		border-color: rgba(255,255,255,0.25);
 	}
-	.cv-tag-input:focus {
+	.blemmy-tag-input:focus {
 		width:        6rem;
 		border-color: var(--color-sidebar, #1a1a1a);
 	}
-	.cv-tag-input::placeholder { opacity: 0.6; }
+	.blemmy-tag-input::placeholder { opacity: 0.6; }
 }
 
 /* ─── Tag chips read-only (filter bar) ───────────────────────────────────────── */
 /* Show tags on CV items in view mode when filters are active */
-[data-blemmy-field] .cv-tag-row { display: none; }
-:is(html.cv-edit-mode, html.blemmy-edit-mode) [data-blemmy-field] .cv-tag-row {
+[data-blemmy-field] .blemmy-tag-row { display: none; }
+:is(html.blemmy-edit-mode, html.blemmy-edit-mode) [data-blemmy-field] .blemmy-tag-row {
 	display: flex;
 }
 
 /* ─── Chat trigger button ────────────────────────────────────────────────────── */
 @media screen {
-	.cv-chat-trigger:not(.cv-dock-btn) {
+	.blemmy-chat-trigger:not(.blemmy-dock-btn) {
 		position:        fixed;
 		bottom:          2rem;
 		right:           6.5rem;
@@ -2858,8 +2901,8 @@ html.cv-published-embed .cv-share-banner {
 		z-index:         101;
 		transition:      border-color 0.15s, background 0.15s, color 0.15s;
 	}
-	.cv-chat-trigger:not(.cv-dock-btn):hover,
-	.cv-chat-trigger:not(.cv-dock-btn).cv-chat-trigger--open {
+	.blemmy-chat-trigger:not(.blemmy-dock-btn):hover,
+	.blemmy-chat-trigger:not(.blemmy-dock-btn).blemmy-chat-trigger--open {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
@@ -2869,38 +2912,36 @@ html.cv-published-embed .cv-share-banner {
 /* ─── Chat panel ─────────────────────────────────────────────────────────────── */
 @media screen {
 	:root {
-		--cv-panel-w: 344px;
-		--cv-panel-h-mobile: min(48dvh, 20rem);
+		--blemmy-panel-w: 344px;
+		--blemmy-panel-h-mobile: min(48dvh, 20rem);
 	}
 
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop body {
-		padding-right: var(--cv-panel-w) !important;
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop body {
+		padding-right: var(--blemmy-panel-w) !important;
 		box-sizing: border-box;
 		overflow-x: hidden;
 	}
 
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop #cv-root,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-shell,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-ui-deck {
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop #blemmy-doc-root,
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-shell,
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-ui-deck {
 		width: 100% !important;
-		max-width: min(900px, calc(100vw - var(--cv-panel-w) - 2rem)) !important;
+		max-width: min(900px, calc(100vw - var(--blemmy-panel-w) - 2rem)) !important;
 		box-sizing: border-box;
 	}
 
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-shell,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop .cv-ui-deck {
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-shell,
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-ui-deck {
 		margin-inline: auto !important;
 		min-width: 0 !important;
 	}
 
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
-	#cv-shell:not(.cv-print-preview) #cv-card,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
-	#cv-shell:not(.cv-print-preview) #cv-page-1,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
-	#cv-shell:not(.cv-print-preview) #cv-page-2,
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
-	#cv-shell:not(.cv-print-preview) .cv-page .cv-grid {
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-card,
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page,
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page .blemmy-grid {
 		width: 100% !important;
 		max-width: 100% !important;
 		min-width: 0 !important;
@@ -2908,56 +2949,56 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	/*
-	 * Paper stage wraps #cv-root; when a right panel is open, cap stage width
-	 * to the same column as #cv-root so scaled print preview is not clipped.
+	 * Paper stage wraps #blemmy-doc-root; when a right panel is open, cap stage width
+	 * to the same column as #blemmy-doc-root so scaled print preview is not clipped.
 	 */
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop
-	.cv-paper-stage:has(#cv-shell.cv-print-preview) {
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
+	.blemmy-paper-stage:has(.blemmy-shell.blemmy-print-preview) {
 		max-width: min(
-			var(--cv-paper-width, 794px),
-			calc(100vw - var(--cv-panel-w) - 2rem)
+			var(--blemmy-paper-width, 794px),
+			calc(100vw - var(--blemmy-panel-w) - 2rem)
 		) !important;
 		box-sizing: border-box;
 	}
 
 	/*
-	 * Print preview: .cv-card / pages stay 210mm wide. Review-mode.css zooms
-	 * #cv-shell when the review drawer is open; do the same for assistant + edit
-	 * so inner paper never overflows a correctly-sized shell (not .cv-panel-
+	 * Print preview: .blemmy-card / pages stay 210mm wide. Review-mode.css zooms
+	 * #blemmy-doc-shell when the review drawer is open; do the same for assistant + edit
+	 * so inner paper never overflows a correctly-sized shell (not .blemmy-panel-
 	 * kind-review — that path is already handled in review-mode.css).
 	 */
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
-		.cv-panel-kind-review
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
+		.blemmy-panel-kind-review
 	) {
-		--cv-main-side-panel-scale: min(
+		--blemmy-main-side-panel-scale: min(
 			1,
-			calc((100vw - var(--cv-panel-w) - 2rem) / 794)
+			calc((100vw - var(--blemmy-panel-w) - 2rem) / 794)
 		);
 	}
-	html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
-		.cv-panel-kind-review
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
+		.blemmy-panel-kind-review
 	)
-	#cv-shell.cv-print-preview {
-		zoom: var(--cv-main-side-panel-scale);
+	.blemmy-shell.blemmy-print-preview {
+		zoom: var(--blemmy-main-side-panel-scale);
 		transform-origin: top center;
 	}
 	@supports not (zoom: 1) {
-		html:not(.cv-share-readonly).cv-panel-open.cv-panel-desktop:not(
-			.cv-panel-kind-review
+		html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
+			.blemmy-panel-kind-review
 		)
-		#cv-shell.cv-print-preview {
+		.blemmy-shell.blemmy-print-preview {
 			zoom: unset;
-			transform: scale(var(--cv-main-side-panel-scale));
+			transform: scale(var(--blemmy-main-side-panel-scale));
 			transform-origin: top center;
 		}
 	}
 
-	.cv-side-panel {
+	.blemmy-side-panel {
 		position: fixed;
 		top: 0;
 		right: 0;
 		bottom: 0;
-		width: var(--cv-panel-w);
+		width: var(--blemmy-panel-w);
 		max-width: calc(100vw - 1rem);
 	}
 
@@ -2965,19 +3006,19 @@ html.cv-published-embed .cv-share-banner {
 	 * Unified right-edge docked panel definition (edit/review/assistant).
 	 * Shared geometry keeps all panel kinds aligned.
 	 */
-	.cv-unified-side-panel {
+	.blemmy-unified-side-panel {
 		position: fixed !important;
 		top: 0 !important;
 		right: 0 !important;
 		bottom: 0 !important;
 		left: auto !important;
-		width: var(--cv-panel-w) !important;
+		width: var(--blemmy-panel-w) !important;
 		max-width: calc(100vw - 1rem) !important;
 	}
 
-	html.cv-panel-mobile .cv-side-panel {
+	html.blemmy-panel-mobile .blemmy-side-panel {
 		width: 100vw;
-		height: var(--cv-panel-h-mobile);
+		height: var(--blemmy-panel-h-mobile);
 		max-width: 100vw;
 		top: auto;
 		right: 0;
@@ -2987,23 +3028,23 @@ html.cv-published-embed .cv-share-banner {
 		border-top: 1px solid var(--color-ink-border);
 	}
 
-	html.cv-panel-mobile body {
-		padding-bottom: calc(var(--cv-panel-h-mobile) + 0.8rem) !important;
+	html.blemmy-panel-mobile body {
+		padding-bottom: calc(var(--blemmy-panel-h-mobile) + 0.8rem) !important;
 	}
 
 	/* Mobile flow host for docked panels (pushes page down, no overlap). */
-	#cv-mobile-docked-panel-flow {
+	#blemmy-mobile-docked-panel-flow {
 		display: block;
 		width: min(100vw, 900px);
 		margin: 0 auto;
 	}
-	#cv-mobile-docked-panel-flow[hidden] {
+	#blemmy-mobile-docked-panel-flow[hidden] {
 		display: none !important;
 	}
-	html.cv-mobile-docked-panel-open.cv-panel-mobile body {
+	html.blemmy-mobile-docked-panel-open.blemmy-panel-mobile body {
 		padding-bottom: 0 !important;
 	}
-	html.cv-mobile-docked-panel-open.cv-panel-mobile .cv-unified-side-panel {
+	html.blemmy-mobile-docked-panel-open.blemmy-panel-mobile .blemmy-unified-side-panel {
 		position: relative !important;
 		top: auto !important;
 		right: auto !important;
@@ -3011,18 +3052,18 @@ html.cv-published-embed .cv-share-banner {
 		left: auto !important;
 		width: 100% !important;
 		max-width: 100% !important;
-		height: var(--cv-panel-h-mobile) !important;
+		height: var(--blemmy-panel-h-mobile) !important;
 		margin: 0.45rem auto 0.85rem !important;
 		border-left: none !important;
 		border-top: 1px solid var(--color-ink-border);
 	}
 
-	.cv-chat-panel {
+	.blemmy-chat-panel {
 		position:       fixed;
 		top:            0;
 		right:          0;
 		bottom:         0;
-		width:          var(--cv-panel-w);
+		width:          var(--blemmy-panel-w);
 		background:     var(--color-paper, #fff);
 		border-left:    1px solid var(--color-ink-border);
 		display:        flex;
@@ -3032,11 +3073,11 @@ html.cv-published-embed .cv-share-banner {
 		box-shadow:     -4px 0 24px rgba(0,0,0,0.08);
 		transition:     transform 0.2s ease;
 	}
-	.cv-chat-panel[hidden] { display: none; }
-	.dark .cv-chat-panel { background: #111; border-color: #2a2a2a; }
+	.blemmy-chat-panel[hidden] { display: none; }
+	.dark .blemmy-chat-panel { background: #111; border-color: #2a2a2a; }
 
 	/* Header */
-	.cv-chat-header {
+	.blemmy-chat-header {
 		display:         flex;
 		justify-content: space-between;
 		align-items:     flex-start;
@@ -3045,23 +3086,23 @@ html.cv-published-embed .cv-share-banner {
 		border-bottom:   1px solid var(--color-ink-border);
 		flex-shrink:     0;
 	}
-	.dark .cv-chat-header { border-color: #2a2a2a; }
+	.dark .blemmy-chat-header { border-color: #2a2a2a; }
 
-	.cv-chat-header__lead {
+	.blemmy-chat-header__lead {
 		display:        flex;
 		flex-direction: column;
 		gap:            0.2rem;
 		min-width:      0;
 	}
 
-	.cv-chat-connection-status {
+	.blemmy-chat-connection-status {
 		font-size:   0.65rem;
 		line-height: 1.35;
 		color:       var(--color-ink-muted);
 		word-break:  break-word;
 	}
 
-	.cv-chat-header__title {
+	.blemmy-chat-header__title {
 		font-size:      0.7rem;
 		font-weight:    600;
 		letter-spacing: 0.14em;
@@ -3069,13 +3110,13 @@ html.cv-published-embed .cv-share-banner {
 		color:          var(--color-ink-muted);
 	}
 
-	.cv-chat-header__actions {
+	.blemmy-chat-header__actions {
 		display:     flex;
 		align-items: center;
 		gap:         0.5rem;
 	}
 
-	.cv-chat-change-key {
+	.blemmy-chat-change-key {
 		font-size:       0.6rem;
 		color:           var(--color-ink-muted);
 		background:      none;
@@ -3085,9 +3126,9 @@ html.cv-published-embed .cv-share-banner {
 		text-underline-offset: 2px;
 		padding:         0;
 	}
-	.cv-chat-change-key:hover { color: var(--color-ink); }
+	.blemmy-chat-change-key:hover { color: var(--color-ink); }
 
-	.cv-chat-copy {
+	.blemmy-chat-copy {
 		font-size:       0.6rem;
 		color:           var(--color-ink-muted);
 		background:      none;
@@ -3097,9 +3138,9 @@ html.cv-published-embed .cv-share-banner {
 		text-underline-offset: 2px;
 		padding:         0;
 	}
-	.cv-chat-copy:hover { color: var(--color-ink); }
+	.blemmy-chat-copy:hover { color: var(--color-ink); }
 
-	.cv-chat-close {
+	.blemmy-chat-close {
 		width:           1.6rem;
 		height:          1.6rem;
 		border:          none;
@@ -3113,10 +3154,10 @@ html.cv-published-embed .cv-share-banner {
 		border-radius:   2px;
 		transition:      background 0.1s;
 	}
-	.cv-chat-close:hover { background: var(--color-ink-border); }
+	.blemmy-chat-close:hover { background: var(--color-ink-border); }
 
 	/* Setup screen */
-	.cv-chat-setup {
+	.blemmy-chat-setup {
 		padding:        1.1rem 1rem;
 		display:        flex;
 		flex-direction: column;
@@ -3124,24 +3165,24 @@ html.cv-published-embed .cv-share-banner {
 		flex-shrink:    0;
 		border-bottom:  1px solid var(--color-ink-border);
 	}
-	.cv-chat-setup[hidden] { display: none !important; }
-	.dark .cv-chat-setup { border-color: #2a2a2a; }
+	.blemmy-chat-setup[hidden] { display: none !important; }
+	.dark .blemmy-chat-setup { border-color: #2a2a2a; }
 
-	.cv-chat-setup__title {
+	.blemmy-chat-setup__title {
 		font-size:   0.75rem;
 		font-weight: 600;
 		color:       var(--color-ink-dark);
 		margin:      0;
 	}
 
-	.cv-chat-setup__sub {
+	.blemmy-chat-setup__sub {
 		font-size:   0.65rem;
 		color:       var(--color-ink-muted);
 		margin:      0;
 		line-height: 1.5;
 	}
 
-	.cv-chat-setup__label {
+	.blemmy-chat-setup__label {
 		font-size:      0.62rem;
 		font-weight:    500;
 		color:          var(--color-ink-mid);
@@ -3149,7 +3190,7 @@ html.cv-published-embed .cv-share-banner {
 		margin-bottom: -0.2rem;
 	}
 
-	.cv-chat-setup__hint {
+	.blemmy-chat-setup__hint {
 		font-size:   0.62rem;
 		color:       var(--color-teal-mid, #404040);
 		margin:      0;
@@ -3157,10 +3198,10 @@ html.cv-published-embed .cv-share-banner {
 		min-height:  1.2em;
 	}
 
-	.dark .cv-chat-setup__hint { color: #a8a8a8; }
+	.dark .blemmy-chat-setup__hint { color: #a8a8a8; }
 
-	.cv-chat-setup__select,
-	.cv-chat-setup__input {
+	.blemmy-chat-setup__select,
+	.blemmy-chat-setup__input {
 		width:        100%;
 		padding:      0.4rem 0.6rem;
 		border:       1px solid var(--color-ink-border);
@@ -3171,10 +3212,10 @@ html.cv-published-embed .cv-share-banner {
 		font-size:    0.7rem;
 		box-sizing:   border-box;
 	}
-	.dark .cv-chat-setup__select,
-	.dark .cv-chat-setup__input { background: #1a1a1a; border-color: #333; }
+	.dark .blemmy-chat-setup__select,
+	.dark .blemmy-chat-setup__input { background: #1a1a1a; border-color: #333; }
 
-	.cv-chat-setup__btn {
+	.blemmy-chat-setup__btn {
 		padding:       0.4rem 0.9rem;
 		background:    var(--color-sidebar, #1a1a1a);
 		color:         #fff;
@@ -3187,30 +3228,30 @@ html.cv-published-embed .cv-share-banner {
 		align-self:    flex-start;
 		transition:    opacity 0.1s;
 	}
-	.cv-chat-setup__btn:hover { opacity: 0.85; }
+	.blemmy-chat-setup__btn:hover { opacity: 0.85; }
 
-	.cv-chat-setup__note {
+	.blemmy-chat-setup__note {
 		font-size:   0.6rem;
 		color:       var(--color-ink-muted);
 		margin:      0;
 		line-height: 1.55;
 	}
-	.cv-chat-setup__link {
+	.blemmy-chat-setup__link {
 		color: var(--color-sidebar, #1a1a1a);
 		text-decoration: underline;
 	}
 
 	/* Starter suggestions */
-	.cv-chat-starters {
+	.blemmy-chat-starters {
 		padding:        0.75rem 0.85rem 0.5rem;
 		display:        flex;
 		flex-direction: column;
 		gap:            0.35rem;
 		flex-shrink:    0;
 	}
-	.cv-chat-starters[hidden] { display: none; }
+	.blemmy-chat-starters[hidden] { display: none; }
 
-	.cv-chat-starters__label {
+	.blemmy-chat-starters__label {
 		font-size:      0.58rem;
 		font-weight:    600;
 		letter-spacing: 0.14em;
@@ -3219,7 +3260,7 @@ html.cv-published-embed .cv-share-banner {
 		margin:         0 0 0.1rem;
 	}
 
-	.cv-chat-starter-btn {
+	.blemmy-chat-starter-btn {
 		text-align:    left;
 		padding:       0.4rem 0.6rem;
 		border:        1px solid var(--color-ink-border);
@@ -3232,13 +3273,13 @@ html.cv-published-embed .cv-share-banner {
 		line-height:   1.4;
 		transition:    border-color 0.1s, background 0.1s;
 	}
-	.cv-chat-starter-btn:hover {
+	.blemmy-chat-starter-btn:hover {
 		border-color: var(--color-sidebar);
 		background:   rgba(26,60,64,0.04);
 	}
 
 	/* Messages */
-	.cv-chat-messages {
+	.blemmy-chat-messages {
 		flex:       1;
 		overflow-y: auto;
 		padding:    0.75rem 0.85rem;
@@ -3248,7 +3289,95 @@ html.cv-published-embed .cv-share-banner {
 		min-height: 0;
 	}
 
-	.cv-chat-bubble {
+	.blemmy-chat-pending-apply {
+		flex-shrink:   0;
+		max-height:    11rem;
+		overflow-y:    auto;
+		margin:        0 0.65rem 0.5rem;
+		padding:       0.55rem 0.65rem;
+		border:        1px solid var(--color-ink-border);
+		border-radius: 6px;
+		background:    rgba(26, 60, 64, 0.04);
+		font-size:     0.62rem;
+	}
+	.dark .blemmy-chat-pending-apply {
+		background: rgba(255, 255, 255, 0.04);
+		border-color: #333;
+	}
+	.blemmy-chat-pending-apply__title {
+		margin:      0 0 0.25rem;
+		font-weight: 600;
+		font-size:   0.68rem;
+		color:       var(--color-ink-dark);
+	}
+	.blemmy-chat-pending-apply__meta {
+		margin:    0 0 0.45rem;
+		color:     var(--color-ink-muted);
+		font-size: 0.58rem;
+	}
+	.blemmy-chat-pending-apply__actions {
+		display:   flex;
+		flex-wrap: wrap;
+		gap:       0.35rem;
+		margin-bottom: 0.45rem;
+	}
+	.blemmy-chat-pending-apply__btn {
+		padding:     0.25rem 0.45rem;
+		font-size:   0.58rem;
+		border:      1px solid var(--color-ink-border);
+		border-radius: 4px;
+		background:  transparent;
+		cursor:      pointer;
+		color:       var(--color-ink-dark);
+	}
+	.blemmy-chat-pending-apply__btn--primary {
+		background: var(--color-sidebar, #1a1a1a);
+		color:      #fff;
+		border-color: transparent;
+	}
+	.blemmy-chat-pending-apply__groups {
+		display:       flex;
+		flex-direction: column;
+		gap:           0.4rem;
+	}
+	.blemmy-chat-pending-apply__group-title {
+		margin:    0 0 0.2rem;
+		font-size: 0.6rem;
+		font-weight: 600;
+		color:     var(--color-ink-mid);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.blemmy-chat-pending-apply__list {
+		margin:  0;
+		padding: 0;
+		list-style: none;
+	}
+	.blemmy-chat-pending-apply__row {
+		margin-bottom: 0.35rem;
+		padding-bottom: 0.35rem;
+		border-bottom: 1px solid var(--color-ink-border);
+	}
+	.blemmy-chat-pending-apply__row-label {
+		display:     flex;
+		align-items: flex-start;
+		gap:         0.35rem;
+		cursor:      pointer;
+		margin-bottom: 0.15rem;
+	}
+	.blemmy-chat-pending-apply__path {
+		font-family: monospace;
+		font-size:   0.58rem;
+		word-break:  break-all;
+	}
+	.blemmy-chat-pending-apply__diff {
+		font-size:   0.55rem;
+		color:       var(--color-ink-muted);
+		padding-left: 1.1rem;
+		line-height: 1.4;
+	}
+
+	.blemmy-chat-bubble {
 		max-width:     90%;
 		padding:       0.55rem 0.75rem;
 		border-radius: 8px;
@@ -3257,25 +3386,25 @@ html.cv-published-embed .cv-share-banner {
 		word-break:    break-word;
 	}
 
-	.cv-chat-bubble--user {
+	.blemmy-chat-bubble--user {
 		align-self:  flex-end;
 		background:  var(--color-sidebar, #1a1a1a);
 		color:       #fff;
 		border-radius: 8px 8px 2px 8px;
 	}
 
-	.cv-chat-bubble--assistant {
+	.blemmy-chat-bubble--assistant {
 		align-self:  flex-start;
 		background:  var(--color-ink-border);
 		color:       var(--color-ink-dark);
 		border-radius: 8px 8px 8px 2px;
 	}
-	.dark .cv-chat-bubble--assistant {
+	.dark .blemmy-chat-bubble--assistant {
 		background: #1e1e1e;
 		color:      #e0e0e0;
 	}
 
-	.cv-chat-bubble--system {
+	.blemmy-chat-bubble--system {
 		align-self:  center;
 		background:  transparent;
 		color:       var(--color-ink-muted);
@@ -3285,33 +3414,33 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	/* Streaming cursor */
-	.cv-chat-cursor {
+	.blemmy-chat-cursor {
 		display:          inline-block;
 		width:            2px;
 		height:           0.85em;
 		background:       currentColor;
 		margin-left:      2px;
 		vertical-align:   middle;
-		animation:        cv-blink 0.9s steps(2, start) infinite;
+		animation:        blemmy-blink 0.9s steps(2, start) infinite;
 	}
-	@keyframes cv-blink {
+	@keyframes blemmy-blink {
 		to { visibility: hidden; }
 	}
 
 	/* Markdown content inside bubbles */
-	.cv-chat-md p          { margin: 0 0 0.35em; }
-	.cv-chat-md p:last-child { margin-bottom: 0; }
-	.cv-chat-md strong     { font-weight: 600; }
-	.cv-chat-md code       { font-family: monospace; font-size: 0.9em;
+	.blemmy-chat-md p          { margin: 0 0 0.35em; }
+	.blemmy-chat-md p:last-child { margin-bottom: 0; }
+	.blemmy-chat-md strong     { font-weight: 600; }
+	.blemmy-chat-md code       { font-family: monospace; font-size: 0.9em;
 	                          background: rgba(0,0,0,0.08); padding: 0.1em 0.3em; border-radius: 2px; }
-	.cv-chat-md pre        { background: rgba(0,0,0,0.06); border-radius: 4px;
+	.blemmy-chat-md pre        { background: rgba(0,0,0,0.06); border-radius: 4px;
 	                          padding: 0.6rem 0.75rem; overflow-x: auto;
 	                          font-size: 0.65rem; position: relative; margin: 0.4rem 0; }
-	.dark .cv-chat-md pre  { background: rgba(255,255,255,0.06); }
-	.cv-chat-md pre code   { background: none; padding: 0; font-size: inherit; }
-	.cv-chat-json-block    { border: 1px solid rgba(26,60,64,0.25); }
+	.dark .blemmy-chat-md pre  { background: rgba(255,255,255,0.06); }
+	.blemmy-chat-md pre code   { background: none; padding: 0; font-size: inherit; }
+	.blemmy-chat-json-block    { border: 1px solid rgba(26,60,64,0.25); }
 
-	.cv-chat-apply-btn {
+	.blemmy-chat-apply-btn {
 		display:       block;
 		margin-top:    0.5rem;
 		padding:       0.3rem 0.65rem;
@@ -3325,9 +3454,9 @@ html.cv-published-embed .cv-share-banner {
 		cursor:        pointer;
 		transition:    opacity 0.1s;
 	}
-	.cv-chat-apply-btn:hover { opacity: 0.82; }
+	.blemmy-chat-apply-btn:hover { opacity: 0.82; }
 
-	.cv-chat-scope-bar {
+	.blemmy-chat-scope-bar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -3336,15 +3465,15 @@ html.cv-published-embed .cv-share-banner {
 		border-top: 1px solid var(--color-ink-border);
 		background: rgba(26,60,64,0.03);
 	}
-	.cv-chat-scope-bar[hidden] { display: none; }
-	.cv-chat-scope-label {
+	.blemmy-chat-scope-bar[hidden] { display: none; }
+	.blemmy-chat-scope-label {
 		font-size: 0.56rem;
 		letter-spacing: 0.02em;
 		color: var(--color-ink-muted);
 		text-transform: uppercase;
 	}
-	.cv-chat-scope-chip,
-	.cv-chat-scope-clear {
+	.blemmy-chat-scope-chip,
+	.blemmy-chat-scope-clear {
 		border: 1px solid rgba(26,60,64,0.25);
 		border-radius: 999px;
 		background: #fff;
@@ -3353,18 +3482,18 @@ html.cv-published-embed .cv-share-banner {
 		padding: 0.15rem 0.45rem;
 		cursor: pointer;
 	}
-	.cv-chat-scope-clear {
+	.blemmy-chat-scope-clear {
 		margin-left: auto;
 		color: var(--color-ink-muted);
 		border-style: dashed;
 	}
-	.cv-chat-scope-chip:hover,
-	.cv-chat-scope-clear:hover {
+	.blemmy-chat-scope-chip:hover,
+	.blemmy-chat-scope-clear:hover {
 		border-color: var(--color-sidebar, #1a3c40);
 	}
 
 	/* Input area */
-	.cv-chat-input-wrap {
+	.blemmy-chat-input-wrap {
 		display:     flex;
 		align-items: flex-end;
 		gap:         0.4rem;
@@ -3372,9 +3501,9 @@ html.cv-published-embed .cv-share-banner {
 		border-top:  1px solid var(--color-ink-border);
 		flex-shrink: 0;
 	}
-	.dark .cv-chat-input-wrap { border-color: #2a2a2a; }
+	.dark .blemmy-chat-input-wrap { border-color: #2a2a2a; }
 
-	.cv-chat-input {
+	.blemmy-chat-input {
 		flex:         1;
 		border:       1px solid var(--color-ink-border);
 		border-radius: 6px;
@@ -3391,10 +3520,10 @@ html.cv-published-embed .cv-share-banner {
 		max-height:   7.5rem;
 		overflow-y:   auto;
 	}
-	.dark .cv-chat-input { background: #1a1a1a; border-color: #333; }
-	.cv-chat-input:focus { border-color: var(--color-sidebar); }
+	.dark .blemmy-chat-input { background: #1a1a1a; border-color: #333; }
+	.blemmy-chat-input:focus { border-color: var(--color-sidebar); }
 
-	.cv-chat-send {
+	.blemmy-chat-send {
 		width:           2.1rem;
 		height:          2.1rem;
 		flex-shrink:     0;
@@ -3409,10 +3538,10 @@ html.cv-published-embed .cv-share-banner {
 		justify-content: center;
 		transition:      opacity 0.1s;
 	}
-	.cv-chat-send:hover    { opacity: 0.82; }
-	.cv-chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+	.blemmy-chat-send:hover    { opacity: 0.82; }
+	.blemmy-chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
 
-	.cv-chat-scope-selected {
+	.blemmy-chat-scope-selected {
 		outline: 2px solid rgba(26,60,64,0.75);
 		outline-offset: 2px;
 		border-radius: 2px;
@@ -3423,7 +3552,7 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Chat upload button ─────────────────────────────────────────────────────── */
 @media screen {
-	.cv-chat-upload-btn {
+	.blemmy-chat-upload-btn {
 		flex-shrink:     0;
 		width:           2.1rem;
 		height:          2.1rem;
@@ -3439,23 +3568,23 @@ html.cv-published-embed .cv-share-banner {
 		line-height:     1;
 		padding:         0;
 	}
-	.cv-chat-upload-btn:hover {
+	.blemmy-chat-upload-btn:hover {
 		border-color: var(--color-sidebar);
 		background:   rgba(26,60,64,0.06);
 	}
-	.cv-chat-upload-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+	.blemmy-chat-upload-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-	.cv-chat-starter-btn--upload {
+	.blemmy-chat-starter-btn--upload {
 		border-style: dashed;
 	}
-	.cv-chat-starter-btn--upload:hover {
+	.blemmy-chat-starter-btn--upload:hover {
 		border-style: solid;
 	}
 }
 
 /* ─── Chat source material badge ─────────────────────────────────────────────── */
 @media screen {
-	.cv-chat-source-badge {
+	.blemmy-chat-source-badge {
 		display:     flex;
 		align-items: center;
 		gap:         0.25rem;
@@ -3465,9 +3594,9 @@ html.cv-published-embed .cv-share-banner {
 		background:  rgba(26,60,64,0.06);
 		max-width:   120px;
 	}
-	.cv-chat-source-badge[hidden] { display: none; }
+	.blemmy-chat-source-badge[hidden] { display: none; }
 
-	.cv-chat-source-badge__name {
+	.blemmy-chat-source-badge__name {
 		font-size:      0.58rem;
 		color:          var(--color-teal-deep, #1a3c40);
 		white-space:    nowrap;
@@ -3477,7 +3606,7 @@ html.cv-published-embed .cv-share-banner {
 		min-width:      0;
 	}
 
-	.cv-chat-source-badge__clear {
+	.blemmy-chat-source-badge__clear {
 		flex-shrink:     0;
 		width:           1rem;
 		height:          1rem;
@@ -3493,7 +3622,7 @@ html.cv-published-embed .cv-share-banner {
 		padding:         0;
 		transition:      background 0.1s, color 0.1s;
 	}
-	.cv-chat-source-badge__clear:hover {
+	.blemmy-chat-source-badge__clear:hover {
 		background: rgba(220,38,38,0.1);
 		color:      #dc2626;
 	}
@@ -3501,63 +3630,60 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Floating UI collision guards ─────────────────────────────────────────── */
 @media screen and (max-width: 1500px) {
-	.print-fab:not(.cv-dock-btn) { right: 1rem; }
+	.print-fab:not(.blemmy-dock-btn) { right: 1rem; }
 	.theme-toggle { right: 6.5rem; }
-	.cv-view-mode-toggle { right: 10.5rem; }
+	.blemmy-view-mode-toggle { right: 10.5rem; }
 
-	.cv-layout-debug-toggle { left: 1rem; }
-	.cv-prefs-trigger { left: 4.8rem; }
-	.cv-upload-btn, .cv-upload-status { left: 8.6rem; }
-	.cv-edit-btn, .cv-edit-toolbar { left: 15.6rem; }
-	.cv-download-json-btn { left: 22.8rem; }
-	.blemmy-export-html-btn { left: 29.5rem; }
+	.blemmy-layout-debug-toggle { left: 1rem; }
+	.blemmy-prefs-trigger { left: 4.8rem; }
+	.blemmy-upload-btn, .blemmy-upload-status { left: 8.6rem; }
+	.blemmy-edit-btn, .blemmy-edit-toolbar { left: 15.6rem; }
+	.blemmy-export-menu-trigger { left: 22.8rem; }
 }
 
 @media screen and (max-width: 1200px) {
 	/* Stack fixed controls vertically to avoid overlap on narrow viewports. */
-	.cv-layout-debug-toggle,
-	.cv-prefs-trigger,
-	.cv-upload-btn,
-	.cv-edit-btn,
-	.cv-download-json-btn,
-	.blemmy-export-html-btn,
-	.cv-view-mode-toggle,
+	.blemmy-layout-debug-toggle,
+	.blemmy-prefs-trigger,
+	.blemmy-upload-btn,
+	.blemmy-edit-btn,
+	.blemmy-export-menu-trigger,
+	.blemmy-view-mode-toggle,
 	.theme-toggle,
-	.print-fab:not(.cv-dock-btn) {
+	.print-fab:not(.blemmy-dock-btn) {
 		right: 1rem !important;
 		left: auto !important;
 	}
 
-	.print-fab:not(.cv-dock-btn) { bottom: 1rem; }
+	.print-fab:not(.blemmy-dock-btn) { bottom: 1rem; }
 	.theme-toggle { bottom: 4.2rem; }
-	.cv-view-mode-toggle { bottom: 7.4rem; }
-	.cv-download-json-btn { bottom: 10.6rem; }
-	.blemmy-export-html-btn { bottom: 12rem; }
-	.cv-edit-btn { bottom: 13.8rem; }
-	.cv-upload-btn { bottom: 17rem; }
-	.cv-prefs-trigger { bottom: 20.2rem; }
-	.cv-layout-debug-toggle { bottom: 23.4rem; }
+	.blemmy-view-mode-toggle { bottom: 7.4rem; }
+	.blemmy-export-menu-trigger { bottom: 10.6rem; }
+	.blemmy-edit-btn { bottom: 12.5rem; }
+	.blemmy-upload-btn { bottom: 17rem; }
+	.blemmy-prefs-trigger { bottom: 20.2rem; }
+	.blemmy-layout-debug-toggle { bottom: 23.4rem; }
 
-	.cv-upload-status {
+	.blemmy-upload-status {
 		right: 1rem !important;
 		left: auto !important;
 		bottom: 19.8rem !important;
 	}
 
-	.cv-edit-toolbar {
+	.blemmy-edit-toolbar {
 		right: 1rem !important;
 		left: auto !important;
 		bottom: 16.8rem !important;
 		max-width: min(92vw, 520px);
 	}
 
-	.cv-layout-status {
+	.blemmy-layout-status {
 		left: 1rem;
 		bottom: 26.5rem;
 		max-width: min(90vw, 24rem);
 	}
 
-	.cv-prefs-panel {
+	.blemmy-prefs-panel {
 		left: auto;
 		right: 1rem;
 		bottom: 21.8rem;
@@ -3568,39 +3694,38 @@ html.cv-published-embed .cv-share-banner {
 /* ─── Global fixed UI docking (prevents overlap) ───────────────────────────── */
 @media screen {
 	/* Left control rail */
-	#cv-layout-debug-toggle { left: 1rem !important; bottom: 1rem !important; }
-	#cv-prefs-trigger       { left: 5rem !important; bottom: 1rem !important; }
-	#cv-upload-btn          { left: 9rem !important; bottom: 1rem !important; }
-	#cv-edit-btn            { left: 14rem !important; bottom: 1rem !important; }
-	#cv-download-json       { left: 18.5rem !important; bottom: 1rem !important; }
-	#blemmy-export-html     { left: 22.5rem !important; bottom: 1rem !important; }
+	#blemmy-layout-debug-toggle { left: 1rem !important; bottom: 1rem !important; }
+	#blemmy-prefs-trigger       { left: 5rem !important; bottom: 1rem !important; }
+	#blemmy-upload-btn          { left: 9rem !important; bottom: 1rem !important; }
+	#blemmy-edit-btn            { left: 14rem !important; bottom: 1rem !important; }
+	#blemmy-export-menu-trigger { left: 18.5rem !important; bottom: 1rem !important; }
 
 	/* Right control rail */
-	#cv-view-mode-toggle { right: 10.5rem !important; bottom: 1rem !important; }
+	#blemmy-view-mode-toggle { right: 10.5rem !important; bottom: 1rem !important; }
 	#theme-toggle        { right: 6rem !important; bottom: 1rem !important; }
-	#cv-download-pdf     { right: 1rem !important; bottom: 1rem !important; }
+	#blemmy-download-pdf     { right: 1rem !important; bottom: 1rem !important; }
 
 	/* Companion panels / status */
-	#cv-layout-status {
+	#blemmy-layout-status {
 		left: 1rem !important;
 		bottom: 4.1rem !important;
 		max-width: min(28rem, calc(100vw - 2rem)) !important;
 	}
 
-	#cv-upload-status {
+	#blemmy-upload-status {
 		left: 9rem !important;
 		bottom: 3.9rem !important;
 		max-width: min(22rem, calc(100vw - 10rem)) !important;
 	}
 
-	#cv-edit-toolbar {
+	#blemmy-edit-toolbar {
 		left: 1rem !important;
 		right: auto !important;
-		bottom: calc(var(--cv-ui-dock-bottom) + 2.85rem) !important;
+		bottom: calc(var(--blemmy-ui-dock-bottom) + 2.85rem) !important;
 		max-width: min(42rem, calc(100vw - 2rem)) !important;
 	}
 
-	#cv-prefs-panel {
+	#blemmy-prefs-panel {
 		left: 1rem !important;
 		bottom: 4.1rem !important;
 		width: min(22rem, calc(100vw - 2rem)) !important;
@@ -3609,22 +3734,22 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Unified docked controls (v2) ─────────────────────────────────────────── */
 @media screen {
-	.cv-docked-popover {
+	.blemmy-docked-popover {
 		position: fixed !important;
 		left: calc(
-			var(--cv-vv-left) +
-			(1rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-left) +
+			(1rem * var(--blemmy-ui-zoom-comp))
 		) !important;
 		right: auto !important;
 		top: calc(
-			var(--cv-vv-top) +
-			(1rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-top) +
+			(1rem * var(--blemmy-ui-zoom-comp))
 		) !important;
 		bottom: calc(
-			var(--cv-vv-bottom) +
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-			var(--cv-mobile-utility-h) +
-			(0.45rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-bottom) +
+			(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp)) +
+			var(--blemmy-mobile-utility-h) +
+			(0.45rem * var(--blemmy-ui-zoom-comp))
 		) !important;
 		width: min(22rem, calc(100vw - 2rem)) !important;
 		max-width: min(22rem, calc(100vw - 2rem)) !important;
@@ -3633,18 +3758,123 @@ html.cv-published-embed .cv-share-banner {
 		flex-direction: column;
 		overflow: hidden;
 	}
-	.cv-docked-popover[hidden] {
+	.blemmy-docked-popover[hidden] {
 		display: none !important;
 		pointer-events: none !important;
 	}
 
-	#cv-prefs-panel .cv-prefs-inner,
-	#cv-cloud-drawer .cv-cloud-drawer__inner {
+	#blemmy-prefs-panel .blemmy-prefs-inner,
+	#blemmy-cloud-drawer .blemmy-cloud-drawer__inner,
+	#blemmy-dev-console-help-panel .blemmy-prefs-inner {
 		min-height: 0;
 		overflow-y: auto;
 	}
 
-	.cv-chat-panel .cv-recent-changes {
+	.blemmy-dev-console-help__note {
+		margin: 0 0 0.65rem;
+		font-size: 0.82rem;
+		line-height: 1.35;
+		opacity: 0.88;
+	}
+
+	.blemmy-dev-console-help__list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.blemmy-dev-console-help__item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		margin-bottom: 0.65rem;
+	}
+
+	.blemmy-dev-console-help__row {
+		display: flex;
+		align-items: stretch;
+		gap: 0.35rem;
+	}
+
+	.blemmy-dev-console-help__code-btn {
+		flex: 1 1 auto;
+		min-width: 0;
+		margin: 0;
+		padding: 0.25rem 0.45rem;
+		border: none;
+		border-radius: 0.25rem;
+		font-family: ui-monospace, monospace;
+		font-size: 0.78rem;
+		line-height: 1.35;
+		word-break: break-all;
+		text-align: left;
+		cursor: pointer;
+		color: inherit;
+		background: color-mix(in srgb, Canvas 92%, CanvasText);
+	}
+
+	.dark .blemmy-dev-console-help__code-btn {
+		background: color-mix(in srgb, Canvas 88%, CanvasText);
+	}
+
+	.blemmy-dev-console-help__code-btn:hover {
+		filter: brightness(0.97);
+	}
+
+	.dark .blemmy-dev-console-help__code-btn:hover {
+		filter: brightness(1.06);
+	}
+
+	.blemmy-dev-console-help__run {
+		flex: 0 0 auto;
+		margin: 0;
+		width: 2rem;
+		min-width: 2rem;
+		padding: 0;
+		border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+		border-radius: 0.25rem;
+		font: inherit;
+		font-size: 0.75rem;
+		line-height: 1;
+		cursor: pointer;
+		color: inherit;
+		background: color-mix(in srgb, Canvas 96%, CanvasText);
+	}
+
+	.blemmy-dev-console-help__run:hover {
+		filter: brightness(0.96);
+	}
+
+	.blemmy-dev-console-help__hint {
+		font-size: 0.78rem;
+		line-height: 1.35;
+		opacity: 0.9;
+	}
+
+	.blemmy-dev-console-help__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		margin-top: 0.5rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+	}
+
+	.blemmy-dev-console-help__btn {
+		font: inherit;
+		font-size: 0.82rem;
+		padding: 0.35rem 0.65rem;
+		border-radius: 0.3rem;
+		border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+		background: color-mix(in srgb, Canvas 96%, CanvasText);
+		cursor: pointer;
+	}
+
+	.blemmy-dev-console-help__btn--ghost {
+		background: transparent;
+	}
+
+	.blemmy-chat-panel .blemmy-recent-changes {
 		position: relative;
 		left: auto;
 		bottom: auto;
@@ -3660,12 +3890,12 @@ html.cv-published-embed .cv-share-banner {
 		z-index: auto;
 	}
 
-	.dark .cv-chat-panel .cv-recent-changes {
+	.dark .blemmy-chat-panel .blemmy-recent-changes {
 		background: rgba(22, 22, 22, 0.95);
 		border-color: #3a3a3a;
 	}
 
-	.cv-recent-changes__head {
+	.blemmy-recent-changes__head {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -3677,7 +3907,7 @@ html.cv-published-embed .cv-share-banner {
 		margin-bottom: 0.35rem;
 	}
 
-	.cv-recent-changes__toggle {
+	.blemmy-recent-changes__toggle {
 		padding: 0.02rem 0.35rem;
 		border: 1px solid var(--color-ink-border);
 		border-radius: 999px;
@@ -3689,18 +3919,18 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 	}
 
-	.cv-recent-changes__toggle:hover {
+	.blemmy-recent-changes__toggle:hover {
 		border-color: var(--color-ink-muted);
 		color: var(--color-ink);
 	}
 
-	.cv-recent-changes__list {
+	.blemmy-recent-changes__list {
 		display: flex;
 		flex-direction: column;
 		gap: 0.35rem;
 	}
 
-	.cv-recent-changes__item {
+	.blemmy-recent-changes__item {
 		display: grid;
 		grid-template-columns: 1fr auto;
 		gap: 0.3rem 0.5rem;
@@ -3710,33 +3940,33 @@ html.cv-published-embed .cv-share-banner {
 		background: rgba(255, 255, 255, 0.7);
 	}
 
-	.dark .cv-recent-changes__item {
+	.dark .blemmy-recent-changes__item {
 		border-color: rgba(255, 255, 255, 0.12);
 		background: rgba(35, 35, 35, 0.72);
 	}
 
-	.cv-recent-changes__path {
+	.blemmy-recent-changes__path {
 		grid-column: 1 / 2;
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 0.58rem;
 		color: var(--color-ink-mid);
 	}
 
-	.cv-recent-changes__delta {
+	.blemmy-recent-changes__delta {
 		grid-column: 1 / 2;
 		display: flex;
 		flex-direction: column;
 		gap: 0.18rem;
 	}
 
-	.cv-recent-changes__before,
-	.cv-recent-changes__after {
+	.blemmy-recent-changes__before,
+	.blemmy-recent-changes__after {
 		font-size: 0.56rem;
 		color: var(--color-ink-muted);
 		line-height: 1.3;
 	}
 
-	.cv-recent-changes__undo {
+	.blemmy-recent-changes__undo {
 		grid-column: 2 / 3;
 		grid-row: 1 / 3;
 		align-self: center;
@@ -3750,19 +3980,19 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 	}
 
-	.cv-recent-changes__undo:hover {
+	.blemmy-recent-changes__undo:hover {
 		border-color: var(--color-ink-muted);
 		color: var(--color-ink);
 	}
 
-	.cv-ai-changed {
+	.blemmy-ai-changed {
 		position: relative;
 		outline: 2px solid rgba(234, 179, 8, 0.55);
 		outline-offset: 2px;
 		border-radius: 2px;
 	}
 
-	.cv-ai-compare-popover {
+	.blemmy-ai-compare-popover {
 		position: fixed;
 		max-width: min(340px, calc(100vw - 16px));
 		width: min(340px, calc(100vw - 16px));
@@ -3775,23 +4005,23 @@ html.cv-published-embed .cv-share-banner {
 		z-index: 402;
 		pointer-events: none;
 	}
-	.cv-ai-compare-popover[hidden] {
+	.blemmy-ai-compare-popover[hidden] {
 		display: none !important;
 	}
 
-	.dark .cv-ai-compare-popover {
+	.dark .blemmy-ai-compare-popover {
 		background: rgba(18, 18, 18, 0.98);
 		border-color: #3a3a3a;
 	}
 
-	.cv-ai-compare-popover__col {
+	.blemmy-ai-compare-popover__col {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
 		min-width: 0;
 	}
 
-	.cv-ai-compare-popover__label {
+	.blemmy-ai-compare-popover__label {
 		font-size: 0.52rem;
 		font-weight: 700;
 		letter-spacing: 0.1em;
@@ -3799,26 +4029,26 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-muted);
 	}
 
-	.cv-ai-compare-popover__text {
+	.blemmy-ai-compare-popover__text {
 		padding: 0.35rem 0.45rem;
 		border: 1px solid rgba(0, 0, 0, 0.1);
 		border-radius: 4px;
 		background: rgba(255, 255, 255, 0.7);
 		color: var(--color-ink-mid);
-		font-size: var(--cv-ai-compare-font-size, 0.72rem);
-		line-height: var(--cv-ai-compare-line-height, 1.4);
-		font-family: var(--cv-ai-compare-font-family, 'DM Sans', sans-serif);
+		font-size: var(--blemmy-ai-compare-font-size, 0.72rem);
+		line-height: var(--blemmy-ai-compare-line-height, 1.4);
+		font-family: var(--blemmy-ai-compare-font-family, 'DM Sans', sans-serif);
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 	}
 
-	.dark .cv-ai-compare-popover__text {
+	.dark .blemmy-ai-compare-popover__text {
 		border-color: rgba(255, 255, 255, 0.12);
 		background: rgba(35, 35, 35, 0.75);
 		color: #d6d6d6;
 	}
 
-	.cv-ai-undo-btn {
+	.blemmy-ai-undo-btn {
 		position: absolute;
 		top: -0.55rem;
 		right: -0.45rem;
@@ -3834,49 +4064,49 @@ html.cv-published-embed .cv-share-banner {
 		z-index: 15;
 	}
 
-	.dark .cv-ai-undo-btn {
+	.dark .blemmy-ai-undo-btn {
 		background: rgba(24, 24, 24, 0.95);
 		border-color: #404040;
 		color: #d4d4d4;
 	}
 
-	.cv-ai-undo-btn:hover {
+	.blemmy-ai-undo-btn:hover {
 		border-color: var(--color-ink-muted);
 		color: var(--color-ink);
 	}
 
 	:root {
 		/* Keep concrete fallback first; second line overrides when env() works. */
-		--cv-ui-dock-bottom: 1rem;
-		--cv-ui-dock-bottom: max(1rem, env(safe-area-inset-bottom));
-		--cv-ui-dock-edge: 1rem;
-		--cv-ui-dock-edge: max(1rem, env(safe-area-inset-left));
-		--cv-vv-left: 0px;
-		--cv-vv-right: 0px;
-		--cv-vv-bottom: 0px;
-		--cv-vv-top: 0px;
-		--cv-vv-width: 100vw;
-		--cv-vv-height: 100dvh;
-		--cv-vv-scale: 1;
-		--cv-ui-zoom-comp: 1;
-		--cv-paper-scale: 1;
-		--cv-paper-width: 794px;
-		--cv-dock-handle-w: 1.2rem;
-		--cv-dock-peek-gap: 6px;
-		--cv-dock-peek-handle-space-l: 24px;
-		--cv-dock-peek-handle-space-r: 24px;
-		--cv-dock-peek-slide-l: 120px;
-		--cv-dock-peek-slide-r: 120px;
-		--cv-mobile-utility-h: 0px;
+		--blemmy-ui-dock-bottom: 1rem;
+		--blemmy-ui-dock-bottom: max(1rem, env(safe-area-inset-bottom));
+		--blemmy-ui-dock-edge: 1rem;
+		--blemmy-ui-dock-edge: max(1rem, env(safe-area-inset-left));
+		--blemmy-vv-left: 0px;
+		--blemmy-vv-right: 0px;
+		--blemmy-vv-bottom: 0px;
+		--blemmy-vv-top: 0px;
+		--blemmy-vv-width: 100vw;
+		--blemmy-vv-height: 100dvh;
+		--blemmy-vv-scale: 1;
+		--blemmy-ui-zoom-comp: 1;
+		--blemmy-paper-scale: 1;
+		--blemmy-paper-width: 794px;
+		--blemmy-dock-handle-w: 1.2rem;
+		--blemmy-dock-peek-gap: 6px;
+		--blemmy-dock-peek-handle-space-l: 24px;
+		--blemmy-dock-peek-handle-space-r: 24px;
+		--blemmy-dock-peek-slide-l: 120px;
+		--blemmy-dock-peek-slide-r: 120px;
+		--blemmy-mobile-utility-h: 0px;
 	}
 
-	.cv-history-controls {
+	.blemmy-history-controls {
 		display: flex;
 		align-items: center;
 		gap: 0.35rem;
 	}
 
-	.cv-dock-btn {
+	.blemmy-dock-btn {
 		height: 2.1rem;
 		padding: 0.3rem 0.68rem;
 		border: 1px solid var(--color-ink-border);
@@ -3898,42 +4128,42 @@ html.cv-published-embed .cv-share-banner {
 		box-sizing: border-box;
 	}
 
-	.cv-history-btn {
+	.blemmy-history-btn {
 		padding: 0.3rem 0.68rem;
 		font-size: 0.64rem;
 	}
 
-	.cv-history-btn:hover {
+	.blemmy-history-btn:hover {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
 
-	#cv-ui-dock-left button[aria-pressed='true'],
-	#cv-ui-dock-right button[aria-pressed='true'] {
+	#blemmy-ui-dock-left button[aria-pressed='true'],
+	#blemmy-ui-dock-right button[aria-pressed='true'] {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
 	}
 
-	#cv-ui-dock-left button[aria-pressed='true']:hover,
-	#cv-ui-dock-right button[aria-pressed='true']:hover {
+	#blemmy-ui-dock-left button[aria-pressed='true']:hover,
+	#blemmy-ui-dock-right button[aria-pressed='true']:hover {
 		border-color: var(--color-sidebar);
 		background:   var(--color-sidebar);
 		color:        #fff;
 	}
 
-	.cv-history-btn--danger:hover {
+	.blemmy-history-btn--danger:hover {
 		background:   #fee2e2;
 		border-color: #fca5a5;
 		color:        #991b1b;
 	}
 
-	.cv-history-btn:disabled {
+	.blemmy-history-btn:disabled {
 		opacity: 0.45;
 		cursor:  not-allowed;
 	}
 
-	.cv-ui-dock__rail {
+	.blemmy-ui-dock__rail {
 		display:         flex;
 		align-items:     center;
 		flex-wrap:       nowrap;
@@ -3942,14 +4172,14 @@ html.cv-published-embed .cv-share-banner {
 		flex:            1 1 auto;
 	}
 
-	.cv-ui-dock__handle {
+	.blemmy-ui-dock__handle {
 		display:         none;
 		flex-shrink:     0;
 		align-items:     center;
 		justify-content: center;
 		box-sizing:      border-box;
-		width:           var(--cv-dock-handle-w);
-		min-width:       var(--cv-dock-handle-w);
+		width:           var(--blemmy-dock-handle-w);
+		min-width:       var(--blemmy-dock-handle-w);
 		min-height:      2.65rem;
 		margin:          0;
 		padding:         0;
@@ -3967,22 +4197,22 @@ html.cv-published-embed .cv-share-banner {
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.dark .cv-ui-dock__handle {
+	.dark .blemmy-ui-dock__handle {
 		background: rgba(255, 255, 255, 0.1);
 		color:      var(--color-ink-mid);
 	}
 
 	/*
-	 * Anchors sit at viewport edges; handles are outside the glass .cv-ui-dock
+	 * Anchors sit at viewport edges; handles are outside the glass .blemmy-ui-dock
 	 * shell so they stay pinned to the edge while strips translate off-screen.
 	 */
-	.cv-ui-dock-anchor--left,
-	.cv-ui-dock-anchor--right {
+	.blemmy-ui-dock-anchor--left,
+	.blemmy-ui-dock-anchor--right {
 		position:       fixed;
 		top:            auto;
 		bottom:         calc(
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-			var(--cv-vv-bottom)
+			(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp)) +
+			var(--blemmy-vv-bottom)
 		);
 		z-index:        220;
 		display:        flex;
@@ -3990,52 +4220,52 @@ html.cv-published-embed .cv-share-banner {
 		flex-wrap:      nowrap;
 		gap:            0.55rem;
 		pointer-events: none;
-		max-height:     calc(100dvh - (2 * var(--cv-ui-dock-bottom)));
+		max-height:     calc(100dvh - (2 * var(--blemmy-ui-dock-bottom)));
 	}
 
-	.cv-ui-dock-anchor--left > *,
-	.cv-ui-dock-anchor--right > * {
+	.blemmy-ui-dock-anchor--left > *,
+	.blemmy-ui-dock-anchor--right > * {
 		pointer-events: auto;
 	}
 
-	.cv-ui-dock-anchor--left {
+	.blemmy-ui-dock-anchor--left {
 		left:           calc(
-			var(--cv-vv-left) +
-			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-left) +
+			(var(--blemmy-ui-dock-edge) * var(--blemmy-ui-zoom-comp))
 		);
 		right:          auto;
 		flex-direction: row;
 	}
 
-	.cv-ui-dock-anchor--right {
+	.blemmy-ui-dock-anchor--right {
 		right:          calc(
-			var(--cv-vv-right) +
-			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-right) +
+			(var(--blemmy-ui-dock-edge) * var(--blemmy-ui-zoom-comp))
 		);
 		left:           auto;
 		flex-direction: row;
 	}
 
-	.cv-ui-dock-anchor .cv-ui-dock__handle {
-		transform:        scale(var(--cv-ui-zoom-comp));
+	.blemmy-ui-dock-anchor .blemmy-ui-dock__handle {
+		transform:        scale(var(--blemmy-ui-zoom-comp));
 		flex-shrink:      0;
 		align-self:       flex-end;
 	}
 
-	.cv-ui-dock-anchor--left .cv-ui-dock__handle {
+	.blemmy-ui-dock-anchor--left .blemmy-ui-dock__handle {
 		transform-origin: left bottom;
 	}
 
-	.cv-ui-dock-anchor--right .cv-ui-dock__handle {
+	.blemmy-ui-dock-anchor--right .blemmy-ui-dock__handle {
 		transform-origin: right bottom;
 	}
 
 	/*
-	 * Outer .cv-ui-dock: slide transform only (peek). Zoom compensation lives on
-	 * .cv-ui-dock__zoom-shell so translation is not coupled to scale().
+	 * Outer .blemmy-ui-dock: slide transform only (peek). Zoom compensation lives on
+	 * .blemmy-ui-dock__zoom-shell so translation is not coupled to scale().
 	 */
-	#cv-ui-dock-left,
-	#cv-ui-dock-right {
+	#blemmy-ui-dock-left,
+	#blemmy-ui-dock-right {
 		position:     relative;
 		left:         auto;
 		right:        auto;
@@ -4048,7 +4278,7 @@ html.cv-published-embed .cv-share-banner {
 		box-sizing:   border-box;
 	}
 
-	.cv-ui-dock .cv-ui-dock__zoom-shell {
+	.blemmy-ui-dock .blemmy-ui-dock__zoom-shell {
 		display:         flex;
 		align-items:     center;
 		flex-wrap:       nowrap;
@@ -4063,47 +4293,58 @@ html.cv-published-embed .cv-share-banner {
 		backdrop-filter: blur(6px) saturate(115%);
 		-webkit-backdrop-filter: blur(6px) saturate(115%);
 		max-width:       calc(44vw - 1rem);
-		max-height:      calc(100dvh - (2 * var(--cv-ui-dock-bottom)));
+		max-height:      calc(100dvh - (2 * var(--blemmy-ui-dock-bottom)));
 		overflow-y:      auto;
 		overflow-x:      hidden;
-		transform:       scale(var(--cv-ui-zoom-comp));
+		transform:       scale(var(--blemmy-ui-zoom-comp));
 	}
 
-	#cv-ui-dock-left .cv-ui-dock__zoom-shell {
+	#blemmy-ui-dock-left .blemmy-ui-dock__zoom-shell {
 		transform-origin: left bottom;
-		max-width: calc(100vw - var(--cv-ui-dock-edge) - 50vw);
+		max-width: calc(100vw - var(--blemmy-ui-dock-edge) - 50vw);
 	}
-	#cv-ui-dock-right .cv-ui-dock__zoom-shell {
+	#blemmy-ui-dock-right .blemmy-ui-dock__zoom-shell {
 		transform-origin: right bottom;
-		max-width: calc(100vw - var(--cv-ui-dock-edge) - 50vw);
+		max-width: calc(100vw - var(--blemmy-ui-dock-edge) - 50vw);
 	}
 
-	#cv-ui-dock-left .cv-dock-btn,
-	#cv-ui-dock-right .cv-dock-btn {
+	#blemmy-ui-dock-left .blemmy-dock-btn,
+	#blemmy-ui-dock-right .blemmy-dock-btn {
 		min-width: 2.1rem;
 	}
 
-	.dark #cv-ui-dock-left .cv-ui-dock__zoom-shell,
-	.dark #cv-ui-dock-right .cv-ui-dock__zoom-shell {
+	.dark #blemmy-ui-dock-left .blemmy-ui-dock__zoom-shell,
+	.dark #blemmy-ui-dock-right .blemmy-ui-dock__zoom-shell {
 		background: rgba(24, 24, 24, 0.58);
 		border-color: rgba(255, 255, 255, 0.12);
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 	}
 
+	#blemmy-ui-dock-left .blemmy-export-menu-wrap {
+		position: relative !important;
+		left:     auto !important;
+		right:    auto !important;
+		bottom:   auto !important;
+		top:      auto !important;
+		margin:   0 !important;
+		width:    auto !important;
+		height:   auto !important;
+		z-index:  auto !important;
+	}
+
 	/* Dock children must not keep their legacy fixed offsets. */
-	#cv-ui-dock-left .cv-layout-debug-toggle,
-	#cv-ui-dock-left .cv-prefs-trigger,
-	#cv-ui-dock-left .cv-upload-btn,
-	#cv-ui-dock-left .cv-download-json-btn,
-	#cv-ui-dock-left .blemmy-export-html-btn,
-	#cv-ui-dock-right .cv-edit-btn,
-	#cv-ui-dock-right .blemmy-review-toggle,
-	#cv-ui-dock-right .cv-layout-debug-toggle,
-	#cv-ui-dock-right .cv-download-pdf-btn,
-	#cv-ui-dock-right .cv-view-mode-toggle,
-	#cv-ui-dock-right .theme-toggle,
-	#cv-ui-dock-right .cv-chat-trigger,
-	#cv-ui-dock-right .cv-cloud-dock-trigger {
+	#blemmy-ui-dock-left .blemmy-layout-debug-toggle,
+	#blemmy-ui-dock-left .blemmy-prefs-trigger,
+	#blemmy-ui-dock-left .blemmy-upload-btn,
+	#blemmy-ui-dock-left .blemmy-export-menu-trigger,
+	#blemmy-ui-dock-right .blemmy-edit-btn,
+	#blemmy-ui-dock-right .blemmy-review-toggle,
+	#blemmy-ui-dock-right .blemmy-layout-debug-toggle,
+	#blemmy-ui-dock-right .blemmy-download-pdf-btn,
+	#blemmy-ui-dock-right .blemmy-view-mode-toggle,
+	#blemmy-ui-dock-right .theme-toggle,
+	#blemmy-ui-dock-right .blemmy-chat-trigger,
+	#blemmy-ui-dock-right .blemmy-cloud-dock-trigger {
 		position: relative !important;
 		left: auto !important;
 		right: auto !important;
@@ -4118,8 +4359,8 @@ html.cv-published-embed .cv-share-banner {
 		z-index: auto !important;
 	}
 
-	#cv-ui-dock-left .cv-dock-btn::before,
-	#cv-ui-dock-right .cv-dock-btn::before {
+	#blemmy-ui-dock-left .blemmy-dock-btn::before,
+	#blemmy-ui-dock-right .blemmy-dock-btn::before {
 		content: attr(data-icon);
 		font-size: 1.08rem;
 		line-height: 1;
@@ -4128,19 +4369,19 @@ html.cv-published-embed .cv-share-banner {
 		flex-shrink: 0;
 	}
 
-	#cv-ui-dock-left .cv-dock-btn,
-	#cv-ui-dock-right .cv-dock-btn {
+	#blemmy-ui-dock-left .blemmy-dock-btn,
+	#blemmy-ui-dock-right .blemmy-dock-btn {
 		min-width: 2.1rem;
 	}
 
-	#cv-ui-dock-left .cv-dock-btn,
-	#cv-ui-dock-right .cv-dock-btn {
+	#blemmy-ui-dock-left .blemmy-dock-btn,
+	#blemmy-ui-dock-right .blemmy-dock-btn {
 		line-height: 1;
 		z-index: auto !important;
 	}
 
-	#cv-ui-dock-left.cv-ui-dock--compact .cv-dock-btn,
-	#cv-ui-dock-right.cv-ui-dock--compact .cv-dock-btn {
+	#blemmy-ui-dock-left.blemmy-ui-dock--compact .blemmy-dock-btn:not(.blemmy-export-menu__item),
+	#blemmy-ui-dock-right.blemmy-ui-dock--compact .blemmy-dock-btn:not(.blemmy-export-menu__item) {
 		width: 2.1rem !important;
 		height: 2.1rem !important;
 		padding: 0 !important;
@@ -4148,8 +4389,10 @@ html.cv-published-embed .cv-share-banner {
 		justify-content: center;
 	}
 
-	#cv-ui-dock-left.cv-ui-dock--compact [data-icon]::before,
-	#cv-ui-dock-right.cv-ui-dock--compact [data-icon]::before {
+	#blemmy-ui-dock-left.blemmy-ui-dock--compact
+		.blemmy-dock-btn:not(.blemmy-export-menu__item)[data-icon]::before,
+	#blemmy-ui-dock-right.blemmy-ui-dock--compact
+		.blemmy-dock-btn:not(.blemmy-export-menu__item)[data-icon]::before {
 		position: absolute;
 		left: 50%;
 		top: 50%;
@@ -4157,43 +4400,44 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	/* Keep auxiliary panels above dock, away from CV center. */
-	#cv-layout-status {
+	#blemmy-layout-status {
 		left: 1rem !important;
-		bottom: calc(var(--cv-ui-dock-bottom) + 3.2rem) !important;
+		bottom: calc(var(--blemmy-ui-dock-bottom) + 3.2rem) !important;
 		max-width: min(26rem, calc(100vw - 2rem)) !important;
 		z-index: 221;
 	}
 
-	#cv-upload-status {
+	#blemmy-upload-status {
 		left: 1rem !important;
-		bottom: calc(var(--cv-ui-dock-bottom) + 6.2rem) !important;
+		bottom: calc(var(--blemmy-ui-dock-bottom) + 6.2rem) !important;
 		z-index: 221;
 		max-width: min(24rem, calc(100vw - 2rem)) !important;
 	}
 
-	#cv-edit-toolbar {
+	#blemmy-edit-toolbar {
 		left: 1rem !important;
 		right: auto !important;
-		bottom: calc(var(--cv-ui-dock-bottom) + 2.9rem) !important;
+		bottom: calc(var(--blemmy-ui-dock-bottom) + 2.9rem) !important;
 		max-width: min(42rem, calc(100vw - 2rem)) !important;
 		z-index: 221;
 	}
 
 	/* Hint text is the part that most often covers content. */
-	#cv-edit-toolbar .cv-edit-toolbar__hint {
+	#blemmy-edit-toolbar .blemmy-edit-toolbar__hint {
 		display: none;
 	}
 
-	#cv-prefs-panel,
-	#cv-cloud-drawer {
+	#blemmy-prefs-panel,
+	#blemmy-dev-console-help-panel,
+	#blemmy-cloud-drawer {
 		left: 1rem !important;
 		right: auto !important;
-		bottom: calc(var(--cv-ui-dock-bottom) + 3.2rem) !important;
+		bottom: calc(var(--blemmy-ui-dock-bottom) + 3.2rem) !important;
 		bottom: calc(
-			var(--cv-vv-bottom) +
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-			var(--cv-mobile-utility-h) +
-			(0.45rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-bottom) +
+			(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp)) +
+			var(--blemmy-mobile-utility-h) +
+			(0.45rem * var(--blemmy-ui-zoom-comp))
 		) !important;
 		max-width: min(22rem, calc(100vw - 2rem)) !important;
 		z-index: 221;
@@ -4205,91 +4449,91 @@ html.cv-published-embed .cv-share-banner {
 	 * Narrow: anchor is only as wide as the handle; the glass dock is
 	 * absolutely positioned and translates fully off-screen when collapsed.
 	 */
-	.cv-ui-dock-anchor--left {
+	.blemmy-ui-dock-anchor--left {
 		display:         flex;
 		flex-direction:  row;
 		align-items:     flex-end;
 		width:           max-content;
 		max-width:       100%;
 	}
-	.cv-ui-dock-anchor--right {
+	.blemmy-ui-dock-anchor--right {
 		display:         flex;
 		flex-direction:  row;
 		justify-content: flex-end;
 		width:           max-content;
 		max-width:       100%;
 	}
-	.cv-ui-dock-anchor .cv-ui-dock__handle {
+	.blemmy-ui-dock-anchor .blemmy-ui-dock__handle {
 		display:     inline-flex;
 		position:    relative;
 		z-index:     3;
 	}
-	#cv-ui-dock-left.cv-ui-dock--peek,
-	#cv-ui-dock-right.cv-ui-dock--peek {
+	#blemmy-ui-dock-left.blemmy-ui-dock--peek,
+	#blemmy-ui-dock-right.blemmy-ui-dock--peek {
 		position:    absolute;
 		bottom:      0;
 		transition:  transform 0.22s ease;
 	}
-	#cv-ui-dock-left.cv-ui-dock--peek {
-		left:        var(--cv-dock-peek-handle-space-l);
+	#blemmy-ui-dock-left.blemmy-ui-dock--peek {
+		left:        var(--blemmy-dock-peek-handle-space-l);
 		right:       auto;
 	}
-	#cv-ui-dock-right.cv-ui-dock--peek {
-		right:       var(--cv-dock-peek-handle-space-r);
+	#blemmy-ui-dock-right.blemmy-ui-dock--peek {
+		right:       var(--blemmy-dock-peek-handle-space-r);
 		left:        auto;
 	}
 	/*
 	 * Peek slide uses px from JS: shell getBoundingClientRect().width plus
 	 * clearance, so distance matches fixed-position + pinch-zoom coordinates.
 	 */
-	#cv-ui-dock-left.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
-		transform: translateX(calc(-1 * var(--cv-dock-peek-slide-l)));
+	#blemmy-ui-dock-left.blemmy-ui-dock--peek:not(.blemmy-ui-dock--expanded) {
+		transform: translateX(calc(-1 * var(--blemmy-dock-peek-slide-l)));
 		pointer-events: none;
 	}
-	#cv-ui-dock-right.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
-		transform: translateX(var(--cv-dock-peek-slide-r));
+	#blemmy-ui-dock-right.blemmy-ui-dock--peek:not(.blemmy-ui-dock--expanded) {
+		transform: translateX(var(--blemmy-dock-peek-slide-r));
 		pointer-events: none;
 	}
-	#cv-ui-dock-left.cv-ui-dock--peek.cv-ui-dock--expanded,
-	.cv-ui-dock-anchor--left:hover
-		#cv-ui-dock-left.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+	#blemmy-ui-dock-left.blemmy-ui-dock--peek.blemmy-ui-dock--expanded,
+	.blemmy-ui-dock-anchor--left:hover
+		#blemmy-ui-dock-left.blemmy-ui-dock--peek:not(.blemmy-ui-dock--expanded) {
 		transform:       translateX(0);
 		pointer-events:  auto;
 	}
-	#cv-ui-dock-right.cv-ui-dock--peek.cv-ui-dock--expanded,
-	.cv-ui-dock-anchor--right:hover
-		#cv-ui-dock-right.cv-ui-dock--peek:not(.cv-ui-dock--expanded) {
+	#blemmy-ui-dock-right.blemmy-ui-dock--peek.blemmy-ui-dock--expanded,
+	.blemmy-ui-dock-anchor--right:hover
+		#blemmy-ui-dock-right.blemmy-ui-dock--peek:not(.blemmy-ui-dock--expanded) {
 		transform:       translateX(0);
 		pointer-events:  auto;
 	}
-	#cv-ui-dock-left.cv-ui-dock--peek .cv-ui-dock__rail,
-	#cv-ui-dock-right.cv-ui-dock--peek .cv-ui-dock__rail {
+	#blemmy-ui-dock-left.blemmy-ui-dock--peek .blemmy-ui-dock__rail,
+	#blemmy-ui-dock-right.blemmy-ui-dock--peek .blemmy-ui-dock__rail {
 		flex-direction: column;
 		align-items:    stretch;
 		flex-wrap:      nowrap;
 	}
-	.cv-ui-dock__handle--left::after {
+	.blemmy-ui-dock__handle--left::after {
 		content: '›';
 	}
-	.cv-ui-dock__handle--right::after {
+	.blemmy-ui-dock__handle--right::after {
 		content: '‹';
 	}
-	.cv-ui-dock-anchor--left:has(#cv-ui-dock-left.cv-ui-dock--expanded)
-		.cv-ui-dock__handle--left::after {
+	.blemmy-ui-dock-anchor--left:has(#blemmy-ui-dock-left.blemmy-ui-dock--expanded)
+		.blemmy-ui-dock__handle--left::after {
 		content: '‹';
 	}
-	.cv-ui-dock-anchor--right:has(#cv-ui-dock-right.cv-ui-dock--expanded)
-		.cv-ui-dock__handle--right::after {
+	.blemmy-ui-dock-anchor--right:has(#blemmy-ui-dock-right.blemmy-ui-dock--expanded)
+		.blemmy-ui-dock__handle--right::after {
 		content: '›';
 	}
 
-	#cv-ui-dock-left .cv-history-controls {
+	#blemmy-ui-dock-left .blemmy-history-controls {
 		flex-direction: column;
 		width: 100%;
 	}
 
-	#cv-ui-dock-left .cv-dock-btn,
-	#cv-ui-dock-right .cv-dock-btn {
+	#blemmy-ui-dock-left .blemmy-dock-btn,
+	#blemmy-ui-dock-right .blemmy-dock-btn {
 		width: 2.1rem;
 		height: 2.1rem;
 		padding: 0;
@@ -4298,8 +4542,8 @@ html.cv-published-embed .cv-share-banner {
 		justify-content: center;
 	}
 
-	#cv-ui-dock-left [data-icon]::before,
-	#cv-ui-dock-right [data-icon]::before {
+	#blemmy-ui-dock-left [data-icon]::before,
+	#blemmy-ui-dock-right [data-icon]::before {
 		content: attr(data-icon);
 		font-size: 1.08rem;
 		line-height: 1;
@@ -4311,17 +4555,17 @@ html.cv-published-embed .cv-share-banner {
 		pointer-events: none;
 	}
 
-	html.cv-mobile-utility-active #cv-ui-dock-left-anchor,
-	html.cv-mobile-utility-active #cv-ui-dock-right-anchor {
+	html.blemmy-mobile-utility-active #blemmy-ui-dock-left-anchor,
+	html.blemmy-mobile-utility-active #blemmy-ui-dock-right-anchor {
 		display: none !important;
 	}
 }
 
 @media screen and (max-width: 760px) {
-	html.cv-mobile-utility-active:not(.cv-share-readonly) body {
+	html.blemmy-mobile-utility-active:not(.blemmy-share-readonly) body {
 		padding-bottom: calc(
-			var(--cv-mobile-utility-h) +
-			var(--cv-vv-bottom) +
+			var(--blemmy-mobile-utility-h) +
+			var(--blemmy-vv-bottom) +
 			0.65rem
 		) !important;
 	}
@@ -4329,25 +4573,25 @@ html.cv-published-embed .cv-share-banner {
 
 @media screen {
 	/*
-	 * Pinch-zoom: same 1/σ scale as `.cv-ui-dock__zoom-shell` (via
-	 * `--cv-ui-zoom-comp`). Docks are auto-width pills; this bar is full-bleed,
+	 * Pinch-zoom: same 1/σ scale as `.blemmy-ui-dock__zoom-shell` (via
+	 * `--blemmy-ui-zoom-comp`). Docks are auto-width pills; this bar is full-bleed,
 	 * so a bare `scale(1/σ)` shrinks painted width to 1/σ of the column —
-	 * widen the inner box by `--cv-vv-scale` (σ) first, then scale, so visual
-	 * width matches the inset column (see ui-manager `--cv-vv-scale`).
+	 * widen the inner box by `--blemmy-vv-scale` (σ) first, then scale, so visual
+	 * width matches the inset column (see ui-manager `--blemmy-vv-scale`).
 	 */
-	.cv-mobile-utility-bar {
+	.blemmy-mobile-utility-bar {
 		position: fixed;
 		left: calc(
-			var(--cv-vv-left) +
-			(0.55rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-left) +
+			(0.55rem * var(--blemmy-ui-zoom-comp))
 		);
 		right: calc(
-			var(--cv-vv-right) +
-			(0.55rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-right) +
+			(0.55rem * var(--blemmy-ui-zoom-comp))
 		);
 		bottom: calc(
-			var(--cv-vv-bottom) +
-			(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-bottom) +
+			(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp))
 		);
 		z-index: 240;
 		display: flex;
@@ -4355,18 +4599,18 @@ html.cv-published-embed .cv-share-banner {
 		align-items: flex-end;
 		pointer-events: none;
 	}
-	.cv-mobile-utility-bar__zoom-shell {
+	.blemmy-mobile-utility-bar__zoom-shell {
 		flex: 0 0 auto;
-		width: calc(100% * var(--cv-vv-scale));
+		width: calc(100% * var(--blemmy-vv-scale));
 		box-sizing: border-box;
-		transform: scale(var(--cv-ui-zoom-comp));
+		transform: scale(var(--blemmy-ui-zoom-comp));
 		transform-origin: center bottom;
 		pointer-events: auto;
 	}
-	.cv-mobile-utility-bar[hidden] {
+	.blemmy-mobile-utility-bar[hidden] {
 		display: none !important;
 	}
-	.cv-mobile-utility-bar__row {
+	.blemmy-mobile-utility-bar__row {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0.45rem;
@@ -4378,7 +4622,7 @@ html.cv-published-embed .cv-share-banner {
 		backdrop-filter: blur(7px) saturate(120%);
 		-webkit-backdrop-filter: blur(7px) saturate(120%);
 	}
-	.cv-mobile-utility-bar__btn {
+	.blemmy-mobile-utility-bar__btn {
 		min-height: 2.35rem;
 		padding: 0.26rem 0.45rem;
 		border-radius: 0.8rem;
@@ -4393,48 +4637,48 @@ html.cv-published-embed .cv-share-banner {
 		justify-content: center;
 		gap: 0.32rem;
 	}
-	.cv-mobile-utility-bar__btn::before {
+	.blemmy-mobile-utility-bar__btn::before {
 		content: attr(data-icon);
 		font-size: 0.96rem;
 		line-height: 1;
 	}
-	.cv-mobile-utility-sheet {
+	.blemmy-mobile-utility-sheet {
 		position: fixed;
 		inset: 0;
 		z-index: 245;
 	}
-	.cv-mobile-utility-sheet[hidden] {
+	.blemmy-mobile-utility-sheet[hidden] {
 		display: none !important;
 	}
-	.cv-mobile-utility-sheet__backdrop {
+	.blemmy-mobile-utility-sheet__backdrop {
 		position: absolute;
 		inset: 0;
 		border: 0;
 		background: rgba(0, 0, 0, 0.32);
 	}
-	.cv-mobile-utility-sheet__panel-outer {
+	.blemmy-mobile-utility-sheet__panel-outer {
 		position: absolute;
 		left: calc(
-			var(--cv-vv-left) +
-			(0.55rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-left) +
+			(0.55rem * var(--blemmy-ui-zoom-comp))
 		);
 		right: calc(
-			var(--cv-vv-right) +
-			(0.55rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-right) +
+			(0.55rem * var(--blemmy-ui-zoom-comp))
 		);
 		bottom: calc(
-			var(--cv-vv-bottom) +
-			var(--cv-mobile-utility-h) +
-			(0.45rem * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-bottom) +
+			var(--blemmy-mobile-utility-h) +
+			(0.45rem * var(--blemmy-ui-zoom-comp))
 		);
 		display: flex;
 		justify-content: center;
 		align-items: flex-end;
 		pointer-events: none;
 	}
-	.cv-mobile-utility-sheet__panel {
+	.blemmy-mobile-utility-sheet__panel {
 		flex: 0 0 auto;
-		width: calc(100% * var(--cv-vv-scale));
+		width: calc(100% * var(--blemmy-vv-scale));
 		box-sizing: border-box;
 		border-radius: 0.95rem;
 		background: rgba(255, 255, 255, 0.96);
@@ -4443,55 +4687,55 @@ html.cv-published-embed .cv-share-banner {
 		padding: 0.6rem;
 		max-height: 62dvh;
 		overflow: auto;
-		transform: scale(var(--cv-ui-zoom-comp));
+		transform: scale(var(--blemmy-ui-zoom-comp));
 		transform-origin: bottom center;
 		pointer-events: auto;
 	}
-	.cv-mobile-utility-sheet__head {
+	.blemmy-mobile-utility-sheet__head {
 		font: 600 0.72rem 'DM Sans', sans-serif;
 		color: var(--color-ink-mid);
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		margin: 0 0 0.45rem;
 	}
-	.cv-mobile-utility-sheet__body {
+	.blemmy-mobile-utility-sheet__body {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.45rem;
 	}
-	.dark .cv-mobile-utility-bar__row {
+	.dark .blemmy-mobile-utility-bar__row {
 		background: rgba(24, 24, 24, 0.72);
 		border-color: rgba(255, 255, 255, 0.12);
 	}
-	.dark .cv-mobile-utility-bar__btn {
+	.dark .blemmy-mobile-utility-bar__btn {
 		background: rgba(30, 30, 30, 0.9);
 		border-color: rgba(255, 255, 255, 0.16);
 		color: #e5e7eb;
 	}
-	.dark .cv-mobile-utility-sheet__panel {
+	.dark .blemmy-mobile-utility-sheet__panel {
 		background: rgba(22, 22, 22, 0.96);
 		border-color: rgba(255, 255, 255, 0.14);
 	}
-	.dark .cv-mobile-utility-sheet__head {
+	.dark .blemmy-mobile-utility-sheet__head {
 		color: #cbd5e1;
 	}
 }
 
 @media screen {
 	html,
-	html:not(.cv-share-readonly) body {
+	html:not(.blemmy-share-readonly) body {
 		overflow-x: clip;
 	}
 	/*
-	 * Paper fit: JS may set inline zoom on .cv-paper-stage (Chrome Android
+	 * Paper fit: JS may set inline zoom on .blemmy-paper-stage (Chrome Android
 	 * after remount). Stylesheet stays the fallback when inline is absent.
 	 */
-	html:not(.cv-share-readonly) .cv-paper-stage:has(#cv-shell.cv-print-preview) {
-		width: var(--cv-paper-width);
-		max-width: var(--cv-paper-width);
+	html:not(.blemmy-share-readonly) .blemmy-paper-stage:has(.blemmy-shell.blemmy-print-preview) {
+		width: var(--blemmy-paper-width);
+		max-width: var(--blemmy-paper-width);
 		margin: 0 auto;
 		box-sizing: border-box;
-		zoom: var(--cv-paper-scale);
+		zoom: var(--blemmy-paper-scale);
 		transform-origin: top center;
 		overflow-x: clip;
 	}
@@ -4500,26 +4744,26 @@ html.cv-published-embed .cv-share-banner {
 		 * Firefox fallback: shrink the stage layout box to scaled width, then
 		 * transform the stage content. This prevents horizontal overflow.
 		 */
-		html:not(.cv-share-readonly) .cv-paper-stage:has(#cv-shell.cv-print-preview) {
-			width: calc(var(--cv-paper-width) * var(--cv-paper-scale));
-			max-width: calc(var(--cv-paper-width) * var(--cv-paper-scale));
-			transform: scale(var(--cv-paper-scale));
+		html:not(.blemmy-share-readonly) .blemmy-paper-stage:has(.blemmy-shell.blemmy-print-preview) {
+			width: calc(var(--blemmy-paper-width) * var(--blemmy-paper-scale));
+			max-width: calc(var(--blemmy-paper-width) * var(--blemmy-paper-scale));
+			transform: scale(var(--blemmy-paper-scale));
 			transform-origin: top left;
 		}
 	}
 }
 
 @media screen and (max-width: 900px) {
-	html:not(.cv-share-readonly) body {
+	html:not(.blemmy-share-readonly) body {
 		padding: 0.4rem !important;
 	}
 	/*
-	 * Mobile + zoom-capable engines: JS uses zoom on .cv-paper-scaler, not the
+	 * Mobile + zoom-capable engines: JS uses zoom on .blemmy-paper-scaler, not the
 	 * stage. Keep stage zoom unset. Scoped with @supports so Firefox (no zoom)
 	 * still uses the transform-on-stage rule from the main screen block.
 	 */
 	@supports (zoom: 1) {
-		html:not(.cv-share-readonly) .cv-paper-stage:has(.cv-paper-scaler) {
+		html:not(.blemmy-share-readonly) .blemmy-paper-stage:has(.blemmy-paper-scaler) {
 			zoom: unset !important;
 			transform: none !important;
 			width: 100%;
@@ -4530,7 +4774,7 @@ html.cv-published-embed .cv-share-banner {
 			overflow-x: clip;
 			min-width: 0;
 		}
-		.cv-paper-scaler {
+		.blemmy-paper-scaler {
 			box-sizing: border-box;
 			flex-shrink: 0;
 		}
@@ -4539,8 +4783,8 @@ html.cv-published-embed .cv-share-banner {
 
 /* ─── Cloud drawer (left side, same shell as preferences) ─────────────────── */
 @media screen {
-	.cv-cloud-drawer,
-	#cv-cloud-drawer {
+	.blemmy-cloud-drawer,
+	#blemmy-cloud-drawer {
 		position:      fixed;
 		bottom:        5rem;
 		left:          2rem;
@@ -4552,23 +4796,23 @@ html.cv-published-embed .cv-share-banner {
 		z-index:       102;
 		font-family:   'DM Sans', sans-serif;
 	}
-	#cv-cloud-drawer[hidden] {
+	#blemmy-cloud-drawer[hidden] {
 		display: none !important;
 	}
-	.dark .cv-cloud-drawer,
-	.dark #cv-cloud-drawer {
+	.dark .blemmy-cloud-drawer,
+	.dark #blemmy-cloud-drawer {
 		background:   #1a1a1a;
 		border-color: #333;
 	}
-	.cv-cloud-drawer__tabrow {
+	.blemmy-cloud-drawer__tabrow {
 		display:     flex;
 		align-items: center;
 		gap:         0.45rem;
 	}
-	.cv-cloud-drawer__tabrow[hidden] {
+	.blemmy-cloud-drawer__tabrow[hidden] {
 		display: none !important;
 	}
-	.cv-cloud-drawer__seg-wrap {
+	.blemmy-cloud-drawer__seg-wrap {
 		display:       flex;
 		flex:          1;
 		min-width:     0;
@@ -4576,7 +4820,7 @@ html.cv-published-embed .cv-share-banner {
 		border-radius: 2px;
 		overflow:      hidden;
 	}
-	.cv-cloud-drawer__seg {
+	.blemmy-cloud-drawer__seg {
 		flex:           1;
 		padding:        0.3rem 0;
 		font-family:    'DM Sans', sans-serif;
@@ -4590,42 +4834,42 @@ html.cv-published-embed .cv-share-banner {
 		transition:     background 0.12s, color 0.12s;
 		text-align:     center;
 	}
-	.cv-cloud-drawer__seg:not(:last-child) {
+	.blemmy-cloud-drawer__seg:not(:last-child) {
 		border-right: 1px solid var(--color-ink-border);
 	}
-	.cv-cloud-drawer__seg--active {
+	.blemmy-cloud-drawer__seg--active {
 		background: var(--color-sidebar, #1a1a1a);
 		color:      #fff;
 	}
-	.cv-cloud-drawer__seg:hover:not(.cv-cloud-drawer__seg--active) {
+	.blemmy-cloud-drawer__seg:hover:not(.blemmy-cloud-drawer__seg--active) {
 		background: var(--color-ink-border);
 		color:      var(--color-ink);
 	}
-	.dark .cv-cloud-drawer__seg-wrap {
+	.dark .blemmy-cloud-drawer__seg-wrap {
 		border-color: #333;
 	}
-	.dark .cv-cloud-drawer__seg:not(:last-child) {
+	.dark .blemmy-cloud-drawer__seg:not(:last-child) {
 		border-right-color: #333;
 	}
 
-	.cv-cloud-dock-trigger:not(.cv-dock-btn) {
+	.blemmy-cloud-dock-trigger:not(.blemmy-dock-btn) {
 		transition: border-color 0.15s, color 0.15s, background 0.15s;
 	}
-	.cv-cloud-dock-trigger:not(.cv-dock-btn):hover,
-	.cv-cloud-dock-trigger:not(.cv-dock-btn).cv-cloud-dock-trigger--open {
+	.blemmy-cloud-dock-trigger:not(.blemmy-dock-btn):hover,
+	.blemmy-cloud-dock-trigger:not(.blemmy-dock-btn).blemmy-cloud-dock-trigger--open {
 		border-color: var(--color-ink-muted);
 		color:        var(--color-ink);
 	}
-	.cv-cloud-dock-trigger:not(.cv-dock-btn).cv-cloud-dock-trigger--open {
+	.blemmy-cloud-dock-trigger:not(.blemmy-dock-btn).blemmy-cloud-dock-trigger--open {
 		background: var(--color-ink-border);
 	}
-	.cv-cloud-drawer__sync {
+	.blemmy-cloud-drawer__sync {
 		font-size:   0.58rem;
 		color:       var(--color-ink-muted);
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
-	.cv-cloud-drawer__pane {
+	.blemmy-cloud-drawer__pane {
 		display:        flex;
 		flex-direction: column;
 		gap:            0.45rem;
@@ -4634,20 +4878,20 @@ html.cv-published-embed .cv-share-banner {
 		overflow-x:     hidden;
 		overflow-y:     auto;
 	}
-	.cv-cloud-drawer__pane[hidden] {
+	.blemmy-cloud-drawer__pane[hidden] {
 		display: none !important;
 	}
-	.cv-cloud-drawer__muted {
+	.blemmy-cloud-drawer__muted {
 		margin:      0;
 		font-size:   0.65rem;
 		line-height: 1.4;
 		color:       var(--color-ink-muted);
 	}
-	.cv-auth-input,
-	.cv-auth-btn,
-	.cv-doc-btn,
-	.cv-doc-row__name,
-	.cv-doc-row__action {
+	.blemmy-auth-input,
+	.blemmy-auth-btn,
+	.blemmy-doc-btn,
+	.blemmy-doc-row__name,
+	.blemmy-doc-row__action {
 		font: inherit;
 		font-size: 0.68rem;
 		padding: 0.38rem 0.5rem;
@@ -4656,11 +4900,11 @@ html.cv-published-embed .cv-share-banner {
 		background: transparent;
 		color: var(--color-ink-mid);
 	}
-	.cv-auth-btn,
-	.cv-doc-btn,
-	.cv-doc-row__name,
-	.cv-doc-row__action,
-	.cv-cloud-drawer__seg {
+	.blemmy-auth-btn,
+	.blemmy-doc-btn,
+	.blemmy-doc-row__name,
+	.blemmy-doc-row__action,
+	.blemmy-cloud-drawer__seg {
 		cursor: pointer;
 		transition:
 			transform 0.12s ease,
@@ -4669,33 +4913,33 @@ html.cv-published-embed .cv-share-banner {
 			border-color 0.12s ease,
 			box-shadow 0.12s ease;
 	}
-	.cv-auth-btn:hover,
-	.cv-doc-btn:hover,
-	.cv-doc-row__name:hover,
-	.cv-doc-row__action:hover,
-	.cv-cloud-drawer__seg:hover {
+	.blemmy-auth-btn:hover,
+	.blemmy-doc-btn:hover,
+	.blemmy-doc-row__name:hover,
+	.blemmy-doc-row__action:hover,
+	.blemmy-cloud-drawer__seg:hover {
 		border-color: var(--color-ink-muted);
 		color: var(--color-ink);
 		background: var(--color-ink-border);
 		transform: translateY(-1px);
 	}
-	.cv-auth-btn:active,
-	.cv-doc-btn:active,
-	.cv-doc-row__name:active,
-	.cv-doc-row__action:active,
-	.cv-cloud-drawer__seg:active {
+	.blemmy-auth-btn:active,
+	.blemmy-doc-btn:active,
+	.blemmy-doc-row__name:active,
+	.blemmy-doc-row__action:active,
+	.blemmy-cloud-drawer__seg:active {
 		transform: translateY(0);
 	}
-	.cv-auth-btn:focus-visible,
-	.cv-doc-btn:focus-visible,
-	.cv-doc-row__name:focus-visible,
-	.cv-doc-row__action:focus-visible,
-	.cv-cloud-drawer__seg:focus-visible {
+	.blemmy-auth-btn:focus-visible,
+	.blemmy-doc-btn:focus-visible,
+	.blemmy-doc-row__name:focus-visible,
+	.blemmy-doc-row__action:focus-visible,
+	.blemmy-cloud-drawer__seg:focus-visible {
 		outline: none;
 		border-color: var(--color-ink);
 		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 22%, transparent);
 	}
-	.cv-auth-btn--oauth {
+	.blemmy-auth-btn--oauth {
 		display:         inline-flex;
 		align-items:     center;
 		justify-content: flex-start;
@@ -4705,88 +4949,88 @@ html.cv-published-embed .cv-share-banner {
 		text-align:      left;
 	}
 	/* Author `display` wins over UA `[hidden]`; keep hidden state real. */
-	.cv-auth-btn--oauth[hidden],
-	.cv-auth-policy[hidden] {
+	.blemmy-auth-btn--oauth[hidden],
+	.blemmy-auth-policy[hidden] {
 		display: none !important;
 	}
-	.cv-auth-oauth-icon {
+	.blemmy-auth-oauth-icon {
 		flex-shrink: 0;
 		width:       1.125rem;
 		height:      1.125rem;
 		display:     block;
 	}
-	.cv-auth-oauth-label {
+	.blemmy-auth-oauth-label {
 		flex: 1;
 		min-width: 0;
 	}
-	.dark .cv-auth-input,
-	.dark .cv-auth-btn,
-	.dark .cv-doc-btn,
-	.dark .cv-doc-row__name,
-	.dark .cv-doc-row__action {
+	.dark .blemmy-auth-input,
+	.dark .blemmy-auth-btn,
+	.dark .blemmy-doc-btn,
+	.dark .blemmy-doc-row__name,
+	.dark .blemmy-doc-row__action {
 		background: #141414;
 		border-color: #333;
 	}
-	.dark .cv-auth-btn:hover,
-	.dark .cv-doc-btn:hover,
-	.dark .cv-doc-row__name:hover,
-	.dark .cv-doc-row__action:hover,
-	.dark .cv-cloud-drawer__seg:hover {
+	.dark .blemmy-auth-btn:hover,
+	.dark .blemmy-doc-btn:hover,
+	.dark .blemmy-doc-row__name:hover,
+	.dark .blemmy-doc-row__action:hover,
+	.dark .blemmy-cloud-drawer__seg:hover {
 		background: #1f1f1f;
 		border-color: #4a4a4a;
 		color: #f2f2f2;
 	}
-	.cv-doc-row {
+	.blemmy-doc-row {
 		display: grid;
 		grid-template-columns: 1fr auto auto auto auto auto;
 		gap: 0.35rem;
 		align-items: center;
 		margin: 0.2rem 0;
 	}
-	.cv-doc-row__meta {
+	.blemmy-doc-row__meta {
 		font-size: 0.58rem;
 		color: var(--color-ink-muted);
 	}
-	.cv-doc-quota {
+	.blemmy-doc-quota {
 		display: flex;
 		flex-direction: column;
 		gap: 0.22rem;
 		margin-top: 0.3rem;
 		margin-bottom: 0.2rem;
 	}
-	.cv-doc-quota__text {
+	.blemmy-doc-quota__text {
 		margin: 0;
 		font-size: 0.58rem;
 		color: var(--color-ink-muted);
 	}
-	.cv-doc-quota__bar {
+	.blemmy-doc-quota__bar {
 		height: 0.3rem;
 		border-radius: 999px;
 		background: var(--color-ink-border);
 		overflow: hidden;
 	}
-	.cv-doc-quota__fill {
+	.blemmy-doc-quota__fill {
 		display: block;
 		height: 100%;
 		background: color-mix(in srgb, var(--color-ink) 40%, transparent);
 		transition: width 0.2s ease;
 	}
-	.cv-auth-intro,
-	.cv-auth-field-hint {
+	.blemmy-auth-intro,
+	.blemmy-auth-field-hint {
 		margin: 0;
 		line-height: 1.45;
 	}
-	.cv-auth-expand {
+	.blemmy-auth-expand {
 		width: 100%;
 		text-align: center;
 	}
-	.cv-auth-email-pass {
+	.blemmy-auth-email-pass {
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
 		padding-top: 0.15rem;
 	}
-	.cv-auth-policy {
+	.blemmy-auth-policy {
 		display: flex;
 		align-items: flex-start;
 		gap: 0.4rem;
@@ -4794,28 +5038,28 @@ html.cv-published-embed .cv-share-banner {
 		line-height: 1.4;
 		color: var(--color-ink-muted);
 	}
-	.cv-auth-policy a {
+	.blemmy-auth-policy a {
 		text-decoration: underline;
 		text-underline-offset: 2px;
 	}
-	.cv-auth-email-pass[hidden] {
+	.blemmy-auth-email-pass[hidden] {
 		display: none !important;
 	}
-	.cv-auth-input::placeholder {
+	.blemmy-auth-input::placeholder {
 		color: var(--color-ink-muted);
 		opacity: 0.88;
 		font-size: 0.62rem;
 	}
-	.dark .cv-auth-input::placeholder {
+	.dark .blemmy-auth-input::placeholder {
 		opacity: 0.72;
 	}
-	.cv-auth-msg,
-	.cv-doc-status {
+	.blemmy-auth-msg,
+	.blemmy-doc-status {
 		margin: 0;
 		font-size: 0.62rem;
 		color: var(--color-ink-muted);
 	}
-	.cv-auth-privacy {
+	.blemmy-auth-privacy {
 		margin-top: 0.35rem;
 		padding-top: 0.45rem;
 		border-top: 1px solid var(--color-ink-border);
@@ -4823,35 +5067,35 @@ html.cv-published-embed .cv-share-banner {
 		flex-direction: column;
 		gap: 0.35rem;
 	}
-	.cv-auth-privacy__title {
+	.blemmy-auth-privacy__title {
 		margin: 0;
 		font-size: 0.62rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--color-ink-muted);
 	}
-	.cv-auth-privacy__status {
+	.blemmy-auth-privacy__status {
 		margin: 0;
 		font-size: 0.6rem;
 		color: var(--color-ink-muted);
 	}
-	.cv-auth-privacy__status--error {
+	.blemmy-auth-privacy__status--error {
 		color: #b42318;
 	}
-	.cv-auth-privacy__consent {
+	.blemmy-auth-privacy__consent {
 		display: flex;
 		align-items: center;
 		gap: 0.35rem;
 		font-size: 0.62rem;
 		color: var(--color-ink-mid);
 	}
-	.cv-auth-privacy__requests {
+	.blemmy-auth-privacy__requests {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
 	}
-	.cv-doc-status--error { color: #b42318; }
-	.cv-oauth-overlay {
+	.blemmy-doc-status--error { color: #b42318; }
+	.blemmy-oauth-overlay {
 		position: fixed;
 		inset: 0;
 		z-index: 99999;
@@ -4862,7 +5106,7 @@ html.cv-published-embed .cv-share-banner {
 		background: rgba(15, 15, 18, 0.72);
 		backdrop-filter: blur(4px);
 	}
-	.cv-oauth-overlay__panel {
+	.blemmy-oauth-overlay__panel {
 		max-width: 22rem;
 		padding: 1rem 1.1rem;
 		border-radius: 8px;
@@ -4870,19 +5114,19 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-mid, #333);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 	}
-	.dark .cv-oauth-overlay__panel {
+	.dark .blemmy-oauth-overlay__panel {
 		background: #1a1a1c;
 		color: #e8e8ea;
 	}
-	.cv-oauth-overlay__text {
+	.blemmy-oauth-overlay__text {
 		margin: 0;
 		font-size: 0.75rem;
 		line-height: 1.45;
 	}
-	.cv-oauth-overlay__actions {
+	.blemmy-oauth-overlay__actions {
 		margin: 0.75rem 0 0;
 	}
-	.cv-oauth-overlay__btn {
+	.blemmy-oauth-overlay__btn {
 		font: inherit;
 		font-size: 0.68rem;
 		padding: 0.4rem 0.65rem;
@@ -4892,16 +5136,16 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 		color: inherit;
 	}
-	.cv-oauth-overlay__details {
+	.blemmy-oauth-overlay__details {
 		margin-top: 0.65rem;
 		font-size: 0.62rem;
 		color: var(--color-ink-muted);
 	}
-	.cv-oauth-overlay__details summary {
+	.blemmy-oauth-overlay__details summary {
 		cursor: pointer;
 		user-select: none;
 	}
-	.cv-oauth-overlay__debug {
+	.blemmy-oauth-overlay__debug {
 		margin: 0.4rem 0 0;
 		padding: 0.45rem 0.5rem;
 		max-height: 12rem;
@@ -4913,37 +5157,37 @@ html.cv-published-embed .cv-share-banner {
 		background: rgba(0, 0, 0, 0.06);
 		border-radius: 4px;
 	}
-	.dark .cv-oauth-overlay__debug {
+	.dark .blemmy-oauth-overlay__debug {
 		background: rgba(255, 255, 255, 0.06);
 	}
 	/* OAuth callback popup: no full CV behind — only this shell + card */
-	html.cv-oauth-popup-shell,
-	html.cv-oauth-popup-shell body {
+	html.blemmy-oauth-popup-shell,
+	html.blemmy-oauth-popup-shell body {
 		margin: 0;
 		min-height: 100vh;
 		min-height: 100dvh;
 		background: var(--color-surface, #fafafa);
 	}
-	html.dark.cv-oauth-popup-shell,
-	html.dark.cv-oauth-popup-shell body {
+	html.dark.blemmy-oauth-popup-shell,
+	html.dark.blemmy-oauth-popup-shell body {
 		background: #111;
 	}
-	.cv-oauth-overlay.cv-oauth-overlay--oauth-popup {
+	.blemmy-oauth-overlay.blemmy-oauth-overlay--oauth-popup {
 		background: transparent;
 		backdrop-filter: none;
 		padding: 0.65rem;
 	}
-	.cv-oauth-overlay--oauth-popup .cv-oauth-overlay__panel {
+	.blemmy-oauth-overlay--oauth-popup .blemmy-oauth-overlay__panel {
 		max-width: 100%;
 		width: 100%;
 		box-sizing: border-box;
 		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
 	}
-	.cv-oauth-overlay--oauth-popup .cv-oauth-overlay__debug {
+	.blemmy-oauth-overlay--oauth-popup .blemmy-oauth-overlay__debug {
 		max-height: 8rem;
 	}
 
-	.cv-share-modal {
+	.blemmy-share-modal {
 		position: fixed;
 		inset: 0;
 		z-index: 420;
@@ -4954,7 +5198,7 @@ html.cv-published-embed .cv-share-banner {
 		padding: 1rem;
 	}
 
-	.cv-share-modal__panel {
+	.blemmy-share-modal__panel {
 		width: min(34rem, calc(100vw - 2rem));
 		max-height: min(80vh, 34rem);
 		overflow: auto;
@@ -4968,23 +5212,23 @@ html.cv-published-embed .cv-share-banner {
 		gap: 0.5rem;
 	}
 
-	.cv-share-modal__title {
+	.blemmy-share-modal__title {
 		font-size: 0.76rem;
 		font-weight: 600;
 		color: var(--color-ink-dark);
 	}
 
-	.cv-share-modal__status {
+	.blemmy-share-modal__status {
 		margin: 0;
 		font-size: 0.62rem;
 		color: var(--color-ink-muted);
 	}
 
-	.cv-share-modal__status--error {
+	.blemmy-share-modal__status--error {
 		color: #b42318;
 	}
 
-	.cv-share-modal__select {
+	.blemmy-share-modal__select {
 		font-size: 0.68rem;
 		padding: 0.35rem 0.45rem;
 		border: 1px solid var(--color-ink-border);
@@ -4993,18 +5237,18 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-mid);
 	}
 
-	.cv-share-modal__actions {
+	.blemmy-share-modal__actions {
 		display: flex;
 		gap: 0.4rem;
 	}
 
-	.cv-share-modal__list {
+	.blemmy-share-modal__list {
 		display: flex;
 		flex-direction: column;
 		gap: 0.35rem;
 	}
 
-	.cv-share-modal__row {
+	.blemmy-share-modal__row {
 		display: grid;
 		grid-template-columns: 1fr auto auto auto;
 		gap: 0.35rem;
@@ -5014,22 +5258,22 @@ html.cv-published-embed .cv-share-banner {
 		border-radius: 4px;
 	}
 
-	.cv-share-modal__meta {
+	.blemmy-share-modal__meta {
 		font-size: 0.6rem;
 		color: var(--color-ink-mid);
 	}
 
-	.cv-share-modal__badge {
+	.blemmy-share-modal__badge {
 		font-size: 0.56rem;
 		color: var(--color-ink-muted);
 	}
 
-	.cv-share-modal__copy-unavailable {
+	.blemmy-share-modal__copy-unavailable {
 		font-size: 0.56rem;
 		color: var(--color-ink-muted);
 		opacity: 0.9;
 	}
-	.cv-share-modal__review-opt {
+	.blemmy-share-modal__review-opt {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
@@ -5039,12 +5283,12 @@ html.cv-published-embed .cv-share-banner {
 }
 
 @media screen {
-	.cv-about-corner-btn {
+	.blemmy-about-corner-btn {
 		position: fixed;
-		top: calc(var(--cv-vv-top) + (1rem * var(--cv-ui-zoom-comp)));
+		top: calc(var(--blemmy-vv-top) + (1rem * var(--blemmy-ui-zoom-comp)));
 		left: calc(
-			var(--cv-vv-left) +
-			(var(--cv-ui-dock-edge) * var(--cv-ui-zoom-comp))
+			var(--blemmy-vv-left) +
+			(var(--blemmy-ui-dock-edge) * var(--blemmy-ui-zoom-comp))
 		);
 		z-index: 250;
 		padding-inline: 0.7rem;
@@ -5056,36 +5300,36 @@ html.cv-published-embed .cv-share-banner {
 		backdrop-filter: blur(6px) saturate(115%);
 		-webkit-backdrop-filter: blur(6px) saturate(115%);
 		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
-		transform: scale(var(--cv-ui-zoom-comp));
+		transform: scale(var(--blemmy-ui-zoom-comp));
 		transform-origin: left top;
 	}
-	.cv-about-corner-btn:hover {
+	.blemmy-about-corner-btn:hover {
 		border-color: var(--color-ink-muted);
 		color: var(--color-ink);
 	}
-	.dark .cv-about-corner-btn {
+	.dark .blemmy-about-corner-btn {
 		background: rgba(24, 24, 24, 0.62);
 		border-color: rgba(255, 255, 255, 0.16);
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 	}
 	@media (max-width: 1100px) {
-		.cv-about-corner-btn {
+		.blemmy-about-corner-btn {
 			top: auto;
 			left: calc(
-				var(--cv-vv-left) + var(--cv-vv-width) * 0.5
+				var(--blemmy-vv-left) + var(--blemmy-vv-width) * 0.5
 			);
 			bottom: calc(
-				(var(--cv-ui-dock-bottom) * var(--cv-ui-zoom-comp)) +
-				var(--cv-vv-bottom) +
-				(0.35rem * var(--cv-ui-zoom-comp))
+				(var(--blemmy-ui-dock-bottom) * var(--blemmy-ui-zoom-comp)) +
+				var(--blemmy-vv-bottom) +
+				(0.35rem * var(--blemmy-ui-zoom-comp))
 			);
-			transform: translateX(-50%) scale(var(--cv-ui-zoom-comp));
+			transform: translateX(-50%) scale(var(--blemmy-ui-zoom-comp));
 			transform-origin: center bottom;
 			z-index: 219;
 		}
 	}
 
-	.cv-about-modal {
+	.blemmy-about-modal {
 		position: fixed;
 		inset: 0;
 		z-index: 300;
@@ -5098,11 +5342,11 @@ html.cv-published-embed .cv-share-banner {
 		background: rgba(10, 12, 16, 0.42);
 	}
 
-	.cv-about-modal[hidden] {
+	.blemmy-about-modal[hidden] {
 		display: none !important;
 	}
 
-	.cv-about-modal__panel {
+	.blemmy-about-modal__panel {
 		box-sizing: border-box;
 		width: min(36rem, calc(100vw - 1.2rem));
 		max-width: calc(100vw - 1.2rem);
@@ -5117,14 +5361,14 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-dark);
 	}
 
-	.cv-about-modal__title {
+	.blemmy-about-modal__title {
 		margin: 0 0 0.45rem;
 		font-size: 0.88rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 	}
 
-	.cv-about-modal__body {
+	.blemmy-about-modal__body {
 		display: flex;
 		flex-direction: column;
 		gap: 0.55rem;
@@ -5134,27 +5378,27 @@ html.cv-published-embed .cv-share-banner {
 		overflow-wrap: anywhere;
 	}
 
-	.cv-about-modal__body p {
+	.blemmy-about-modal__body p {
 		margin: 0;
 	}
 
-	.cv-about-modal__repo {
+	.blemmy-about-modal__repo {
 		margin: 0;
 		font-size: 0.64rem;
 		color: var(--color-ink-muted);
 	}
 
-	.cv-about-modal__repo-link {
+	.blemmy-about-modal__repo-link {
 		color: var(--color-sidebar);
 		text-decoration: none;
 		border-bottom: 1px solid transparent;
 	}
 
-	.cv-about-modal__repo-link:hover {
+	.blemmy-about-modal__repo-link:hover {
 		border-bottom-color: currentColor;
 	}
 
-	.cv-about-modal__close {
+	.blemmy-about-modal__close {
 		margin-top: 0.75rem;
 		padding: 0.3rem 0.55rem;
 		border: 1px solid var(--color-ink-border);
@@ -5167,7 +5411,7 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 	}
 
-	.cv-about-arch {
+	.blemmy-about-arch {
 		margin: 0.25rem 0 0;
 		padding: 0.5rem;
 		border: 1px solid var(--color-ink-border);
@@ -5175,7 +5419,7 @@ html.cv-published-embed .cv-share-banner {
 		background: rgba(0, 0, 0, 0.02);
 	}
 
-	.cv-about-arch__caption {
+	.blemmy-about-arch__caption {
 		margin: 0 0 0.35rem;
 		font-size: 0.58rem;
 		letter-spacing: 0.1em;
@@ -5183,7 +5427,7 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-muted);
 	}
 
-	.cv-about-arch__flow {
+	.blemmy-about-arch__flow {
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -5192,7 +5436,7 @@ html.cv-published-embed .cv-share-banner {
 		gap: 0.38rem;
 	}
 
-	.cv-about-arch__item {
+	.blemmy-about-arch__item {
 		position: relative;
 		display: flex;
 		flex-direction: column;
@@ -5203,7 +5447,7 @@ html.cv-published-embed .cv-share-banner {
 		background: var(--color-paper, #fff);
 	}
 
-	.cv-about-arch__item:not(:last-child)::after {
+	.blemmy-about-arch__item:not(:last-child)::after {
 		content: '↓';
 		position: absolute;
 		left: 50%;
@@ -5215,25 +5459,25 @@ html.cv-published-embed .cv-share-banner {
 		padding: 0 0.18rem;
 	}
 
-	.cv-about-arch__item-title {
+	.blemmy-about-arch__item-title {
 		font-size: 0.6rem;
 		letter-spacing: 0.03em;
 		color: var(--color-ink-dark);
 	}
 
-	.cv-about-arch__item-text {
+	.blemmy-about-arch__item-text {
 		font-size: 0.56rem;
 		color: var(--color-ink-mid);
 		overflow-wrap: anywhere;
 	}
 
-	.cv-share-footer {
+	.blemmy-share-footer {
 		display: flex;
 		justify-content: center;
 		padding: 0.1rem 0 0.28rem;
 	}
 
-	.cv-share-footer__about {
+	.blemmy-share-footer__about {
 		border: none;
 		background: transparent;
 		color: var(--color-ink-muted);
@@ -5245,11 +5489,11 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 	}
 
-	.cv-share-footer__about:hover {
+	.blemmy-share-footer__about:hover {
 		opacity: 0.85;
 	}
 
-	html.cv-share-readonly .cv-about-modal {
+	html.blemmy-share-readonly .blemmy-about-modal {
 		inset: 0;
 		width: 100dvw;
 		height: 100dvh;
@@ -5257,7 +5501,7 @@ html.cv-published-embed .cv-share-banner {
 		overflow-x: hidden;
 	}
 
-	html.cv-share-readonly .cv-about-modal__panel {
+	html.blemmy-share-readonly .blemmy-about-modal__panel {
 		width: min(35rem, calc(100dvw - 0.9rem));
 		max-width: calc(100dvw - 0.9rem);
 		max-height: calc(100dvh - 0.9rem);
@@ -5265,90 +5509,91 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	@media (max-width: 700px) {
-		.cv-about-modal {
+		.blemmy-about-modal {
 			padding: 0.4rem;
 			align-items: center;
 			justify-content: center;
 		}
 
-		.cv-about-modal__panel {
+		.blemmy-about-modal__panel {
 			width: calc(100vw - 0.8rem);
 			max-width: calc(100vw - 0.8rem);
 			max-height: 90dvh;
 			padding: 0.72rem 0.78rem;
 		}
 
-		.cv-about-modal__title {
+		.blemmy-about-modal__title {
 			font-size: 0.8rem;
 		}
 
-		.cv-about-modal__body {
+		.blemmy-about-modal__body {
 			font-size: 0.68rem;
 			gap: 0.45rem;
 		}
 
-		.cv-about-arch {
+		.blemmy-about-arch {
 			padding: 0.42rem;
 		}
 	}
 
-	html.cv-share-readonly #cv-ui-dock-left-anchor,
-	html.cv-share-readonly #cv-ui-dock-right-anchor,
-	html.cv-share-readonly #cv-ui-dock-left,
-	html.cv-share-readonly #cv-ui-dock-right,
-	html.cv-share-readonly #cv-layout-status,
-	html.cv-share-readonly #cv-upload-status,
-	html.cv-share-readonly #cv-candidate-selector,
-	html.cv-share-readonly .cv-candidate-selector,
-	html.cv-share-readonly #cv-edit-toolbar,
-	html.cv-share-readonly #cv-prefs-panel,
-	html.cv-share-readonly #cv-cloud-drawer,
-	html.cv-share-readonly #cv-pdf-modal {
+	html.blemmy-share-readonly #blemmy-ui-dock-left-anchor,
+	html.blemmy-share-readonly #blemmy-ui-dock-right-anchor,
+	html.blemmy-share-readonly #blemmy-ui-dock-left,
+	html.blemmy-share-readonly #blemmy-ui-dock-right,
+	html.blemmy-share-readonly #blemmy-layout-status,
+	html.blemmy-share-readonly #blemmy-upload-status,
+	html.blemmy-share-readonly #blemmy-layout-alternatives,
+	html.blemmy-share-readonly .blemmy-layout-alternatives,
+	html.blemmy-share-readonly #blemmy-edit-toolbar,
+	html.blemmy-share-readonly #blemmy-prefs-panel,
+	html.blemmy-share-readonly #blemmy-dev-console-help-panel,
+	html.blemmy-share-readonly #blemmy-cloud-drawer,
+	html.blemmy-share-readonly #blemmy-pdf-modal {
 		display: none !important;
 	}
 
-	html.cv-share-readonly {
-		--cv-paper-scale: min(1, calc((100vw - 12px) / 794));
-		--cv-paper-width: 794px;
+	html.blemmy-share-readonly {
+		--blemmy-paper-scale: min(1, calc((100vw - 12px) / 794));
+		--blemmy-paper-width: 794px;
 	}
 
-	html.cv-share-readonly body {
+	html.blemmy-share-readonly body {
 		padding: 0 !important;
 		margin: 0 !important;
 		overflow-x: auto;
 	}
 
-	html.cv-share-readonly .cv-paper-stage {
+	html.blemmy-share-readonly .blemmy-paper-stage {
 		width: 210mm;
 		max-width: 210mm;
 		margin: 0 auto;
 	}
 
-	html.cv-share-readonly #cv-root {
+	html.blemmy-share-readonly #blemmy-doc-root {
 		width: auto;
 		max-width: none;
 		margin: 0;
 		zoom: 1;
 	}
 
-	html.cv-share-readonly #cv-shell {
+	html.blemmy-share-readonly #blemmy-doc-shell {
 		width: 210mm;
 		max-width: 210mm;
 		margin: 0;
 	}
 
-	html.cv-share-readonly .cv-paper-stage {
-		zoom: var(--cv-paper-scale);
+	html.blemmy-share-readonly .blemmy-paper-stage {
+		zoom: var(--blemmy-paper-scale);
 	}
 
 	@supports not (zoom: 1) {
-		html.cv-share-readonly .cv-paper-stage {
-			transform: scale(var(--cv-paper-scale));
+		html.blemmy-share-readonly .blemmy-paper-stage {
+			transform: scale(var(--blemmy-paper-scale));
 			transform-origin: top left;
 		}
 	}
 
-	.cv-share-banner {
+	.blemmy-share-banner {
 		position: relative;
 		z-index: 20;
 		box-sizing: border-box;
@@ -5370,7 +5615,7 @@ html.cv-published-embed .cv-share-banner {
 		gap: 0.4rem;
 	}
 
-	.cv-share-banner__btn {
+	.blemmy-share-banner__btn {
 		font: inherit;
 		font-size: 0.56rem;
 		letter-spacing: 0.06em;
@@ -5383,7 +5628,7 @@ html.cv-published-embed .cv-share-banner {
 		cursor: pointer;
 	}
 
-	.cv-share-error {
+	.blemmy-share-error {
 		max-width: 38rem;
 		margin: 12vh auto 0;
 		padding: 1rem 1.2rem;
@@ -5394,13 +5639,13 @@ html.cv-published-embed .cv-share-banner {
 		color: var(--color-ink-dark);
 	}
 
-	.cv-share-error__title {
+	.blemmy-share-error__title {
 		margin: 0 0 0.35rem;
 		font-size: 1.1rem;
 		font-weight: 600;
 	}
 
-	.cv-share-error__body {
+	.blemmy-share-error__body {
 		margin: 0;
 		font-size: 0.82rem;
 		line-height: 1.55;
@@ -5408,16 +5653,16 @@ html.cv-published-embed .cv-share-banner {
 	}
 
 	@media (max-width: 860px) {
-		html.cv-share-readonly body {
+		html.blemmy-share-readonly body {
 			padding: 0 !important;
 		}
 
-		html.cv-share-readonly .cv-shell,
-		html.cv-share-readonly .cv-ui-deck {
+		html.blemmy-share-readonly .blemmy-shell,
+		html.blemmy-share-readonly .blemmy-ui-deck {
 			max-width: 100%;
 		}
 
-		html.cv-share-readonly .cv-share-banner {
+		html.blemmy-share-readonly .blemmy-share-banner {
 			position: relative;
 			top: auto;
 			right: auto;
@@ -5429,7 +5674,7 @@ html.cv-published-embed .cv-share-banner {
 			padding: 0.26rem 0.38rem;
 		}
 
-		html.cv-share-readonly .cv-share-banner__btn {
+		html.blemmy-share-readonly .blemmy-share-banner__btn {
 			padding: 0.18rem 0.34rem;
 		}
 	}
@@ -5438,38 +5683,38 @@ html.cv-published-embed .cv-share-banner {
 
 
 /* v2.1 font token overrides — CV document content only, UI chrome excluded */
-#cv-shell,
-#cv-shell .cv-card {
+#blemmy-doc-shell,
+#blemmy-doc-shell .blemmy-card {
 	font-family: var(--font-body);
 }
-#cv-shell h1,
-#cv-shell h2,
-#cv-shell h3,
-#cv-shell h4,
-#cv-shell .cv-name,
-#cv-shell .section-label,
-#cv-shell .entry-company {
+#blemmy-doc-shell h1,
+#blemmy-doc-shell h2,
+#blemmy-doc-shell h3,
+#blemmy-doc-shell h4,
+#blemmy-doc-shell .blemmy-name,
+#blemmy-doc-shell .section-label,
+#blemmy-doc-shell .entry-company {
 	font-family: var(--font-heading) !important;
 }
-#cv-shell .cv-label,
-#cv-shell .contact-item,
-#cv-shell .contact-link,
-#cv-shell .entry-position,
-#cv-shell .entry-dates,
-#cv-shell .entry-summary,
-#cv-shell .entry-highlights,
-#cv-shell .entry-highlights li,
-#cv-shell .highlight-lead,
-#cv-shell .edu-degree,
-#cv-shell .edu-institution,
-#cv-shell .edu-area,
-#cv-shell .edu-dates,
-#cv-shell .edu-score,
-#cv-shell .skill-category-label,
-#cv-shell .skill-tag,
-#cv-shell .language-item,
-#cv-shell .language-name,
-#cv-shell .language-fluency,
-#cv-shell .cv-summary {
+#blemmy-doc-shell .blemmy-label,
+#blemmy-doc-shell .contact-item,
+#blemmy-doc-shell .contact-link,
+#blemmy-doc-shell .entry-position,
+#blemmy-doc-shell .entry-dates,
+#blemmy-doc-shell .entry-summary,
+#blemmy-doc-shell .entry-highlights,
+#blemmy-doc-shell .entry-highlights li,
+#blemmy-doc-shell .highlight-lead,
+#blemmy-doc-shell .edu-degree,
+#blemmy-doc-shell .edu-institution,
+#blemmy-doc-shell .edu-area,
+#blemmy-doc-shell .edu-dates,
+#blemmy-doc-shell .edu-score,
+#blemmy-doc-shell .skill-category-label,
+#blemmy-doc-shell .skill-tag,
+#blemmy-doc-shell .language-item,
+#blemmy-doc-shell .language-name,
+#blemmy-doc-shell .language-fluency,
+#blemmy-doc-shell .blemmy-summary {
 	font-family: var(--font-body) !important;
 }

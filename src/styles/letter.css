@@ -8,19 +8,19 @@
 
 /* ── Card and page ────────────────────────────────────────────────────────── */
 
-.letter-card {
-	/* Shares .cv-card base styles for shadow, border-radius, width */
+.blemmy-card {
+	/* Shares .blemmy-card base styles for shadow, border-radius, width */
 }
 
-.letter-page {
+.blemmy-page {
 	display:        flex;
 	flex-direction: column;
-	/* A4 dimensions handled by .cv-page in print.css */
+	/* A4 dimensions handled by .blemmy-page in print.css */
 }
 
 /* ── Masthead ─────────────────────────────────────────────────────────────── */
 
-.letter-masthead {
+.blemmy-masthead {
 	display:          flex;
 	justify-content:  space-between;
 	align-items:      flex-end;
@@ -30,13 +30,13 @@
 	flex-shrink:      0;
 }
 
-.letter-masthead-identity {
+.blemmy-masthead-identity {
 	display:        flex;
 	flex-direction: column;
 	gap:            0.15rem;
 }
 
-.letter-sender-name {
+.blemmy-sender-name {
 	font-family:    var(--font-heading, 'DM Sans', system-ui, sans-serif);
 	font-size:      var(--text-name, 1.95rem);
 	font-weight:    600;
@@ -45,7 +45,7 @@
 	color:          var(--color-ink);
 }
 
-.letter-sender-label {
+.blemmy-sender-label {
 	font-size:      var(--text-label, 0.8rem);
 	font-weight:    400;
 	letter-spacing: 0.02em;
@@ -53,14 +53,14 @@
 	font-family:    var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-sender-contact {
+.blemmy-sender-contact {
 	display:        flex;
 	flex-direction: column;
 	align-items:    flex-end;
 	gap:            0.2rem;
 }
 
-.letter-contact-item {
+.blemmy-contact-item {
 	font-size:   var(--text-meta, 0.7rem);
 	color:       var(--color-ink-muted);
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
@@ -68,7 +68,7 @@
 
 /* ── Main column ──────────────────────────────────────────────────────────── */
 
-.letter-main {
+.blemmy-main {
 	flex:           1;
 	padding:        0 8.5mm 8.5mm 8.5mm;
 	display:        flex;
@@ -78,7 +78,7 @@
 
 /* ── Sections ─────────────────────────────────────────────────────────────── */
 
-.letter-section {
+.blemmy-section {
 	display:        flex;
 	flex-direction: column;
 }
@@ -89,14 +89,14 @@
 	gap: 3mm;
 }
 
-.letter-date {
+.blemmy-date {
 	font-size:   var(--text-meta, 0.7rem);
 	color:       var(--color-ink-muted);
 	margin:      0;
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-subject {
+.blemmy-subject {
 	font-size:   var(--text-body, 0.8125rem);
 	font-weight: 600;
 	color:       var(--color-ink-dark);
@@ -104,27 +104,27 @@
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-recipient-address {
+.blemmy-recipient-address {
 	display:        flex;
 	flex-direction: column;
 	gap:            0.1rem;
 }
 
-.letter-recipient-name,
-.letter-recipient-title,
-.letter-recipient-org,
-.letter-recipient-address-line {
+.blemmy-recipient-name,
+.blemmy-recipient-title,
+.blemmy-recipient-org,
+.blemmy-recipient-address-line {
 	font-size:   var(--text-body, 0.8125rem);
 	color:       var(--color-ink);
 	margin:      0;
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-recipient-name {
+.blemmy-recipient-name {
 	font-weight: 600;
 }
 
-.letter-opening {
+.blemmy-opening {
 	font-size:   var(--text-body, 0.8125rem);
 	color:       var(--color-ink);
 	margin:      0;
@@ -133,12 +133,12 @@
 
 /* ── Body ─────────────────────────────────────────────────────────────────── */
 
-.letter-body {
+.blemmy-body {
 	gap:  2.5mm;
 	flex: 1;
 }
 
-.letter-paragraph {
+.blemmy-paragraph {
 	font-size:   var(--text-body, 0.8125rem);
 	line-height: 1.55;
 	color:       var(--color-ink);
@@ -148,26 +148,26 @@
 
 /* ── Closing ──────────────────────────────────────────────────────────────── */
 
-.letter-closing {
+.blemmy-closing-block {
 	gap:        2mm;
 	margin-top: auto; /* push to foot of page when content is short */
 }
 
-.letter-closing-salutation {
+.blemmy-closing-salutation {
 	font-size:   var(--text-body, 0.8125rem);
 	color:       var(--color-ink);
 	margin:      0;
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-signature {
+.blemmy-signature {
 	display:        flex;
 	flex-direction: column;
 	gap:            0.1rem;
 	margin-top:     8mm; /* space for handwritten signature */
 }
 
-.letter-signature-name {
+.blemmy-signature-name {
 	font-size:   var(--text-body, 0.8125rem);
 	font-weight: 600;
 	color:       var(--color-ink);
@@ -175,7 +175,7 @@
 	font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
 }
 
-.letter-signature-title {
+.blemmy-signature-title {
 	font-size:   var(--text-meta, 0.7rem);
 	color:       var(--color-ink-muted);
 	margin:      0;
@@ -185,21 +185,21 @@
 /* ── Print overrides ──────────────────────────────────────────────────────── */
 
 @media print {
-	.letter-masthead {
+	.blemmy-masthead {
 		padding: 8.5mm 8.5mm 5mm 8.5mm;
 	}
 
-	.letter-main {
+	.blemmy-main {
 		padding: 0 8.5mm 8.5mm 8.5mm;
 	}
 
-	.letter-closing {
+	.blemmy-closing-block {
 		margin-top: auto;
 	}
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────────────── */
 
-.dark .letter-masthead {
+.dark .blemmy-masthead {
 	border-bottom-color: var(--color-ink-border);
 }

@@ -10,8 +10,9 @@
  *   applying  — parsed JSON from model is being validated and mounted
  *   error     — API or validation error; shows message with retry option
  *
- * The panel calls remount(newData) when the model returns a valid JSON block.
- * The panel fires 'cv-chat-open' / 'cv-chat-close' events on window so
+ * Document JSON from the model either applies immediately or stages for review
+ * (see layout prefs → Assistant) then remounts via __blemmyRemountDocument__.
+ * The panel fires 'blemmy-chat-open' / 'blemmy-chat-close' events on window so
  * the rest of the UI can adjust layout (e.g. shift the shell leftward).
  */
 
@@ -35,10 +36,10 @@ import {
 	type ChatConfig,
 	type ChatMessage,
 	type ChatError,
-} from '@lib/cv-chat';
+} from '@lib/assistant-chat';
 import { applyDocumentStyle, type DocumentStyle } from '@lib/document-style';
-import type { CommentOperation, CVReview } from '@cv/cv-review';
-import { applyCommentOps } from '@lib/cv-review';
+import type { CommentOperation, CVReview } from '@cv/review-types';
+import { applyCommentOps } from '@lib/review-dom';
 
 import {
 	buildRoutedSystemPrompt,
@@ -50,13 +51,13 @@ import {
 	readLayoutState,
 	type ActiveDocType,
 	type ActiveDocData,
-} from '@lib/cv-chat-prompts';
+} from '@lib/assistant-prompts';
 import {
 	routeChatContext,
 	type RoutedContext,
 } from '@lib/chat-context-router';
 
-import { readFileToText, ACCEPTED_FILE_TYPES } from '@lib/cv-file-reader';
+import { readFileToText, ACCEPTED_FILE_TYPES } from '@lib/upload-file-reader';
 import {
 	saveSource,
 	loadSource,
@@ -65,12 +66,29 @@ import {
 	SOURCE_CHANGED_EVENT,
 	type SourceMeta,
 	type SourceChangedDetail,
-} from '@lib/cv-source';
-import { validateCvData } from '@lib/cv-loader';
-import { validateLetterData } from '@lib/letter-loader';
+} from '@lib/chat-source-store';
+import { isLikelyCvData } from '@lib/profile-data-loader';
+import {
+	getActiveDocumentData,
+	getActiveDocumentType,
+	validateDocumentByType,
+	BLEMMY_ACTIVE_DOCUMENT_CHANGED,
+} from '@lib/active-document-runtime';
+import { getDocTypeSpec } from '@lib/document-type';
 import type { CVData } from '@cv/cv';
-import type { LetterData } from '@cv/letter';
-import { resolvePathToElement, type ContentPath } from '@lib/cv-review';
+import type { StoredDocumentData } from '@lib/cloud-client';
+import { resolvePathToElement, type ContentPath } from '@lib/review-dom';
+import { loadAssistantApplyMode } from '@lib/assistant-apply-preferences';
+import {
+	buildDocumentFromLeafSelection,
+	countAcceptedChanges,
+} from '@lib/assistant-pending-merge';
+import {
+	cloneDocumentData,
+	computeLeafDiffBetweenDocuments,
+	recordDocumentApplyHistory,
+	type LeafChange,
+} from '@lib/blemmy-document-edit-history';
 import { DOCK_CONTROLS } from '@renderer/dock-controls';
 import { initDockedPopover } from '@renderer/docked-popover';
 import {
@@ -81,8 +99,19 @@ import {
 
 // ─── Panel events ─────────────────────────────────────────────────────────────
 
-export const CHAT_OPEN_EVENT  = 'cv-chat-open';
-export const CHAT_CLOSE_EVENT = 'cv-chat-close';
+export const CHAT_OPEN_EVENT  = 'blemmy-chat-open';
+export const CHAT_CLOSE_EVENT = 'blemmy-chat-close';
+export const DOC_TYPE_CHANGED_EVENT = BLEMMY_ACTIVE_DOCUMENT_CHANGED;
+
+const PENDING_ASSISTANT_LEAF_LIMIT = 120;
+
+type PendingAssistantApplyState = {
+	docType: string;
+	baseSnapshot: StoredDocumentData;
+	proposedSnapshot: StoredDocumentData;
+	leafChanges: LeafChange[];
+	truncated: boolean;
+};
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -110,7 +139,7 @@ function h(
  */
 function renderMarkdown(text: string, showApplyButton = true): HTMLElement {
 	const wrapper = document.createElement('div');
-	wrapper.className = 'cv-chat-md';
+	wrapper.className = 'blemmy-chat-md';
 
 	// Split off fenced code blocks first
 	const parts = text.split(/(```[\s\S]*?```)/g);
@@ -127,12 +156,15 @@ function renderMarkdown(text: string, showApplyButton = true): HTMLElement {
 
 			// Add "Apply changes" button for JSON blocks
 			if (lang === 'json' && showApplyButton) {
-				pre.classList.add('cv-chat-json-block');
+				pre.classList.add('blemmy-chat-json-block');
+				const applyLabel = loadAssistantApplyMode() === 'review'
+					? '↓ Review changes'
+					: '↓ Apply changes';
 				const applyBtn = h('button', {
-					class:         'cv-chat-apply-btn',
+					class:         'blemmy-chat-apply-btn',
 					type:          'button',
 					'data-pending-json': inner,
-				}, '↓ Apply changes');
+				}, applyLabel);
 				pre.appendChild(applyBtn);
 			}
 
@@ -167,22 +199,23 @@ function renderMarkdown(text: string, showApplyButton = true): HTMLElement {
 // ─── Panel builder ────────────────────────────────────────────────────────────
 
 type PanelElements = {
-	panel:       HTMLElement;
-	messages:    HTMLElement;
-	scopeBar:    HTMLElement;
-	inputWrap:   HTMLElement;
-	input:       HTMLTextAreaElement;
-	sendBtn:     HTMLButtonElement;
-	uploadBtn:   HTMLButtonElement;
-	uploadInput: HTMLInputElement;
-	setupScreen: HTMLElement;
+	panel:        HTMLElement;
+	messages:     HTMLElement;
+	pendingApply: HTMLElement;
+	scopeBar:     HTMLElement;
+	inputWrap:    HTMLElement;
+	input:        HTMLTextAreaElement;
+	sendBtn:      HTMLButtonElement;
+	uploadBtn:    HTMLButtonElement;
+	uploadInput:  HTMLInputElement;
+	setupScreen:  HTMLElement;
 };
 
 function buildPanel(): PanelElements {
 	// Setup screen — shown when no API key is configured
 	const providerSelect = document.createElement('select');
-	providerSelect.id        = 'cv-chat-provider';
-	providerSelect.className = 'cv-chat-setup__select';
+	providerSelect.id        = 'blemmy-chat-provider';
+	providerSelect.className = 'blemmy-chat-setup__select';
 	for (const [value, label] of Object.entries(PROVIDER_LABELS)) {
 		const opt       = document.createElement('option');
 		opt.value       = value;
@@ -192,8 +225,8 @@ function buildPanel(): PanelElements {
 
 	const keyInput        = document.createElement('input');
 	keyInput.type         = 'text';
-	keyInput.id           = 'cv-chat-key';
-	keyInput.className    = 'cv-chat-setup__input';
+	keyInput.id           = 'blemmy-chat-key';
+	keyInput.className    = 'blemmy-chat-setup__input';
 	keyInput.placeholder  = 'Paste your API key…';
 	keyInput.setAttribute('autocomplete',     'new-password');
 	keyInput.setAttribute('autocapitalize',   'off');
@@ -202,13 +235,13 @@ function buildPanel(): PanelElements {
 	keyInput.setAttribute('data-1p-ignore',  'true');
 	keyInput.setAttribute('data-form-type',   'other');
 
-	const saveBtn = h('button', { type: 'button', id: 'cv-chat-save-key', class: 'cv-chat-setup__btn' },
+	const saveBtn = h('button', { type: 'button', id: 'blemmy-chat-save-key', class: 'blemmy-chat-setup__btn' },
 		'Connect',
 	);
 
 	const modelSelect = document.createElement('select');
-	modelSelect.id        = 'cv-chat-model';
-	modelSelect.className = 'cv-chat-setup__select';
+	modelSelect.id        = 'blemmy-chat-model';
+	modelSelect.className = 'blemmy-chat-setup__select';
 	[
 		{ v: 'auto', l: 'Auto (prefer free models)' },
 		{ v: 'gemini-3-flash', l: 'Gemini 3 Flash' },
@@ -220,32 +253,32 @@ function buildPanel(): PanelElements {
 		modelSelect.appendChild(opt);
 	});
 
-	const modelRow = h('div', { id: 'cv-chat-model-row' },
-		h('label', { class: 'cv-chat-setup__label', for: 'cv-chat-model' }, 'Model'),
+	const modelRow = h('div', { id: 'blemmy-chat-model-row' },
+		h('label', { class: 'blemmy-chat-setup__label', for: 'blemmy-chat-model' }, 'Model'),
 		modelSelect,
 	);
 
 	const setupHint = h('p', {
-		id:              'cv-chat-setup-hint',
-		class:           'cv-chat-setup__hint',
+		id:              'blemmy-chat-setup-hint',
+		class:           'blemmy-chat-setup__hint',
 		'aria-live':     'polite',
 		'aria-atomic':   'true',
 	});
 
-	const setupNote = h('p', { class: 'cv-chat-setup__note' },
+	const setupNote = h('p', { class: 'blemmy-chat-setup__note' },
 		'Your key is stored only in your browser. ',
-		h('a', { href: 'https://console.anthropic.com', target: '_blank', rel: 'noopener', class: 'cv-chat-setup__link' }, 'Get an Anthropic key'),
+		h('a', { href: 'https://console.anthropic.com', target: '_blank', rel: 'noopener', class: 'blemmy-chat-setup__link' }, 'Get an Anthropic key'),
 		' or ',
-		h('a', { href: 'https://aistudio.google.com', target: '_blank', rel: 'noopener', class: 'cv-chat-setup__link' }, 'Get a Gemini key (free tier)'),
+		h('a', { href: 'https://aistudio.google.com', target: '_blank', rel: 'noopener', class: 'blemmy-chat-setup__link' }, 'Get a Gemini key (free tier)'),
 		'.',
 	);
 
-	const setupScreen = h('div', { id: 'cv-chat-setup', class: 'cv-chat-setup' },
-		h('p', { class: 'cv-chat-setup__title' }, 'Connect your AI provider'),
-		h('p', { class: 'cv-chat-setup__sub' }, 'Bring your own key — nothing is sent to any server except the provider you choose.'),
-		h('label', { class: 'cv-chat-setup__label', for: 'cv-chat-provider' }, 'Provider'),
+	const setupScreen = h('div', { id: 'blemmy-chat-setup', class: 'blemmy-chat-setup' },
+		h('p', { class: 'blemmy-chat-setup__title' }, 'Connect your AI provider'),
+		h('p', { class: 'blemmy-chat-setup__sub' }, 'Bring your own key — nothing is sent to any server except the provider you choose.'),
+		h('label', { class: 'blemmy-chat-setup__label', for: 'blemmy-chat-provider' }, 'Provider'),
 		providerSelect,
-		h('label', { class: 'cv-chat-setup__label', for: 'cv-chat-key' }, 'API Key'),
+		h('label', { class: 'blemmy-chat-setup__label', for: 'blemmy-chat-key' }, 'API Key'),
 		keyInput,
 		modelRow,
 		setupHint,
@@ -254,99 +287,110 @@ function buildPanel(): PanelElements {
 	);
 
 	// Messages container
-	const messages = h('div', { id: 'cv-chat-messages', class: 'cv-chat-messages',
+	const messages = h('div', { id: 'blemmy-chat-messages', class: 'blemmy-chat-messages',
 		role: 'log', 'aria-live': 'polite' });
 
+	const pendingApply = h('div', {
+		id: 'blemmy-chat-pending-apply',
+		class: 'blemmy-chat-pending-apply',
+		hidden: '',
+	});
+
 	// Starters (shown before first message)
-	const starters = h('div', { id: 'cv-chat-starters', class: 'cv-chat-starters' });
+	const starters = h('div', { id: 'blemmy-chat-starters', class: 'blemmy-chat-starters' });
 
 	// Input area
 	const textarea = document.createElement('textarea');
-	textarea.id          = 'cv-chat-input';
-	textarea.className   = 'cv-chat-input';
-	textarea.placeholder = 'Ask about your CV…';
+	textarea.id          = 'blemmy-chat-input';
+	textarea.className   = 'blemmy-chat-input';
+	textarea.placeholder = 'Ask about this document…';
 	textarea.rows        = 2;
 
 	const sendBtn = h('button', {
 		type:         'button',
-		id:           'cv-chat-send',
-		class:        'cv-chat-send',
+		id:           'blemmy-chat-send',
+		class:        'blemmy-chat-send',
 		'aria-label': 'Send message',
 	}, '↑') as HTMLButtonElement;
 
 	// File upload button + hidden input
 	const uploadInput        = document.createElement('input');
 	uploadInput.type         = 'file';
-	uploadInput.id           = 'cv-chat-upload-input';
+	uploadInput.id           = 'blemmy-chat-upload-input';
 	uploadInput.accept       = ACCEPTED_FILE_TYPES;
 	uploadInput.style.display = 'none';
 
 	const uploadBtn = h('button', {
 		type:         'button',
-		id:           'cv-chat-upload-btn',
-		class:        'cv-chat-upload-btn',
-		'aria-label': 'Upload document to create CV',
+		id:           'blemmy-chat-upload-btn',
+		class:        'blemmy-chat-upload-btn',
+		'aria-label': 'Upload source document',
 		title:        'Upload a document (.txt, .md, .docx, .pdf)',
 	}, '📎') as HTMLButtonElement;
 	const scopeBar = h('div', {
-		id: 'cv-chat-scope-bar',
-		class: 'cv-chat-scope-bar',
+		id: 'blemmy-chat-scope-bar',
+		class: 'blemmy-chat-scope-bar',
 		hidden: '',
 	});
 
-	const inputWrap = h('div', { class: 'cv-chat-input-wrap' },
+	const inputWrap = h('div', { class: 'blemmy-chat-input-wrap' },
 		uploadInput, uploadBtn, textarea, sendBtn,
 	);
 
 	// Change key link
 	const changeKey = h('button', {
 		type:  'button',
-		id:    'cv-chat-change-key',
-		class: 'cv-chat-change-key',
+		id:    'blemmy-chat-change-key',
+		class: 'blemmy-chat-change-key',
 	}, 'Change key');
 	const copyChat = h('button', {
 		type:  'button',
-		id:    'cv-chat-copy',
-		class: 'cv-chat-copy',
+		id:    'blemmy-chat-copy',
+		class: 'blemmy-chat-copy',
 	}, 'Copy chat');
 
 	const connectionStatus = h('div', {
-		id:      'cv-chat-connection-status',
-		class:   'cv-chat-connection-status',
+		id:      'blemmy-chat-connection-status',
+		class:   'blemmy-chat-connection-status',
 		hidden:  '',
 		role:    'status',
 	});
 
 	// Panel header
-	const header = h('div', { class: 'cv-chat-header' },
-		h('div', { class: 'cv-chat-header__lead' },
-			h('span', { class: 'cv-chat-header__title' }, 'CV Assistant'),
+	const headerTitle = h('span', {
+		id: 'blemmy-chat-header-title',
+		class: 'blemmy-chat-header__title',
+	}, 'Assistant');
+	const header = h('div', { class: 'blemmy-chat-header' },
+		h('div', { class: 'blemmy-chat-header__lead' },
+			headerTitle,
 			connectionStatus,
 		),
-		h('div', { class: 'cv-chat-header__actions' },
-			h('span', { id: 'cv-chat-source-badge', class: 'cv-chat-source-badge', hidden: '' }),
+		h('div', { class: 'blemmy-chat-header__actions' },
+			h('span', { id: 'blemmy-chat-source-badge', class: 'blemmy-chat-source-badge', hidden: '' }),
 			copyChat,
 			changeKey,
 			h('button', {
 				type:         'button',
-				id:           'cv-chat-close',
-				class:        'cv-chat-close',
+				id:           'blemmy-chat-close',
+				class:        'blemmy-chat-close',
 				'aria-label': 'Close chat',
 			}, '×'),
 		),
 	);
 
 	const panel = h('div', {
-		id:    'cv-chat-panel',
-		class: `cv-chat-panel cv-side-panel ${DOCKED_SIDE_PANEL_CLASS} no-print`,
+		id:    'blemmy-chat-panel',
+		class: `blemmy-chat-panel blemmy-side-panel ${DOCKED_SIDE_PANEL_CLASS} no-print`,
 		role:  'complementary',
-		'aria-label': 'CV Assistant',
+		'aria-label': 'Document assistant',
 		hidden: '',
 	},
 		header,
 		setupScreen,
 		starters,
 		messages,
+		pendingApply,
 		scopeBar,
 		inputWrap,
 	);
@@ -354,6 +398,7 @@ function buildPanel(): PanelElements {
 	return {
 		panel,
 		messages,
+		pendingApply,
 		scopeBar,
 		inputWrap,
 		input:       textarea as HTMLTextAreaElement,
@@ -366,17 +411,15 @@ function buildPanel(): PanelElements {
 
 // ─── Panel controller ─────────────────────────────────────────────────────────
 
-export function initChatPanel(
-	remount: (data: CVData) => void,
-): { panel: HTMLElement; toggle: HTMLElement } {
+export function initChatPanel(): { panel: HTMLElement; toggle: HTMLElement } {
 	const els           = buildPanel();
-	const providerEl    = els.panel.querySelector('#cv-chat-provider') as HTMLSelectElement | null;
-	const keyField      = els.panel.querySelector('#cv-chat-key') as HTMLInputElement | null;
-	const modelEl       = els.panel.querySelector('#cv-chat-model') as HTMLSelectElement | null;
-	const modelRowEl    = els.panel.querySelector('#cv-chat-model-row') as HTMLElement | null;
-	const saveKeyBtn    = els.panel.querySelector('#cv-chat-save-key') as HTMLButtonElement | null;
-	const changeKeyBtn  = els.panel.querySelector('#cv-chat-change-key') as HTMLButtonElement | null;
-	const setupHintEl   = els.panel.querySelector('#cv-chat-setup-hint') as HTMLElement | null;
+	const providerEl    = els.panel.querySelector('#blemmy-chat-provider') as HTMLSelectElement | null;
+	const keyField      = els.panel.querySelector('#blemmy-chat-key') as HTMLInputElement | null;
+	const modelEl       = els.panel.querySelector('#blemmy-chat-model') as HTMLSelectElement | null;
+	const modelRowEl    = els.panel.querySelector('#blemmy-chat-model-row') as HTMLElement | null;
+	const saveKeyBtn    = els.panel.querySelector('#blemmy-chat-save-key') as HTMLButtonElement | null;
+	const changeKeyBtn  = els.panel.querySelector('#blemmy-chat-change-key') as HTMLButtonElement | null;
+	const setupHintEl   = els.panel.querySelector('#blemmy-chat-setup-hint') as HTMLElement | null;
 	let history:        ChatMessage[] = [];
 	const initialLoad   = loadChatConfigMeta();
 	let cfg:            ChatConfig | null = initialLoad.config;
@@ -396,18 +439,37 @@ export function initChatPanel(
 
 	let selectedPaths = new Set<string>();
 
+	let pendingAssistantApply: PendingAssistantApplyState | null = null;
+	const pendingRejectedPaths = new Set<string>();
+
 	function activeDocType(): ActiveDocType {
-		return window.__ACTIVE_DOC_TYPE__ === 'letter' ? 'letter' : 'cv';
+		return getActiveDocumentType();
+	}
+
+	function activeDocLabel(): string {
+		const spec = getDocTypeSpec(activeDocType());
+		return spec?.label?.trim() || 'Document';
+	}
+
+	function syncDocTypeCopy(): void {
+		const label = activeDocLabel();
+		els.input.placeholder = `Ask about this ${label.toLowerCase()}…`;
+		const titleEl = els.panel.querySelector('#blemmy-chat-header-title');
+		if (titleEl) {
+			titleEl.textContent = `${label} Assistant`;
+		}
 	}
 
 	function activeDocData(): ActiveDocData | null {
-		return activeDocType() === 'letter'
-			? (window.__LETTER_DATA__ ?? null)
-			: (window.__CV_DATA__ ?? null);
+		const d = getActiveDocumentData();
+		return (d ?? null) as ActiveDocData | null;
 	}
+	syncDocTypeCopy();
+	window.addEventListener(DOC_TYPE_CHANGED_EVENT, () => { syncDocTypeCopy(); });
 
 	function activeReviewPaths(): string[] {
-		const cv = window.__CV_DATA__;
+		const raw = getActiveDocumentData();
+		const cv = isLikelyCvData(raw) ? raw : null;
 		if (!cv?.review?.comments?.length) { return []; }
 		return cv.review.comments
 			.filter((comment) => comment.status === 'open' || comment.status === 'flagged')
@@ -416,8 +478,8 @@ export function initChatPanel(
 
 	function clearScopedHighlight(): void {
 		document
-			.querySelectorAll<HTMLElement>('.cv-chat-scope-selected')
-			.forEach((el) => el.classList.remove('cv-chat-scope-selected'));
+			.querySelectorAll<HTMLElement>('.blemmy-chat-scope-selected')
+			.forEach((el) => el.classList.remove('blemmy-chat-scope-selected'));
 	}
 
 	function resolveLetterPathElement(path: string): HTMLElement | null {
@@ -482,11 +544,11 @@ export function initChatPanel(
 			return;
 		}
 		bar.hidden = false;
-		bar.appendChild(h('span', { class: 'cv-chat-scope-label' }, 'Scoped to'));
+		bar.appendChild(h('span', { class: 'blemmy-chat-scope-label' }, 'Scoped to'));
 		for (const path of paths) {
 			const chip = h('button', {
 				type: 'button',
-				class: 'cv-chat-scope-chip',
+				class: 'blemmy-chat-scope-chip',
 				'data-scope-path': path,
 				title: `Remove ${path}`,
 			}, path);
@@ -498,7 +560,7 @@ export function initChatPanel(
 		}
 		const clearBtn = h('button', {
 			type: 'button',
-			class: 'cv-chat-scope-clear',
+			class: 'blemmy-chat-scope-clear',
 		}, 'Clear');
 		clearBtn.addEventListener('click', () => {
 			selectedPaths = new Set<string>();
@@ -510,7 +572,7 @@ export function initChatPanel(
 		for (const path of paths) {
 			const el = resolvePathElement(path);
 			if (!el) { continue; }
-			bestSelectableTarget(el).classList.add('cv-chat-scope-selected');
+			bestSelectableTarget(el).classList.add('blemmy-chat-scope-selected');
 		}
 	}
 
@@ -520,7 +582,7 @@ export function initChatPanel(
 		els.setupScreen.hidden = !show;
 		els.inputWrap.hidden   = show;
 		els.scopeBar.hidden    = selectedPaths.size === 0;
-		const starters = document.getElementById('cv-chat-starters');
+		const starters = document.getElementById('blemmy-chat-starters');
 		if (starters) { starters.hidden = show; }
 	}
 
@@ -547,7 +609,7 @@ export function initChatPanel(
 			storageText = 'saved for this tab session';
 		}
 		const status = `Connected to ${provider} (${modelId}, ${keyHint}, ${storageText}).`;
-		const bubbles = els.messages.querySelectorAll<HTMLElement>('.cv-chat-bubble--system');
+		const bubbles = els.messages.querySelectorAll<HTMLElement>('.blemmy-chat-bubble--system');
 		const last = bubbles.length > 0
 			? bubbles[bubbles.length - 1]?.innerText.trim()
 			: '';
@@ -556,7 +618,7 @@ export function initChatPanel(
 	}
 
 	function refreshSourceBadge(): void {
-		const badge = document.getElementById('cv-chat-source-badge') as HTMLElement | null;
+		const badge = document.getElementById('blemmy-chat-source-badge') as HTMLElement | null;
 		if (!badge) { return; }
 		if (sourceMeta) {
 			badge.textContent = '';
@@ -565,12 +627,12 @@ export function initChatPanel(
 			// Short filename label
 			const nameSpan       = document.createElement('span');
 			nameSpan.textContent = `📄 ${sourceMeta.filename}`;
-			nameSpan.className   = 'cv-chat-source-badge__name';
+			nameSpan.className   = 'blemmy-chat-source-badge__name';
 
 			// Clear button
 			const clearBtn       = document.createElement('button');
 			clearBtn.type        = 'button';
-			clearBtn.className   = 'cv-chat-source-badge__clear';
+			clearBtn.className   = 'blemmy-chat-source-badge__clear';
 			clearBtn.textContent = '×';
 			clearBtn.title       = 'Remove source material';
 			clearBtn.setAttribute('aria-label', 'Remove source material');
@@ -595,7 +657,7 @@ export function initChatPanel(
 	// ── Starter suggestions ─────────────────────────────────────────────────
 
 	function renderStarters(): void {
-		const startersEl = document.getElementById('cv-chat-starters');
+		const startersEl = document.getElementById('blemmy-chat-starters');
 		if (!startersEl) { return; }
 		startersEl.innerHTML = '';
 
@@ -621,7 +683,7 @@ export function initChatPanel(
 
 		startersEl.hidden = false;
 		startersEl.appendChild(
-			h('p', { class: 'cv-chat-starters__label' },
+			h('p', { class: 'blemmy-chat-starters__label' },
 				onboarding ? 'Create your CV' : 'Suggestions',
 			),
 		);
@@ -632,7 +694,7 @@ export function initChatPanel(
 
 			const btn = h('button', {
 				type:  'button',
-				class: 'cv-chat-starter-btn' + (isUploadSuggestion ? ' cv-chat-starter-btn--upload' : ''),
+				class: 'blemmy-chat-starter-btn' + (isUploadSuggestion ? ' blemmy-chat-starter-btn--upload' : ''),
 			}, (isUploadSuggestion ? '📎 ' : '') + suggestion);
 
 			btn.addEventListener('click', () => {
@@ -654,7 +716,7 @@ export function initChatPanel(
 		if (isStreaming || !cfg) { return; }
 
 		// Hide starters
-		const startersEl = document.getElementById('cv-chat-starters');
+		const startersEl = document.getElementById('blemmy-chat-starters');
 		if (startersEl) { startersEl.hidden = true; }
 
 		appendMessage('system', `📎 Reading "${file.name}"…`);
@@ -706,7 +768,12 @@ export function initChatPanel(
 			const styleRaw  = extractStyleBlock(fullText);
 			const autoApply = Boolean(jsonRaw);
 			if (autoApply) {
-				finalise('Prepared CV JSON and applied it automatically.', false);
+				finalise(
+					loadAssistantApplyMode() === 'review'
+						? 'Proposed CV JSON — review fields below, then click Apply included.'
+						: 'Prepared CV JSON and applied it automatically.',
+					false,
+				);
 			} else {
 				finalise(fullText, true);
 			}
@@ -745,7 +812,7 @@ export function initChatPanel(
 		content: string,
 	): HTMLElement {
 		const bubble = document.createElement('div');
-		bubble.className = `cv-chat-bubble cv-chat-bubble--${role}`;
+		bubble.className = `blemmy-chat-bubble blemmy-chat-bubble--${role}`;
 
 		if (role === 'assistant') {
 			bubble.appendChild(renderMarkdown(content));
@@ -765,9 +832,9 @@ export function initChatPanel(
 		finalise: (full: string, showApplyButton?: boolean) => void;
 	} {
 		const bubble    = document.createElement('div');
-		bubble.className = 'cv-chat-bubble cv-chat-bubble--assistant cv-chat-bubble--streaming';
+		bubble.className = 'blemmy-chat-bubble blemmy-chat-bubble--assistant blemmy-chat-bubble--streaming';
 		const cursor    = document.createElement('span');
-		cursor.className = 'cv-chat-cursor';
+		cursor.className = 'blemmy-chat-cursor';
 		bubble.appendChild(cursor);
 		els.messages.appendChild(bubble);
 
@@ -779,13 +846,13 @@ export function initChatPanel(
 			bubble.innerHTML = '';
 			bubble.appendChild(renderMarkdown(accumulated));
 			const c2 = document.createElement('span');
-			c2.className = 'cv-chat-cursor';
+			c2.className = 'blemmy-chat-cursor';
 			bubble.appendChild(c2);
 			els.messages.scrollTop = els.messages.scrollHeight;
 		}
 
 		function finalise(full: string, showApplyButton = true): void {
-			bubble.classList.remove('cv-chat-bubble--streaming');
+			bubble.classList.remove('blemmy-chat-bubble--streaming');
 			bubble.innerHTML = '';
 			bubble.appendChild(renderMarkdown(full, showApplyButton));
 			// Wire apply buttons in the final rendered content
@@ -945,39 +1012,266 @@ export function initChatPanel(
 		return root;
 	}
 
-	function applyJson(raw: string, isGenerated = false): void {
-		try {
-			const parsed  = JSON.parse(raw);
-			if (activeDocType() === 'letter') {
-				const letterData = validateLetterData(parsed as LetterData);
-				const toLetter = (window as Window & {
-					__blemmySwitchToLetter__?: (data: LetterData) => void;
-				}).__blemmySwitchToLetter__;
-				if (!toLetter) {
-					throw new Error('Missing letter switch hook');
-				}
-				toLetter(letterData);
-			} else {
-				const fixed   = coerceCvPayload(parsed);
-				const newData = validateCvData(fixed);
-				const prev = window.__CV_DATA__;
-				const keepUrl = prev?.basics.portraitDataUrl;
-				if (keepUrl && !newData.basics.portraitDataUrl) {
-					newData.basics = {
-						...newData.basics,
-						portraitDataUrl: keepUrl,
-					};
-				}
-				const keepSha = prev?.basics.portraitSha256;
-				if (keepSha && !newData.basics.portraitSha256) {
-					newData.basics = {
-						...newData.basics,
-						portraitSha256: keepSha,
-					};
-				}
-				remount(newData);
+	function parseAssistantJsonPayload(raw: string): {
+		docType: string;
+		validated: StoredDocumentData;
+		current: unknown;
+	} {
+		const parsed = JSON.parse(raw) as unknown;
+		const docType = activeDocType();
+		const current = getActiveDocumentData();
+		const isRecord = (v: unknown): v is Record<string, unknown> =>
+			Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+		const mergePatch = (base: unknown, patch: unknown): unknown => {
+			if (Array.isArray(patch)) {
+				return patch;
 			}
-			appendMessage('system',
+			if (!isRecord(base) || !isRecord(patch)) {
+				return patch;
+			}
+			const out: Record<string, unknown> = { ...base };
+			for (const [k, v] of Object.entries(patch)) {
+				out[k] = mergePatch((base as Record<string, unknown>)[k], v);
+			}
+			return out;
+		};
+		const merged = current ? mergePatch(current, parsed) : parsed;
+		const fixed = docType === 'cv' ? coerceCvPayload(merged) : merged;
+		let validated = validateDocumentByType(docType, fixed) as StoredDocumentData;
+		if (docType === 'cv' && isLikelyCvData(validated)) {
+			const newData = validated as CVData;
+			const prev = isLikelyCvData(current) ? current : null;
+			const keepUrl = prev?.basics.portraitDataUrl;
+			if (keepUrl && !newData.basics.portraitDataUrl) {
+				newData.basics = { ...newData.basics, portraitDataUrl: keepUrl };
+			}
+			const keepSha = prev?.basics.portraitSha256;
+			if (keepSha && !newData.basics.portraitSha256) {
+				newData.basics = { ...newData.basics, portraitSha256: keepSha };
+			}
+			validated = newData;
+		}
+		return { docType, validated, current };
+	}
+
+	function renderPendingAssistantApplyPanel(): void {
+		const host = els.pendingApply;
+		host.innerHTML = '';
+		if (!pendingAssistantApply) {
+			host.hidden = true;
+			return;
+		}
+		host.hidden = false;
+		const p = pendingAssistantApply;
+
+		const title = h(
+			'p',
+			{ class: 'blemmy-chat-pending-apply__title' },
+			'Proposed document changes',
+		);
+		const meta = h('p', { class: 'blemmy-chat-pending-apply__meta' }, '');
+		function syncMeta(): void {
+			const nAcc = countAcceptedChanges(p.leafChanges, pendingRejectedPaths);
+			meta.textContent = p.truncated
+				? `Showing first ${p.leafChanges.length} fields (limit). ${nAcc} included.`
+				: `${p.leafChanges.length} field(s); ${nAcc} included.`;
+		}
+		syncMeta();
+
+		const actions = h('div', { class: 'blemmy-chat-pending-apply__actions' });
+		const btnAll = h(
+			'button',
+			{ type: 'button', class: 'blemmy-chat-pending-apply__btn' },
+			'Include all',
+		) as HTMLButtonElement;
+		const btnNone = h(
+			'button',
+			{ type: 'button', class: 'blemmy-chat-pending-apply__btn' },
+			'Exclude all',
+		) as HTMLButtonElement;
+		const btnApply = h(
+			'button',
+			{
+				type: 'button',
+				class: 'blemmy-chat-pending-apply__btn blemmy-chat-pending-apply__btn--primary',
+			},
+			'Apply included',
+		) as HTMLButtonElement;
+		const btnDiscard = h(
+			'button',
+			{ type: 'button', class: 'blemmy-chat-pending-apply__btn' },
+			'Discard',
+		) as HTMLButtonElement;
+
+		btnAll.addEventListener('click', () => {
+			pendingRejectedPaths.clear();
+			renderPendingAssistantApplyPanel();
+		});
+		btnNone.addEventListener('click', () => {
+			pendingRejectedPaths.clear();
+			for (const c of p.leafChanges) {
+				pendingRejectedPaths.add(c.path);
+			}
+			renderPendingAssistantApplyPanel();
+		});
+		btnDiscard.addEventListener('click', () => {
+			pendingAssistantApply = null;
+			pendingRejectedPaths.clear();
+			renderPendingAssistantApplyPanel();
+			appendMessage('system', 'Discarded proposed changes.');
+		});
+		btnApply.addEventListener('click', () => {
+			try {
+				const n = countAcceptedChanges(p.leafChanges, pendingRejectedPaths);
+				if (n === 0) {
+					appendMessage('system', 'No changes selected to apply.');
+					return;
+				}
+				const merged = buildDocumentFromLeafSelection(
+					p.docType,
+					p.baseSnapshot,
+					p.leafChanges,
+					pendingRejectedPaths,
+				);
+				const cur = getActiveDocumentData();
+				recordDocumentApplyHistory(
+					cur as StoredDocumentData | undefined,
+					merged,
+					true,
+				);
+				window.__blemmyRemountDocument__?.(merged, p.docType);
+				pendingAssistantApply = null;
+				pendingRejectedPaths.clear();
+				renderPendingAssistantApplyPanel();
+				appendMessage('system', `✓ Applied ${n} change(s).`);
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				appendMessage('system', `✗ Could not apply: ${msg}`);
+			}
+		});
+
+		actions.append(btnAll, btnNone, btnApply, btnDiscard);
+
+		const groups = new Map<string, LeafChange[]>();
+		for (const c of p.leafChanges) {
+			const g = c.path.split('.')[0] ?? 'other';
+			const list = groups.get(g) ?? [];
+			list.push(c);
+			groups.set(g, list);
+		}
+		const groupKeys = [...groups.keys()].sort();
+		const listEl = h('div', { class: 'blemmy-chat-pending-apply__groups' });
+		for (const gk of groupKeys) {
+			const changes = groups.get(gk) ?? [];
+			const sec = h('section', { class: 'blemmy-chat-pending-apply__group' });
+			sec.appendChild(
+				h('h4', { class: 'blemmy-chat-pending-apply__group-title' }, gk),
+			);
+			const ul = h('ul', { class: 'blemmy-chat-pending-apply__list' });
+			for (const c of changes) {
+				const row = h('li', { class: 'blemmy-chat-pending-apply__row' });
+				const included = !pendingRejectedPaths.has(c.path);
+				const label = h('label', { class: 'blemmy-chat-pending-apply__row-label' });
+				const cbAttrs: Record<string, string> = {
+					type: 'checkbox',
+					'data-path': c.path,
+				};
+				if (included) {
+					cbAttrs.checked = 'checked';
+				}
+				const cb = h('input', cbAttrs) as HTMLInputElement;
+				const span = h(
+					'span',
+					{ class: 'blemmy-chat-pending-apply__path' },
+					c.path,
+				);
+				const preRow = h('div', { class: 'blemmy-chat-pending-apply__diff' });
+				preRow.append(
+					h('span', { class: 'blemmy-chat-pending-apply__before' }, c.before),
+					h('span', { class: 'blemmy-chat-pending-apply__arrow' }, ' → '),
+					h('span', { class: 'blemmy-chat-pending-apply__after' }, c.after),
+				);
+				label.append(cb, span);
+				row.append(label, preRow);
+				ul.appendChild(row);
+				cb.addEventListener('change', () => {
+					if (cb.checked) {
+						pendingRejectedPaths.delete(c.path);
+					} else {
+						pendingRejectedPaths.add(c.path);
+					}
+					syncMeta();
+				});
+			}
+			sec.appendChild(ul);
+			listEl.appendChild(sec);
+		}
+
+		host.append(title, meta, actions, listEl);
+	}
+
+	function clearPendingAssistantApplyOnDocSwitch(): void {
+		if (!pendingAssistantApply) {
+			return;
+		}
+		pendingAssistantApply = null;
+		pendingRejectedPaths.clear();
+		renderPendingAssistantApplyPanel();
+	}
+
+	function stageAssistantJson(raw: string, fromGenerated = false): void {
+		try {
+			const { docType, validated, current } = parseAssistantJsonPayload(raw);
+			if (current == null) {
+				applyJsonImmediate(raw, fromGenerated);
+				return;
+			}
+			const baseSnap = cloneDocumentData(current as StoredDocumentData);
+			let leafChanges = computeLeafDiffBetweenDocuments(baseSnap, validated);
+			let truncated = false;
+			if (leafChanges.length > PENDING_ASSISTANT_LEAF_LIMIT) {
+				truncated = true;
+				leafChanges = leafChanges.slice(0, PENDING_ASSISTANT_LEAF_LIMIT);
+			}
+			if (leafChanges.length === 0) {
+				appendMessage(
+					'system',
+					'No field-level differences — nothing to review.',
+				);
+				return;
+			}
+			pendingRejectedPaths.clear();
+			pendingAssistantApply = {
+				docType,
+				baseSnapshot: baseSnap,
+				proposedSnapshot: validated,
+				leafChanges,
+				truncated,
+			};
+			renderPendingAssistantApplyPanel();
+			appendMessage(
+				'system',
+				fromGenerated
+					? 'Proposed document is ready for review — adjust inclusions below, then Apply included.'
+					: 'Proposed changes are ready for review.',
+			);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			appendMessage('system', `✗ Could not stage changes: ${msg}`);
+		}
+	}
+
+	function applyJsonImmediate(raw: string, isGenerated = false): void {
+		try {
+			const { docType, validated, current } = parseAssistantJsonPayload(raw);
+			recordDocumentApplyHistory(
+				current as StoredDocumentData | undefined,
+				validated,
+				true,
+			);
+			window.__blemmyRemountDocument__?.(validated, docType);
+			appendMessage(
+				'system',
 				isGenerated
 					? '✓ Document created. Review it and use edit mode to make adjustments. Download it as JSON to save.'
 					: '✓ Document updated successfully.',
@@ -988,10 +1282,19 @@ export function initChatPanel(
 		}
 	}
 
+	function applyJson(raw: string, isGenerated = false): void {
+		if (loadAssistantApplyMode() === 'review') {
+			stageAssistantJson(raw, isGenerated);
+		} else {
+			applyJsonImmediate(raw, isGenerated);
+		}
+	}
+
 	function applyReviewOps(raw: string): void {
 		try {
 			const ops = JSON.parse(raw) as CommentOperation[];
-			const cv  = window.__CV_DATA__;
+			const rawDoc = getActiveDocumentData();
+			const cv = isLikelyCvData(rawDoc) ? rawDoc : null;
 			if (!cv) { return; }
 			if (!cv.review) { cv.review = { version: 1, comments: [], active: true }; }
 			applyCommentOps(cv.review, ops);
@@ -1037,7 +1340,7 @@ export function initChatPanel(
 		if (!text || isStreaming || !cfg) { return; }
 
 		// Hide starters once conversation starts
-		const startersEl = document.getElementById('cv-chat-starters');
+		const startersEl = document.getElementById('blemmy-chat-starters');
 		if (startersEl) { startersEl.hidden = true; }
 
 		els.input.value = '';
@@ -1051,6 +1354,7 @@ export function initChatPanel(
 		const docType = activeDocType();
 		const docData = activeDocData();
 		const layout = readLayoutState();
+		const liveForReview = getActiveDocumentData();
 		const onboarding = docType === 'cv'
 			? (docData ? isDefaultCvData(docData as CVData) : true)
 			: false;
@@ -1073,7 +1377,9 @@ export function initChatPanel(
 					docData,
 					layout,
 					sourceText: route.includeSource ? sourceText ?? undefined : undefined,
-					review: window.__CV_DATA__?.review,
+					review: isLikelyCvData(liveForReview)
+						? liveForReview.review
+						: undefined,
 					contextMode: route.contextMode,
 					scopedPaths: route.scopedPaths,
 					includeReview: route.includeReview,
@@ -1102,7 +1408,12 @@ export function initChatPanel(
 				(expectsReview && !reviewRaw);
 			const autoApply = Boolean(jsonRaw && wantsApply && !expectsStyle && !expectsReview);
 			if (autoApply) {
-				finalise('Applied the proposed document changes automatically.', false);
+				finalise(
+					loadAssistantApplyMode() === 'review'
+						? 'Proposed document changes — review them in the panel below before applying.'
+						: 'Applied the proposed document changes automatically.',
+					false,
+				);
 			} else {
 				finalise(fullText, true);
 			}
@@ -1159,8 +1470,8 @@ export function initChatPanel(
 		if (els.panel.hidden) { return; }
 		const target = event.target as HTMLElement | null;
 		if (!target) { return; }
-		if (target.closest('#cv-chat-panel')) { return; }
-		if (target.closest('.cv-mobile-utility-bar')) { return; }
+		if (target.closest('#blemmy-chat-panel')) { return; }
+		if (target.closest('.blemmy-mobile-utility-bar')) { return; }
 		const path = resolvePathFromTarget(target);
 		if (!path) { return; }
 		selectedPaths.has(path)
@@ -1316,18 +1627,18 @@ export function initChatPanel(
 		refreshSetupState();
 	});
 
-	const copyChatBtn = els.panel.querySelector('#cv-chat-copy') as HTMLButtonElement | null;
+	const copyChatBtn = els.panel.querySelector('#blemmy-chat-copy') as HTMLButtonElement | null;
 	copyChatBtn?.addEventListener('click', async () => {
 		const lines: string[] = [];
-		const bubbles = els.messages.querySelectorAll<HTMLElement>('.cv-chat-bubble');
+		const bubbles = els.messages.querySelectorAll<HTMLElement>('.blemmy-chat-bubble');
 		for (const bubble of bubbles) {
 			const text = bubble.innerText.trim();
 			if (!text) { continue; }
-			if (bubble.classList.contains('cv-chat-bubble--user')) {
+			if (bubble.classList.contains('blemmy-chat-bubble--user')) {
 				lines.push(`User: ${text}`);
 				continue;
 			}
-			if (bubble.classList.contains('cv-chat-bubble--assistant')) {
+			if (bubble.classList.contains('blemmy-chat-bubble--assistant')) {
 				lines.push(`Assistant: ${text}`);
 				continue;
 			}
@@ -1348,7 +1659,7 @@ export function initChatPanel(
 	let popover: ReturnType<typeof initDockedPopover> | null = null;
 
 	// Close button
-	const closeBtn = els.panel.querySelector('#cv-chat-close') as HTMLButtonElement | null;
+	const closeBtn = els.panel.querySelector('#blemmy-chat-close') as HTMLButtonElement | null;
 	closeBtn?.addEventListener('click', (e) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -1364,7 +1675,7 @@ export function initChatPanel(
 		renderStarters();
 		renderScopeBar();
 		appendConnectionStatusMessage();
-		dispatchDockedPanelOpen('cv-chat-panel');
+		dispatchDockedPanelOpen('blemmy-chat-panel');
 		window.dispatchEvent(new Event(CHAT_OPEN_EVENT));
 		if (!cfg) {
 			keyField?.focus();
@@ -1376,7 +1687,7 @@ export function initChatPanel(
 	function closePanel(): void {
 		els.panel.hidden = true;
 		clearScopedHighlight();
-		dispatchDockedPanelClose('cv-chat-panel');
+		dispatchDockedPanelClose('blemmy-chat-panel');
 		window.dispatchEvent(new Event(CHAT_CLOSE_EVENT));
 	}
 
@@ -1384,18 +1695,18 @@ export function initChatPanel(
 
 	const trigger = h('button', {
 		id:           DOCK_CONTROLS.chat.id,
-		class:        'cv-chat-trigger cv-dock-btn no-print',
+		class:        'blemmy-chat-trigger blemmy-dock-btn no-print',
 		type:         'button',
 		'aria-label': DOCK_CONTROLS.chat.ariaLabel,
 		'aria-expanded': 'false',
-		'aria-controls': 'cv-chat-panel',
+		'aria-controls': 'blemmy-chat-panel',
 		title:        DOCK_CONTROLS.chat.title,
 		'data-icon':  DOCK_CONTROLS.chat.icon,
 	}, DOCK_CONTROLS.chat.label);
 	popover = initDockedPopover({
 		panel: els.panel,
 		trigger,
-		openClass: 'cv-chat-trigger--open',
+		openClass: 'blemmy-chat-trigger--open',
 		group: 'right-docked-panels',
 		marginPx: 12,
 		outsideCloseGuard: (target: Node) => {
@@ -1412,7 +1723,7 @@ export function initChatPanel(
 	popover.refreshViewportFit();
 
 	// Refresh starters when CV changes (filter toggle, edit, upload)
-	window.addEventListener('cv-layout-applied', () => {
+	window.addEventListener('blemmy-layout-applied', () => {
 		renderScopeBar();
 		if (!els.panel.hidden && history.length === 0) { renderStarters(); }
 	});
@@ -1430,6 +1741,10 @@ export function initChatPanel(
 		}
 		refreshSourceBadge();
 		if (!els.panel.hidden && history.length === 0) { renderStarters(); }
+	});
+
+	window.addEventListener(BLEMMY_ACTIVE_DOCUMENT_CHANGED, () => {
+		clearPendingAssistantApplyOnDocSwitch();
 	});
 
 	// Initial state

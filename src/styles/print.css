@@ -6,13 +6,13 @@
    - Hides screen-only UI
    - Applies print-specific layout (page height, sidebar padding mm, portrait)
    - Page-break rules
-   Masthead/portrait parity: cv-print-parity.css (print + preview).
+   Masthead/portrait parity: blemmy-print-parity.css (print + preview).
    ============================================================ */
 
 @media print {
 
-	.cv-shell,
-	.cv-shell * {
+	.blemmy-shell,
+	.blemmy-shell * {
 		hyphens:            none !important;
 		-webkit-hyphens:    none !important;
 		hyphenate-character: '' !important;
@@ -61,7 +61,7 @@
 		margin:      0 !important;
 		padding:     0 !important;
 		background:  var(--color-paper) !important;
-		/* No !important on color so .cv-sidebar * from global.css wins. */
+		/* No !important on color so .blemmy-sidebar * from global.css wins. */
 		color:       var(--color-ink-black);
 		font-family: var(--font-body) !important;
 		font-size:   10pt !important;
@@ -72,10 +72,10 @@
 
 	/*
 	 * Force sidebar text light in PDF (some engines apply body color to all).
-	 * Single explicit override so cv-name/label are never black on dark sidebar.
+	 * Single explicit override so blemmy-name/label are never black on dark sidebar.
 	 */
-	.cv-sidebar .cv-name,
-	.cv-sidebar .cv-label {
+	.blemmy-sidebar .blemmy-name,
+	.blemmy-sidebar .blemmy-label {
 		color: #ffffff !important;
 	}
 
@@ -86,28 +86,28 @@
 	}
 
 	.no-print,
-	#cv-download-pdf,
+	#blemmy-download-pdf,
 	.print-fab,
 	.theme-toggle,
-	[data-cv-interactive],
+	[data-blemmy-interactive],
 	nav,
 	button {
 		display: none !important;
 	}
 
-	.cv-shell {
+	.blemmy-shell {
 		max-width: none !important;
 		margin:    0 !important;
 		padding:   0 !important;
 	}
 
-	.cv-card {
+	.blemmy-card {
 		box-shadow:    none !important;
 		border-radius: 0 !important;
 		width:         210mm !important;
 	}
 
-	.cv-page {
+	.blemmy-page {
 		width:            210mm !important;
 		height:           297mm !important;
 		min-height:       297mm !important;
@@ -120,14 +120,14 @@
 	}
 
 	/* Same as screen: JS merge probe must see content height, not 297mm shell. */
-	.cv-page.cv-layout-measure-intrinsic {
+	.blemmy-page.blemmy-layout-measure-intrinsic {
 		height:       auto !important;
 		min-height:   0 !important;
 		overflow:     visible !important;
 		display:      block !important;
 	}
 
-	.cv-page.cv-layout-measure-intrinsic .cv-grid {
+	.blemmy-page.blemmy-layout-measure-intrinsic .blemmy-grid {
 		height:             auto !important;
 		min-height:         0 !important;
 		flex:               none !important;
@@ -135,22 +135,22 @@
 		align-items:        start !important;
 	}
 
-	#cv-page-1.cv-layout-measure-intrinsic .cv-grid {
+	#blemmy-page-1.blemmy-layout-measure-intrinsic .blemmy-grid {
 		grid-template-rows: auto auto auto !important;
 	}
 
-	#cv-page-2.cv-layout-measure-intrinsic .cv-grid {
+	#blemmy-page-2.blemmy-layout-measure-intrinsic .blemmy-grid {
 		grid-template-rows: auto auto !important;
 	}
 
 	/* Main-column supplement — explicit column count set by engine via
-	   --cv-footer-cols (1, 2, or 3). Falls back to auto-fit. */
-	#cv-page-1-body-footer:not(:empty),
-	#cv-page-2-body-footer:not(:empty) {
+	   --blemmy-footer-cols (1, 2, or 3). Falls back to auto-fit. */
+	#blemmy-page-1-body-footer:not(:empty),
+	#blemmy-page-2-body-footer:not(:empty) {
 		flex-shrink:           0 !important;
 		display:               grid !important;
 		grid-template-columns: repeat(
-			var(--cv-footer-cols, auto-fit),
+			var(--blemmy-footer-cols, auto-fit),
 			minmax(0, 1fr)
 		) !important;
 		column-gap:            5mm !important;
@@ -161,7 +161,7 @@
 	}
 
 	/* Work pool: never rendered in print. */
-	#cv-work-pool {
+	#blemmy-work-pool {
 		display: none !important;
 	}
 
@@ -171,126 +171,126 @@
 		flex-direction: column !important;
 	}
 
-	.cv-card[data-cv-sidebar-mm='54'] #cv-page-1 .cv-grid,
-	.cv-card[data-cv-sidebar-mm='54'] #cv-page-2 .cv-grid {
-		grid-template-columns: var(--cv-sidebar-width-override, 54mm) 1fr !important;
+	.blemmy-card[data-blemmy-layout-sidebar-mm='54'] #blemmy-page-1 .blemmy-grid,
+	.blemmy-card[data-blemmy-layout-sidebar-mm='54'] #blemmy-page-2 .blemmy-grid {
+		grid-template-columns: var(--blemmy-sidebar-width-override, 54mm) 1fr !important;
 	}
 
-	.cv-card[data-cv-sidebar-mm='48'] #cv-page-1 .cv-grid,
-	.cv-card[data-cv-sidebar-mm='48'] #cv-page-2 .cv-grid {
-		grid-template-columns: var(--cv-sidebar-width-override, 48mm) 1fr !important;
+	.blemmy-card[data-blemmy-layout-sidebar-mm='48'] #blemmy-page-1 .blemmy-grid,
+	.blemmy-card[data-blemmy-layout-sidebar-mm='48'] #blemmy-page-2 .blemmy-grid {
+		grid-template-columns: var(--blemmy-sidebar-width-override, 48mm) 1fr !important;
 	}
 
-	.cv-page:last-child {
+	.blemmy-page:last-child {
 		page-break-after: auto;
 		break-after:      auto;
 	}
 
-	.cv-single-page .cv-page {
+	.blemmy-single-page .blemmy-page {
 		page-break-after: auto;
 		break-after:      auto;
 	}
 
-	.cv-single-page .cv-page-2 {
+	.blemmy-single-page .blemmy-page-2 {
 		display: none !important;
 	}
 
-	.cv-single-page .cv-grid {
-		grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width-single)) 1fr !important;
+	.blemmy-single-page .blemmy-grid {
+		grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width-single)) 1fr !important;
 	}
 
-	.cv-single-page .cv-sidebar > div:not(.cv-sidebar-tail-spacer) {
+	.blemmy-single-page .blemmy-sidebar > div:not(.blemmy-sidebar-tail-spacer) {
 		padding: var(--print-sidebar-padding-single) !important;
 	}
 
-	.cv-single-page .cv-main {
+	.blemmy-single-page .blemmy-main {
 		padding: var(--print-main-padding-single) !important;
 	}
 
-	.cv-single-page .section-label {
+	.blemmy-single-page .section-label {
 		margin-bottom: 2mm !important;
 	}
 
-	.cv-single-page .education-block {
+	.blemmy-single-page .education-block {
 		padding-bottom: 3mm !important;
 		margin-bottom:  3mm !important;
 	}
 
 	/* Single-page: shrink sidebar typography and spacing so it fits 297mm */
-	.cv-single-page .cv-sidebar .cv-name,
-	.cv-single-page #cv-page-1-masthead .cv-name {
+	.blemmy-single-page .blemmy-sidebar .blemmy-name,
+	.blemmy-single-page #blemmy-page-1-masthead .blemmy-name {
 		font-size: 16pt !important;
 	}
-	.cv-single-page .cv-sidebar .cv-label,
-	.cv-single-page #cv-page-1-masthead .cv-label {
+	.blemmy-single-page .blemmy-sidebar .blemmy-label,
+	.blemmy-single-page #blemmy-page-1-masthead .blemmy-label {
 		font-size: 6pt !important;
 		margin-top: 0.5mm !important;
 	}
-	.cv-single-page .cv-sidebar .section-label {
+	.blemmy-single-page .blemmy-sidebar .section-label {
 		font-size: 4.5pt !important;
 		margin-bottom: 1.2mm !important;
 		letter-spacing: 0.12em !important;
 	}
-	.cv-single-page .cv-header-block {
+	.blemmy-single-page .blemmy-header-block {
 		gap: 1.8mm !important;
 	}
-	.cv-single-page .cv-sidebar .contact-list {
+	.blemmy-single-page .blemmy-sidebar .contact-list {
 		gap: 1mm !important;
 	}
-	.cv-single-page .cv-sidebar .contact-item {
+	.blemmy-single-page .blemmy-sidebar .contact-item {
 		font-size: clamp(
 			4.35pt,
 			calc(2.5pt + 4.6cqi),
 			6pt
 		) !important;
 	}
-	.cv-single-page .cv-sidebar .education-block {
+	.blemmy-single-page .blemmy-sidebar .education-block {
 		padding-bottom: 2mm !important;
 		margin-bottom:  2mm !important;
 	}
-	.cv-single-page .cv-sidebar .edu-degree {
+	.blemmy-single-page .blemmy-sidebar .edu-degree {
 		font-size: 7.5pt !important;
 	}
-	.cv-single-page .cv-sidebar .edu-institution,
-	.cv-single-page .cv-sidebar .edu-area,
-	.cv-single-page .cv-sidebar .edu-dates {
+	.blemmy-single-page .blemmy-sidebar .edu-institution,
+	.blemmy-single-page .blemmy-sidebar .edu-area,
+	.blemmy-single-page .blemmy-sidebar .edu-dates {
 		font-size: 6pt !important;
 	}
-	.cv-single-page .cv-sidebar .edu-score {
+	.blemmy-single-page .blemmy-sidebar .edu-score {
 		font-size: 5pt !important;
 		padding: 0.4mm 1.2mm !important;
 	}
-	.cv-single-page .cv-sidebar .skill-category-label {
+	.blemmy-single-page .blemmy-sidebar .skill-category-label {
 		font-size: 5pt !important;
 		margin-bottom: 0.8mm !important;
 	}
-	.cv-single-page .cv-sidebar .skill-tag {
+	.blemmy-single-page .blemmy-sidebar .skill-tag {
 		font-size: 5.5pt !important;
 		padding: 0.35mm 1.2mm !important;
 		margin: 0.3mm 0.3mm 0.3mm 0 !important;
 	}
-	.cv-single-page .cv-sidebar .language-item {
+	.blemmy-single-page .blemmy-sidebar .language-item {
 		font-size: 6pt !important;
 		padding: 0.5mm 0 !important;
 	}
-	.cv-single-page .cv-sidebar .language-fluency {
+	.blemmy-single-page .blemmy-sidebar .language-fluency {
 		font-size: 5.5pt !important;
 	}
-	.cv-single-page .cv-sidebar > div:not(.cv-sidebar-tail-spacer) {
+	.blemmy-single-page .blemmy-sidebar > div:not(.blemmy-sidebar-tail-spacer) {
 		padding-top: 2.5mm !important;
 		padding-bottom: 2.5mm !important;
 	}
-	.cv-single-page #cv-sidebar-1 > div:first-child {
+	.blemmy-single-page #blemmy-sidebar-1 > div:first-child {
 		padding-top: 2.5mm !important;
 	}
 
-	.cv-grid {
+	.blemmy-grid {
 		display:               grid !important;
-		grid-template-columns: var(--cv-sidebar-width-override, var(--sidebar-width)) 1fr !important;
+		grid-template-columns: var(--blemmy-sidebar-width-override, var(--sidebar-width)) 1fr !important;
 		min-height:            0 !important;
 	}
 
-	#cv-page-1 .cv-grid {
+	#blemmy-page-1 .blemmy-grid {
 		grid-template-rows:  auto minmax(0, 1fr) auto !important;
 		flex:                  1 1 auto !important;
 		height:                100% !important;
@@ -298,7 +298,7 @@
 		align-content:         stretch !important;
 	}
 
-	#cv-page-2 .cv-grid {
+	#blemmy-page-2 .blemmy-grid {
 		grid-template-rows:  minmax(0, 1fr) auto !important;
 		flex:                  1 1 auto !important;
 		height:                100% !important;
@@ -306,7 +306,7 @@
 		align-content:         stretch !important;
 	}
 
-	.cv-sidebar {
+	.blemmy-sidebar {
 		padding:           0 !important;
 		display:           flex !important;
 		flex-direction:    column !important;
@@ -317,19 +317,19 @@
 		overflow:          hidden !important; /* keep portrait within column */
 	}
 
-	#cv-sidebar-1 {
+	#blemmy-sidebar-1 {
 		gap: calc(
 			var(--print-sidebar-stack-gap) +
-			var(--cv-slack-gap-p1-sidebar, 0px) +
-			var(--cv-align-gap-p1-sidebar, 0px)
+			var(--blemmy-slack-gap-p1-sidebar, 0px) +
+			var(--blemmy-align-gap-p1-sidebar, 0px)
 		) !important;
 	}
 
-	#cv-sidebar-2 {
+	#blemmy-sidebar-2 {
 		gap: calc(
 			var(--print-sidebar-stack-gap) +
-			var(--cv-slack-gap-p2-sidebar, 0px) +
-			var(--cv-align-gap-p2-sidebar, 0px)
+			var(--blemmy-slack-gap-p2-sidebar, 0px) +
+			var(--blemmy-align-gap-p2-sidebar, 0px)
 		) !important;
 	}
 
@@ -337,73 +337,73 @@
 	 * Tail margin: flex stack + `overflow:hidden` clips the last flex item
 	 * first; padding stays visible below the content box.
 	 */
-	#cv-sidebar-1,
-	#cv-sidebar-2 {
+	#blemmy-sidebar-1,
+	#blemmy-sidebar-2 {
 		box-sizing:     border-box !important;
 		padding-bottom: var(--print-sidebar-column-tail) !important;
 	}
 
-	.cv-card.cv-density-3 .cv-sidebar {
+	.blemmy-card.blemmy-density-3 .blemmy-sidebar {
 		gap: 2.5mm !important;
 	}
 
-	.cv-card.cv-density-3 #cv-sidebar-1 {
-		gap: calc(2.5mm + var(--cv-slack-gap-p1-sidebar, 0px) + var(--cv-align-gap-p1-sidebar, 0px)) !important;
+	.blemmy-card.blemmy-density-3 #blemmy-sidebar-1 {
+		gap: calc(2.5mm + var(--blemmy-slack-gap-p1-sidebar, 0px) + var(--blemmy-align-gap-p1-sidebar, 0px)) !important;
 	}
 
-	.cv-card.cv-density-3 #cv-sidebar-2 {
-		gap: calc(2.5mm + var(--cv-slack-gap-p2-sidebar, 0px) + var(--cv-align-gap-p2-sidebar, 0px)) !important;
+	.blemmy-card.blemmy-density-3 #blemmy-sidebar-2 {
+		gap: calc(2.5mm + var(--blemmy-slack-gap-p2-sidebar, 0px) + var(--blemmy-align-gap-p2-sidebar, 0px)) !important;
 	}
 
 	/*
 	 * One wrapper `<div>`: outer column flex `gap` does nothing; inject slack
 	 * as `row-gap` on that wrapper (education stack, single main stack, …).
 	 */
-	#cv-sidebar-1 > div:only-child {
+	#blemmy-sidebar-1 > div:only-child {
 		display:        flex !important;
 		flex-direction: column !important;
-		row-gap:        var(--cv-slack-gap-p1-sidebar-inner, 0px) !important;
+		row-gap:        var(--blemmy-slack-gap-p1-sidebar-inner, 0px) !important;
 	}
 
-	#cv-sidebar-2 > div:only-child {
+	#blemmy-sidebar-2 > div:only-child {
 		display:        flex !important;
 		flex-direction: column !important;
-		row-gap:        var(--cv-slack-gap-p2-sidebar-inner, 0px) !important;
+		row-gap:        var(--blemmy-slack-gap-p2-sidebar-inner, 0px) !important;
 	}
 
-	#cv-main-1 > div:only-child {
+	#blemmy-main-1 > div:only-child {
 		display:        flex !important;
 		flex-direction: column !important;
-		row-gap:        var(--cv-slack-gap-p1-main-inner, 0px) !important;
+		row-gap:        var(--blemmy-slack-gap-p1-main-inner, 0px) !important;
 	}
 
-	#cv-main-2 > div:only-child {
+	#blemmy-main-2 > div:only-child {
 		display:        flex !important;
 		flex-direction: column !important;
-		row-gap:        var(--cv-slack-gap-p2-main-inner, 0px) !important;
+		row-gap:        var(--blemmy-slack-gap-p2-main-inner, 0px) !important;
 	}
 
-	.cv-card.cv-density-3 .skills-wrapper {
+	.blemmy-card.blemmy-density-3 .skills-wrapper {
 		gap: 2.2mm !important;
 	}
 
-	.cv-sidebar > div:not(.cv-sidebar-tail-spacer) {
+	.blemmy-sidebar > div:not(.blemmy-sidebar-tail-spacer) {
 		padding: var(--print-sidebar-padding) !important;
 	}
 
-	#cv-sidebar-1 > div:first-child {
+	#blemmy-sidebar-1 > div:first-child {
 		padding-top: 2.5mm !important;
 	}
 
-	#cv-page-1-masthead.cv-masthead-collapsed {
+	#blemmy-page-1-masthead.blemmy-masthead-collapsed {
 		display: none !important;
 	}
 
-	.cv-sidebar .contact-list {
+	.blemmy-sidebar .contact-list {
 		container-type: inline-size !important;
 	}
 
-	.cv-sidebar .contact-item {
+	.blemmy-sidebar .contact-item {
 		font-size: clamp(
 			4.75pt,
 			calc(2.85pt + 3.9cqi),
@@ -412,7 +412,7 @@
 		letter-spacing: -0.02em !important;
 	}
 
-	.cv-header-block {
+	.blemmy-header-block {
 		display:        flex !important;
 		flex-direction: column !important;
 		gap:            var(--print-gap-header) !important;
@@ -422,7 +422,7 @@
 	 * Portrait: 4:5 box (same as screen). Bleed negates asymmetric sidebar
 	 * inline padding so edges align with the sidebar column.
 	 */
-	.cv-portrait-wrap {
+	.blemmy-portrait-wrap {
 		margin-left:   calc(-1 * var(--print-sidebar-pad-inline-start)) !important;
 		margin-right:  calc(-1 * var(--print-sidebar-pad-inline-end)) !important;
 		width:         calc(
@@ -437,7 +437,7 @@
 		box-sizing:    border-box !important;
 	}
 
-	.cv-portrait {
+	.blemmy-portrait {
 		position:    absolute !important;
 		inset:       0 !important;
 		width:       100% !important;
@@ -447,7 +447,7 @@
 		border-radius: 0 !important;
 	}
 
-	.cv-single-page .cv-portrait-wrap {
+	.blemmy-single-page .blemmy-portrait-wrap {
 		margin-left:  calc(-1 * var(--print-sidebar-single-pad-inline-start)) !important;
 		margin-right: calc(-1 * var(--print-sidebar-single-pad-inline-end)) !important;
 		width:        calc(
@@ -456,13 +456,13 @@
 		) !important;
 	}
 
-	#cv-p1-portrait-cell .cv-portrait-wrap {
+	#blemmy-p1-portrait-cell .blemmy-portrait-wrap {
 		margin-left:   0 !important;
 		margin-right:  0 !important;
 		width:         100% !important;
 	}
 
-	.cv-main {
+	.blemmy-main {
 		padding:           var(--print-main-padding) !important;
 		display:           flex !important;
 		flex-direction:    column !important;
@@ -472,26 +472,26 @@
 		min-height:        0 !important;
 	}
 
-	#cv-main-1 {
+	#blemmy-main-1 {
 		gap: calc(
-			var(--print-main-stack-gap) + var(--cv-slack-gap-p1-main, 0px) +
-			var(--cv-align-gap-p1-main, 0px)
+			var(--print-main-stack-gap) + var(--blemmy-slack-gap-p1-main, 0px) +
+			var(--blemmy-align-gap-p1-main, 0px)
 		) !important;
 	}
 
-	#cv-main-2 {
+	#blemmy-main-2 {
 		gap: calc(
-			var(--print-main-stack-gap) + var(--cv-slack-gap-p2-main, 0px) +
-			var(--cv-align-gap-p2-main, 0px)
+			var(--print-main-stack-gap) + var(--blemmy-slack-gap-p2-main, 0px) +
+			var(--blemmy-align-gap-p2-main, 0px)
 		) !important;
 	}
 
 	/*
 	 * Sentinel last child (DOM order + slack helpers). **Visible** tail gap
-	 * is `#cv-sidebar-*` `padding-bottom` (see above): overflow clips flex
+	 * is `#blemmy-sidebar-*` `padding-bottom` (see above): overflow clips flex
 	 * items before that padding.
 	 */
-	.cv-sidebar-tail-spacer {
+	.blemmy-sidebar-tail-spacer {
 		display:     block !important;
 		box-sizing:  border-box !important;
 		flex:        0 0 0 !important;
@@ -506,42 +506,42 @@
 		pointer-events: none !important;
 	}
 
-	.cv-main .section-label {
+	.blemmy-main .section-label {
 		margin-bottom: var(--print-main-section-label-mb) !important;
 	}
 
-	.cv-main .experience-block + .experience-block {
+	.blemmy-main .experience-block + .experience-block {
 		padding-top: var(--print-experience-sep) !important;
 		margin-top:  var(--print-experience-sep) !important;
 	}
 
-	.cv-single-page.cv-fill-1 #cv-main-1 {
+	.blemmy-single-page.blemmy-fill-1 #blemmy-main-1 {
 		gap: calc(
-			var(--print-fill-main-gap-1) + var(--cv-slack-gap-p1-main, 0px) +
-			var(--cv-align-gap-p1-main, 0px)
+			var(--print-fill-main-gap-1) + var(--blemmy-slack-gap-p1-main, 0px) +
+			var(--blemmy-align-gap-p1-main, 0px)
 		) !important;
 	}
 
-	.cv-single-page.cv-fill-2 #cv-main-1 {
+	.blemmy-single-page.blemmy-fill-2 #blemmy-main-1 {
 		gap: calc(
-			var(--print-fill-main-gap-2) + var(--cv-slack-gap-p1-main, 0px) +
-			var(--cv-align-gap-p1-main, 0px)
+			var(--print-fill-main-gap-2) + var(--blemmy-slack-gap-p1-main, 0px) +
+			var(--blemmy-align-gap-p1-main, 0px)
 		) !important;
 	}
 
-	.cv-single-page.cv-fill-3 #cv-main-1 {
+	.blemmy-single-page.blemmy-fill-3 #blemmy-main-1 {
 		gap: calc(
-			var(--print-fill-main-gap-3) + var(--cv-slack-gap-p1-main, 0px) +
-			var(--cv-align-gap-p1-main, 0px)
+			var(--print-fill-main-gap-3) + var(--blemmy-slack-gap-p1-main, 0px) +
+			var(--blemmy-align-gap-p1-main, 0px)
 		) !important;
 	}
 
-	.cv-main > div,
-	.cv-sidebar > div {
+	.blemmy-main > div,
+	.blemmy-sidebar > div {
 		flex-shrink: 0 !important;
 	}
 
-	.cv-main > div + div {
+	.blemmy-main > div + div {
 		margin-top:  0 !important;
 		padding-top: 0 !important;
 	}

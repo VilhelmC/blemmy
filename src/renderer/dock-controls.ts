@@ -8,14 +8,14 @@ type DockControlSpec = {
 
 export const DOCK_CONTROLS = {
 	debugLayout: {
-		id: 'cv-layout-debug-toggle',
+		id: 'blemmy-layout-debug-toggle',
 		label: 'Debug',
 		ariaLabel: 'Toggle layout debugging',
 		title: 'Toggle layout debugging',
 		icon: '◫',
 	},
 	viewMode: {
-		id: 'cv-view-mode-toggle',
+		id: 'blemmy-view-mode-toggle',
 		label: 'Print view',
 		ariaLabel: 'Switch between print and web view',
 		title: 'Switch between print and web view',
@@ -29,14 +29,14 @@ export const DOCK_CONTROLS = {
 		icon: '◐',
 	},
 	uploadJson: {
-		id: 'cv-upload-btn',
+		id: 'blemmy-upload-btn',
 		label: 'Upload JSON',
 		ariaLabel: 'Load CV data from JSON file',
 		title: 'Load CV data from JSON file',
 		icon: '↑',
 	},
 	downloadJson: {
-		id: 'cv-download-json',
+		id: 'blemmy-download-json',
 		label: 'Download JSON',
 		ariaLabel: 'Download CV data as JSON',
 		title: 'Download CV data as JSON',
@@ -49,36 +49,44 @@ export const DOCK_CONTROLS = {
 		title: 'Export as standalone HTML',
 		icon: '⬡',
 	},
+	/** Opens menu with JSON + standalone HTML actions. */
+	exportMenu: {
+		id: 'blemmy-export-menu-trigger',
+		label: 'Export',
+		ariaLabel: 'Open export menu',
+		title: 'Download JSON or export HTML',
+		icon: '⬇',
+	},
 	printPdf: {
-		id: 'cv-download-pdf',
+		id: 'blemmy-download-pdf',
 		label: 'Preview PDF',
 		ariaLabel: 'Preview PDF',
 		title: 'Preview PDF',
 		icon: '⎙',
 	},
 	editMode: {
-		id: 'cv-edit-btn',
+		id: 'blemmy-edit-btn',
 		label: 'Edit',
 		ariaLabel: 'Toggle edit mode',
 		title: 'Toggle edit mode',
 		icon: '✎',
 	},
 	undo: {
-		id: 'cv-undo-btn',
+		id: 'blemmy-undo-btn',
 		label: 'Undo',
 		ariaLabel: 'Undo last change',
 		title: 'Undo last change (Ctrl/Cmd+Z)',
 		icon: '↶',
 	},
 	redo: {
-		id: 'cv-redo-btn',
+		id: 'blemmy-redo-btn',
 		label: 'Redo',
 		ariaLabel: 'Redo last change',
 		title: 'Redo last change (Ctrl/Cmd+Shift+Z)',
 		icon: '↷',
 	},
 	resetDraft: {
-		id: 'cv-reset-draft-btn',
+		id: 'blemmy-reset-draft-btn',
 		label: 'Reset draft',
 		ariaLabel: 'Reset local draft edits',
 		title: 'Reset local draft edits to current loaded CV',
@@ -92,25 +100,33 @@ export const DOCK_CONTROLS = {
 		icon: '◍',
 	},
 	chat: {
-		id: 'cv-chat-trigger',
+		id: 'blemmy-chat-trigger',
 		label: 'Assistant',
 		ariaLabel: 'Open CV Assistant',
 		title: 'CV Assistant',
 		icon: '✦',
 	},
 	cloud: {
-		id: 'cv-cloud-trigger',
+		id: 'blemmy-cloud-trigger',
 		label: 'Cloud',
 		ariaLabel: 'Cloud sync',
 		title: 'Cloud sync',
 		icon: '☁',
 	},
 	layoutPreferences: {
-		id: 'cv-prefs-trigger',
+		id: 'blemmy-prefs-trigger',
 		label: 'Layout',
 		ariaLabel: 'Layout preferences',
 		title: 'Layout preferences',
 		icon: '⚙',
+	},
+	/** Dev build only — wired from ui-components when import.meta.env.DEV. */
+	devConsoleHelp: {
+		id: 'blemmy-dev-console-help-trigger',
+		label: 'Console',
+		ariaLabel: 'Developer console commands',
+		title: 'Window globals for the browser console (dev build)',
+		icon: '>',
 	},
 } as const satisfies Record<string, DockControlSpec>;
 
@@ -133,7 +149,7 @@ export function buildDockButton(
 	const attrs: Record<string, string> = {
 		id: opts.id,
 		type: 'button',
-		class: `${opts.className} cv-dock-btn no-print`,
+		class: `${opts.className} blemmy-dock-btn no-print`,
 		'aria-label': spec.ariaLabel,
 		title: spec.title,
 		'data-icon': spec.icon,

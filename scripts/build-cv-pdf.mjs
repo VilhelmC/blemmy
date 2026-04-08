@@ -1,8 +1,8 @@
 /**
  * build-cv-pdf.mjs
- * HTML → PDF: Puppeteer opens /?cv-pdf=1, print media + data-cv-layout-ready.
- * Print preview uses screen + cv-print-surface.css; PDF uses @media print only.
- * Masthead/portrait parity: src/styles/cv-print-parity.css (both contexts).
+ * HTML → PDF: Puppeteer opens /?cv-pdf=1, print media + data-blemmy-layout-ready.
+ * Print preview uses screen + blemmy-print-surface.css; PDF uses @media print only.
+ * Masthead/portrait parity: src/styles/blemmy-print-parity.css (both contexts).
  */
 
 import { createServer } from 'http';
@@ -101,7 +101,7 @@ async function main() {
 
 	await page.waitForFunction(
 		() =>
-			document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') ===
+			document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') ===
 			'true',
 		{ timeout: 25000 }
 	);

@@ -1,10 +1,10 @@
 /**
  * cv.ts
- * Type contracts for CV JSON (e.g. cv-demo.json, local cv-content.json).
+ * Type contracts for CV JSON (e.g. blemmy-demo.json, local blemmy-content.json).
  * Every component imports from here — never from the JSON directly without typing.
  */
 
-import type { CVReview } from './cv-review';
+import type { CVReview } from './review-types';
 import type { RealisedLayout } from './document-type-spec';
 
 // ─── Meta ────────────────────────────────────────────────────────────────────
@@ -143,9 +143,19 @@ export interface CVVisibility {
 	hiddenLanguages?: number[];
 }
 
+/** Header topology stored in layout snapshots (legacy + cv.doctype v2 names). */
+export type CVLayoutSnapshotMastheadMode =
+	| 'full'
+	| 'compact'
+	| 'minimal'
+	| 'strip'
+	| 'profile-sidebar-meta'
+	| 'profile-main'
+	| 'classic';
+
 export interface CVLayoutSnapshot {
 	pages: 1 | 2;
-	mastheadMode: 'full' | 'profile-sidebar-meta' | 'profile-main' | 'classic';
+	mastheadMode: CVLayoutSnapshotMastheadMode;
 	sections: {
 		skills: 'sidebar' | 'p1-footer' | 'p2-footer';
 		languages: 'sidebar' | 'p1-footer' | 'p2-footer';
@@ -167,7 +177,7 @@ export interface CVLayoutSnapshot {
  *
  * @example
  * import type { CVData } from '@cv/cv';
- * import raw from '@data/cv-demo.json';
+ * import raw from '@data/blemmy-demo.json';
  * const cv = raw as CVData;
  */
 export interface CVData {

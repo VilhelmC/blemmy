@@ -7,6 +7,10 @@
  *
  * New files must be copied from the patch zip first (see integration guide).
  * This script then moves existing files and updates import paths.
+ *
+ * Later renames (v4.2): `cv-layout-engine.ts` → `layout-engine.ts`, and the
+ * other `cv-*.ts` engine modules → `layout-*.ts`, with `@lib/engine/layout-*`
+ * imports. This file is kept as a historical v3.0 migration record.
  */
 
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'fs';

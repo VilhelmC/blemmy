@@ -16,7 +16,7 @@
 	-->
 	<script>
 		(function () {
-			document.documentElement.classList.add('cv-booting');
+			document.documentElement.classList.add('blemmy-booting');
 			const stored = localStorage.getItem('theme');
 			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 			if (stored === 'dark' || (!stored && prefersDark)) {
@@ -24,26 +24,26 @@
 			}
 			// Force print-surface on initial paint (web view toggle hidden for now)
 			const q = new URLSearchParams(location.search);
-			document.documentElement.classList.add('cv-print-surface');
+			document.documentElement.classList.add('blemmy-print-surface');
 			var path = window.location.pathname || '';
-			var isPortfolioEmbed = q.get('cv-portfolio') === '1';
-			var isPdfEmbed = q.get('cv-embed') === '1';
-			var isPublishedEmbed = /\/embed\/[^/]+/.test(path) || q.has('cv-embed-share');
+			var isPortfolioEmbed = q.get('blemmy-portfolio') === '1';
+			var isPdfEmbed = q.get('blemmy-embed') === '1';
+			var isPublishedEmbed = /\/embed\/[^/]+/.test(path) || q.has('blemmy-embed-share');
 			if (isPdfEmbed) {
-				document.documentElement.classList.add('cv-embed-pdf');
+				document.documentElement.classList.add('blemmy-embed-pdf');
 			}
 			if (isPortfolioEmbed || isPublishedEmbed) {
-				document.documentElement.classList.add('cv-portfolio-embed');
+				document.documentElement.classList.add('blemmy-portfolio-embed');
 			}
 			if (isPublishedEmbed) {
-				document.documentElement.classList.add('cv-share-readonly');
-				document.documentElement.classList.add('cv-published-embed');
+				document.documentElement.classList.add('blemmy-share-readonly');
+				document.documentElement.classList.add('blemmy-published-embed');
 			}
 			// Share view: set initial scale before first paint to avoid
 			// load-time overflow on narrow screens.
 			(function () {
 				var isSharePath = /\/share\/[^/]+/.test(path);
-				var isShareQuery = q.has('cv-share');
+				var isShareQuery = q.has('blemmy-share');
 				if (!isSharePath && !isShareQuery && !isPublishedEmbed && !isPortfolioEmbed) {
 					return;
 				}
@@ -54,11 +54,11 @@
 				var available = Math.max(Math.floor(vw) - 12, 1);
 				var scale = Math.min(1, available / base);
 				document.documentElement.style
-					.setProperty('--cv-share-scale', String(scale));
+					.setProperty('--blemmy-share-scale', String(scale));
 			})();
-			// OAuth return in named popup (GitHub / Google): see OAUTH_POPUP_NAME_PREFIX in cv-cloud.ts.
+			// OAuth return in named popup (GitHub / Google): see OAUTH_POPUP_NAME_PREFIX in blemmy-cloud.ts.
 			(function () {
-				var prefix = 'cv-oauth-';
+				var prefix = 'blemmy-oauth-';
 				if (typeof window.name !== 'string' || window.name.substring(0, prefix.length) !== prefix) {
 					return;
 				}
@@ -71,32 +71,32 @@
 					return;
 				}
 				var html = document.documentElement;
-				html.classList.remove('cv-booting');
-				html.classList.add('cv-oauth-popup-shell');
+				html.classList.remove('blemmy-booting');
+				html.classList.add('blemmy-oauth-popup-shell');
 				document.title = 'Sign in';
 			})();
 		})();
 	</script>
 	<style>
-		html.cv-booting, html.cv-booting body {
+		html.blemmy-booting, html.blemmy-booting body {
 			background: #f5f4ef;
 			margin: 0;
 			min-height: 100%;
 		}
-		html.dark.cv-booting, html.dark.cv-booting body {
+		html.dark.blemmy-booting, html.dark.blemmy-booting body {
 			background: #111;
 		}
-		html.cv-booting #cv-root {
+		html.blemmy-booting #blemmy-doc-root {
 			visibility: hidden;
 		}
 		/*
 		 * Prevent occasional unstyled flash: keep root hidden until CSS modules
 		 * have loaded and main.ts marks the document as ready.
 		 */
-		html:not(.cv-css-ready) #cv-root {
+		html:not(.blemmy-css-ready) #blemmy-doc-root {
 			visibility: hidden;
 		}
-		#cv-boot-splash {
+		#blemmy-boot-splash {
 			position: fixed;
 			inset: 0;
 			display: flex;
@@ -111,27 +111,27 @@
 			background: transparent;
 			z-index: 9999;
 		}
-		html.dark #cv-boot-splash {
+		html.dark #blemmy-boot-splash {
 			color: #a8a8a8;
 		}
-		#cv-boot-splash[hidden] {
+		#blemmy-boot-splash[hidden] {
 			display: none !important;
 		}
 		/* OAuth callback popup: splash hidden before paint (class from head script). */
-		html.cv-oauth-popup-shell #cv-boot-splash {
+		html.blemmy-oauth-popup-shell #blemmy-boot-splash {
 			display: none !important;
 		}
-		html.cv-oauth-popup-shell,
-		html.cv-oauth-popup-shell body {
+		html.blemmy-oauth-popup-shell,
+		html.blemmy-oauth-popup-shell body {
 			margin: 0;
 			min-height: 100%;
 			background: #f5f4ef;
 		}
-		html.dark.cv-oauth-popup-shell,
-		html.dark.cv-oauth-popup-shell body {
+		html.dark.blemmy-oauth-popup-shell,
+		html.dark.blemmy-oauth-popup-shell body {
 			background: #111;
 		}
-		.cv-boot-splash__dot {
+		.blemmy-boot-splash__dot {
 			width: 0.5rem;
 			height: 0.5rem;
 			border-radius: 999px;
@@ -146,9 +146,9 @@
 	</style>
 </head>
 <body>
-	<div id="cv-boot-splash" aria-live="polite">
-		<div class="cv-boot-splash__dot"></div>
-		<div>Preparing CV layout</div>
+	<div id="blemmy-boot-splash" aria-live="polite">
+		<div class="blemmy-boot-splash__dot"></div>
+		<div>Preparing document layout</div>
 	</div>
 	<!--
 		Everything is rendered by src/main.ts.

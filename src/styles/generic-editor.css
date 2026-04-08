@@ -3,7 +3,7 @@
    section toggles, and image upload hints for the generic editor.
 
    Class prefix: blemmy-  (new generic classes)
-   Legacy:       cv-      (existing CV classes — kept for backward compat)
+   Legacy:       blemmy-      (existing CV classes — kept for backward compat)
 
    Imported via src/main.ts → import '@styles/generic-editor.css'
    ─────────────────────────────────────────────────────────────────────────── */
@@ -13,7 +13,7 @@
 @media screen {
 	/* Hover outline on any editable field */
 	html.blemmy-edit-mode [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover,
-	html.cv-edit-mode      [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
+	html.blemmy-edit-mode      [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 1px;
 		cursor:         text;
@@ -21,7 +21,7 @@
 
 	/* Focus ring while editing */
 	html.blemmy-edit-mode [contenteditable="true"]:focus,
-	html.cv-edit-mode      [contenteditable="true"]:focus {
+	html.blemmy-edit-mode      [contenteditable="true"]:focus {
 		outline:        2px solid rgba(26, 60, 64, 0.55);
 		outline-offset: 1px;
 		border-radius:  1px;
@@ -29,7 +29,7 @@
 
 	/* Image fields: pointer cursor + upload hint */
 	html.blemmy-edit-mode img[data-blemmy-field],
-	html.cv-edit-mode      img[data-blemmy-field] {
+	html.blemmy-edit-mode      img[data-blemmy-field] {
 		cursor: pointer;
 	}
 }
@@ -39,12 +39,12 @@
 @media screen {
 	/* Items in a drag group get a grab cursor on their handle */
 	html.blemmy-edit-mode [data-blemmy-drag-idx],
-	html.cv-edit-mode      [data-blemmy-drag-idx] {
+	html.blemmy-edit-mode      [data-blemmy-drag-idx] {
 		cursor: text;
 	}
 
 	html.blemmy-edit-mode [data-blemmy-drag-idx]:hover,
-	html.cv-edit-mode      [data-blemmy-drag-idx]:hover {
+	html.blemmy-edit-mode      [data-blemmy-drag-idx]:hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 2px;
 	}
@@ -96,12 +96,12 @@
 
 	/* Make the target element position: relative so the button anchors */
 	html.blemmy-edit-mode [data-blemmy-section],
-	html.cv-edit-mode      [data-blemmy-section] {
+	html.blemmy-edit-mode      [data-blemmy-section] {
 		position: relative;
 	}
 
 	html.blemmy-edit-mode [data-blemmy-section]:hover > .blemmy-section-toggle,
-	html.cv-edit-mode      [data-blemmy-section]:hover > .blemmy-section-toggle {
+	html.blemmy-edit-mode      [data-blemmy-section]:hover > .blemmy-section-toggle {
 		display: block;
 	}
 
@@ -117,7 +117,7 @@
 	}
 
 	/* Sidebar context: invert colours */
-	.cv-sidebar .blemmy-section-toggle {
+	.blemmy-sidebar .blemmy-section-toggle {
 		background:   rgba(0, 0, 0, 0.35);
 		color:        rgba(255, 255, 255, 0.7);
 		border-color: rgba(255, 255, 255, 0.25);
@@ -133,8 +133,8 @@
 
 	html.blemmy-edit-mode [data-blemmy-field]    .blemmy-tag-row,
 	html.blemmy-edit-mode [data-blemmy-drag-idx] .blemmy-tag-row,
-	html.cv-edit-mode     [data-blemmy-field]    .blemmy-tag-row,
-	html.cv-edit-mode     [data-blemmy-drag-idx] .blemmy-tag-row {
+	html.blemmy-edit-mode     [data-blemmy-field]    .blemmy-tag-row,
+	html.blemmy-edit-mode     [data-blemmy-drag-idx] .blemmy-tag-row {
 		display:     flex;
 		flex-wrap:   wrap;
 		gap:         0.3rem;
@@ -144,7 +144,7 @@
 		border-top:  1px dashed rgba(0, 0, 0, 0.1);
 	}
 
-	.cv-sidebar .blemmy-tag-row {
+	.blemmy-sidebar .blemmy-tag-row {
 		border-top-color: rgba(255, 255, 255, 0.12);
 	}
 
@@ -166,7 +166,7 @@
 		line-height:    1;
 	}
 
-	.cv-sidebar .blemmy-tag-chip {
+	.blemmy-sidebar .blemmy-tag-chip {
 		background:   rgba(255, 255, 255, 0.12);
 		color:        rgba(255, 255, 255, 0.8);
 		border-color: rgba(255, 255, 255, 0.2);
@@ -205,7 +205,7 @@
 		transition:     border-color 0.1s, width 0.15s;
 	}
 
-	.cv-sidebar .blemmy-tag-input {
+	.blemmy-sidebar .blemmy-tag-input {
 		color:        rgba(255, 255, 255, 0.5);
 		border-color: rgba(255, 255, 255, 0.25);
 	}
@@ -256,7 +256,7 @@
 	}
 
 	html.blemmy-edit-mode .blemmy-image-upload-hint,
-	html.cv-edit-mode     .blemmy-image-upload-hint {
+	html.blemmy-edit-mode     .blemmy-image-upload-hint {
 		display: flex;
 	}
 }

@@ -10,7 +10,7 @@
 // ─── Fonts ────────────────────────────────────────────────────────────────────
 
 /**
- * Available heading fonts. All are pre-loaded in index.html via Google Fonts.
+ * Available heading fonts. Bundled via @fontsource (see src/styles/fonts.css).
  * Identifier maps to the CSS font-family string in HEADING_FONT_CSS.
  */
 export type HeadingFont =
@@ -32,7 +32,7 @@ export type BodyFont =
 
 /**
  * How the sidebar renders in print / PDF output.
- * Applied via data-print-sidebar attribute on <html>.
+ * Applied via data-print-sidebar on the style token root (usually :root / html).
  */
 export type PrintSidebarStyle =
 	| 'color'       // sidebar prints in full colour (default)
@@ -91,8 +91,11 @@ export interface DocumentStyle {
 	printSidebar:    PrintSidebarStyle;
 
 	/**
-	 * Optional Google Fonts stylesheet URL to load at runtime.
-	 * Must be an https URL and should point to fonts.googleapis.com.
+	 * Optional remote @font-face stylesheet URL (https only).
+	 * Allowlisted hosts: fonts.googleapis.com, fonts.bunny.net.
+	 * Use with customBodyFontFamily / customHeadingFontFamily so tokens match
+	 * the loaded face names. Preset heading/body ids use bundled @fontsource
+	 * files and work offline without this field.
 	 */
 	customFontCssUrl?: string;
 

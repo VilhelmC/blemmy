@@ -2,7 +2,7 @@
  * style-panel.ts
  *
  * Builds and wires the document style section within the preferences panel.
- * Mounted by ui-components.ts into #cv-prefs-inner.
+ * Mounted by ui-components.ts into #blemmy-prefs-inner.
  *
  * Sections:
  *   1. Colour swatches — sidebar + page background, click-to-pick
@@ -634,7 +634,7 @@ export function buildStyleSection(): {
 	// ── Section wrapper ───────────────────────────────────────────────────────
 
 	const el = h('div', { class: 'blemmy-style-section' },
-		h('p', { class: 'cv-prefs-heading' }, 'Style'),
+		h('p', { class: 'blemmy-prefs-heading' }, 'Style'),
 		h('div', { class: 'blemmy-style-colours' },
 			h('p', { class: 'blemmy-style-sub-label' }, 'Colours'),
 			colourRow,

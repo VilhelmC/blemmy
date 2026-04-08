@@ -41,32 +41,32 @@ export function initMobileUtilityBar(
 	const root = document.documentElement;
 	const body = document.body;
 	const bar = h('div', {
-		id: 'cv-mobile-utility-bar',
-		class: 'cv-mobile-utility-bar no-print',
+		id: 'blemmy-mobile-utility-bar',
+		class: 'blemmy-mobile-utility-bar no-print',
 		hidden: '',
 	});
-	const row = h('div', { class: 'cv-mobile-utility-bar__row' });
-	const zoomShell = h('div', { class: 'cv-mobile-utility-bar__zoom-shell' });
+	const row = h('div', { class: 'blemmy-mobile-utility-bar__row' });
+	const zoomShell = h('div', { class: 'blemmy-mobile-utility-bar__zoom-shell' });
 	zoomShell.appendChild(row);
 	const moreSheet = h('div', {
-		id: 'cv-mobile-utility-sheet',
-		class: 'cv-mobile-utility-sheet no-print',
+		id: 'blemmy-mobile-utility-sheet',
+		class: 'blemmy-mobile-utility-sheet no-print',
 		hidden: '',
 	});
 	const backdrop = h('button', {
 		type: 'button',
-		class: 'cv-mobile-utility-sheet__backdrop',
+		class: 'blemmy-mobile-utility-sheet__backdrop',
 		'aria-label': 'Close actions menu',
 	});
-	const panelOuter = h('div', { class: 'cv-mobile-utility-sheet__panel-outer' });
+	const panelOuter = h('div', { class: 'blemmy-mobile-utility-sheet__panel-outer' });
 	const panel = h('div', {
-		class: 'cv-mobile-utility-sheet__panel',
+		class: 'blemmy-mobile-utility-sheet__panel',
 		role: 'dialog',
 		'aria-modal': 'true',
 		'aria-label': 'More actions',
 	});
-	const panelHead = h('div', { class: 'cv-mobile-utility-sheet__head' }, 'More');
-	const panelBody = h('div', { class: 'cv-mobile-utility-sheet__body' });
+	const panelHead = h('div', { class: 'blemmy-mobile-utility-sheet__head' }, 'More');
+	const panelBody = h('div', { class: 'blemmy-mobile-utility-sheet__body' });
 	panel.append(panelHead, panelBody);
 	panelOuter.append(panel);
 	moreSheet.append(backdrop, panelOuter);
@@ -78,7 +78,7 @@ export function initMobileUtilityBar(
 		return Math.max(0, Math.round(zoomShell.getBoundingClientRect().height));
 	};
 	const bumpUtilityHeightVar = (): void => {
-		root.style.setProperty('--cv-mobile-utility-h', `${readUtilityHeightPx()}px`);
+		root.style.setProperty('--blemmy-mobile-utility-h', `${readUtilityHeightPx()}px`);
 	};
 	const ro = new ResizeObserver(() => {
 		bumpUtilityHeightVar();
@@ -89,7 +89,7 @@ export function initMobileUtilityBar(
 			bumpUtilityHeightVar();
 		}
 	};
-	window.addEventListener('cv-ui-viewport-changed', onUiViewport);
+	window.addEventListener('blemmy-ui-viewport-changed', onUiViewport);
 
 	const clickTarget = (targetId: string): void => {
 		const target = document.getElementById(targetId);
@@ -103,7 +103,7 @@ export function initMobileUtilityBar(
 	const setMoreOpen = (open: boolean): void => {
 		moreOpen = open;
 		moreSheet.hidden = !open;
-		root.classList.toggle('cv-mobile-utility-sheet-open', open);
+		root.classList.toggle('blemmy-mobile-utility-sheet-open', open);
 	};
 
 	const mkActionBtn = (
@@ -113,7 +113,7 @@ export function initMobileUtilityBar(
 	): HTMLElement => {
 		const btn = h('button', {
 			type: 'button',
-			class: `cv-mobile-utility-bar__btn ${className}`,
+			class: `blemmy-mobile-utility-bar__btn ${className}`,
 			'data-icon': action.icon,
 			'aria-label': action.label,
 			title: action.label,
@@ -126,12 +126,12 @@ export function initMobileUtilityBar(
 	};
 
 	for (const action of options.primaryActions) {
-		row.appendChild(mkActionBtn(action, 'cv-mobile-utility-bar__btn--primary'));
+		row.appendChild(mkActionBtn(action, 'blemmy-mobile-utility-bar__btn--primary'));
 	}
 
 	const moreBtn = h('button', {
 		type: 'button',
-		class: 'cv-mobile-utility-bar__btn cv-mobile-utility-bar__btn--primary',
+		class: 'blemmy-mobile-utility-bar__btn blemmy-mobile-utility-bar__btn--primary',
 		'data-icon': '⋯',
 		'aria-label': 'More actions',
 		title: 'More actions',
@@ -141,7 +141,7 @@ export function initMobileUtilityBar(
 
 	for (const action of options.moreActions) {
 		panelBody.appendChild(
-			mkActionBtn(action, 'cv-mobile-utility-bar__btn--sheet', () => {
+			mkActionBtn(action, 'blemmy-mobile-utility-bar__btn--sheet', () => {
 				setMoreOpen(false);
 			}),
 		);
@@ -155,24 +155,24 @@ export function initMobileUtilityBar(
 		const enabled = options.isEnabled();
 		bar.hidden = !enabled;
 		if (!enabled) { setMoreOpen(false); }
-		root.classList.toggle('cv-mobile-utility-active', enabled);
+		root.classList.toggle('blemmy-mobile-utility-active', enabled);
 		const hPx = enabled ? readUtilityHeightPx() : 0;
-		root.style.setProperty('--cv-mobile-utility-h', `${hPx}px`);
-		body.classList.toggle('cv-mobile-utility-active', enabled);
+		root.style.setProperty('--blemmy-mobile-utility-h', `${hPx}px`);
+		body.classList.toggle('blemmy-mobile-utility-active', enabled);
 	};
 	sync();
 
 	return {
 		sync,
 		destroy: () => {
-			window.removeEventListener('cv-ui-viewport-changed', onUiViewport);
+			window.removeEventListener('blemmy-ui-viewport-changed', onUiViewport);
 			ro.disconnect();
 			setMoreOpen(false);
 			bar.remove();
 			moreSheet.remove();
-			root.classList.remove('cv-mobile-utility-active');
-			body.classList.remove('cv-mobile-utility-active');
-			root.style.removeProperty('--cv-mobile-utility-h');
+			root.classList.remove('blemmy-mobile-utility-active');
+			body.classList.remove('blemmy-mobile-utility-active');
+			root.style.removeProperty('--blemmy-mobile-utility-h');
 		},
 	};
 }

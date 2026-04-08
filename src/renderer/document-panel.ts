@@ -1,7 +1,12 @@
-import type { CVData } from '@cv/cv';
-import { validateCvData } from '@lib/cv-loader';
-import { newLetterFromBasics, validateLetterData } from '@lib/letter-loader';
-import type { LetterData } from '@cv/letter';
+import { newLetterFromBasics, validateLetterData } from '@lib/composer-data-loader';
+import {
+	getActiveDocumentData,
+	getActiveDocumentSnapshot,
+	remountActiveDocument,
+	validateDocumentByType,
+} from '@lib/active-document-runtime';
+import { inferDocTypeFromData } from '@lib/cloud-client';
+import { isLikelyCvData } from '@lib/profile-data-loader';
 import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
 import {
 	CLOUD_ENABLED,
@@ -18,8 +23,9 @@ import {
 	type CloudDocument,
 	type CloudStorageUsage,
 	type CloudShare,
+	type StoredDocumentData,
 	type CloudVersion,
-} from '@lib/cv-cloud';
+} from '@lib/cloud-client';
 import { AUTH_CHANGED_EVENT, type AuthChangedDetail } from '@renderer/auth-panel';
 import {
 	closeDocument,
@@ -28,7 +34,7 @@ import {
 	onSyncStateChange,
 	openDocument,
 	scheduleSave,
-} from '@lib/cv-sync';
+} from '@lib/document-sync';
 
 function h(
 	tag: string,
@@ -52,35 +58,32 @@ export type DocumentPanelOptions = {
 	setSyncIndicator?: (shortLabel: string, title: string) => void;
 };
 
-export function initDocumentPanel(
-	remount: (data: CVData) => void,
-	opts: DocumentPanelOptions,
-): {
-	onDataChange: (data: CVData) => void;
+export function initDocumentPanel(opts: DocumentPanelOptions): {
+	onDataChange: (data: StoredDocumentData) => void;
 	refreshDocs: () => Promise<void>;
 } {
 	const { mount, closeDrawer, setSyncIndicator } = opts;
-	const SHARE_EXPIRY_PREF_KEY = 'cv-share-expiry-days';
-	const EMBED_PUBLISH_PREF_KEY = 'cv-embed-publish-doc-map';
+	const SHARE_EXPIRY_PREF_KEY = 'blemmy-share-expiry-days';
+	const EMBED_PUBLISH_PREF_KEY = 'blemmy-embed-publish-doc-map';
 	if (!CLOUD_ENABLED) {
 		mount.appendChild(
-			h('p', { class: 'cv-cloud-drawer__muted' }, 'Cloud docs disabled (.env not configured).'),
+			h('p', { class: 'blemmy-cloud-drawer__muted' }, 'Cloud docs disabled (.env not configured).'),
 		);
 		return { onDataChange: () => { /* noop */ }, refreshDocs: async () => { /* noop */ } };
 	}
-	const list = h('div', { id: 'cv-doc-list' });
-	const status = h('p', { id: 'cv-doc-status', class: 'cv-doc-status', hidden: '' });
-	const quotaWrap = h('div', { id: 'cv-doc-quota', class: 'cv-doc-quota', hidden: '' });
-	const quotaText = h('p', { class: 'cv-doc-quota__text' });
-	const quotaBar = h('div', { class: 'cv-doc-quota__bar' },
-		h('span', { class: 'cv-doc-quota__fill', style: 'width:0%' }),
+	const list = h('div', { id: 'blemmy-doc-list' });
+	const status = h('p', { id: 'blemmy-doc-status', class: 'blemmy-doc-status', hidden: '' });
+	const quotaWrap = h('div', { id: 'blemmy-doc-quota', class: 'blemmy-doc-quota', hidden: '' });
+	const quotaText = h('p', { class: 'blemmy-doc-quota__text' });
+	const quotaBar = h('div', { class: 'blemmy-doc-quota__bar' },
+		h('span', { class: 'blemmy-doc-quota__fill', style: 'width:0%' }),
 	);
 	quotaWrap.append(quotaText, quotaBar);
 	const newBtn = h(
 		'button',
 		{
 			type: 'button',
-			class: 'cv-doc-btn',
+			class: 'blemmy-doc-btn',
 			title: 'Create a new cloud document from current CV',
 			'aria-label': 'Create new cloud document',
 		},
@@ -90,7 +93,7 @@ export function initDocumentPanel(
 		'button',
 		{
 			type: 'button',
-			class: 'cv-doc-btn',
+			class: 'blemmy-doc-btn',
 			title: 'Save current CV to the active cloud document now',
 			'aria-label': 'Save current cloud document now',
 		},
@@ -103,7 +106,7 @@ export function initDocumentPanel(
 	function setStatus(text: string, isErr = false): void {
 		status.textContent = text;
 		status.hidden = !text;
-		status.className = 'cv-doc-status' + (isErr ? ' cv-doc-status--error' : '');
+		status.className = 'blemmy-doc-status' + (isErr ? ' blemmy-doc-status--error' : '');
 	}
 	function rel(iso: string): string {
 		const d = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -128,7 +131,7 @@ export function initDocumentPanel(
 		quotaText.textContent =
 			`Storage ${pct.toFixed(1)}% (${fmtBytes(usage.used_bytes)} / ` +
 			`${fmtBytes(usage.quota_bytes)})`;
-		const fill = quotaBar.querySelector('.cv-doc-quota__fill') as HTMLElement | null;
+		const fill = quotaBar.querySelector('.blemmy-doc-quota__fill') as HTMLElement | null;
 		if (fill) {
 			fill.style.width = `${pct}%`;
 		}
@@ -137,22 +140,10 @@ export function initDocumentPanel(
 	async function openDoc(doc: CloudDocument): Promise<void> {
 		if (!doc.latest) { setStatus('No versions for document', true); return; }
 		try {
-			if (doc.doc_type === 'letter') {
-				const letter = validateLetterData(doc.latest);
-				openDocument(doc);
-				const switchLetter = window.__blemmySwitchToLetter__;
-				switchLetter?.(letter);
-				closeDrawer?.();
-				return;
-			}
-			const cv = validateCvData(doc.latest);
+			const docType = doc.doc_type || inferDocTypeFromData(doc.latest);
+			const data = validateDocumentByType(docType, doc.latest);
 			openDocument(doc);
-			const switchCv = window.__blemmySwitchToCv__;
-			if (switchCv) {
-				switchCv(cv);
-			} else {
-				remount(cv);
-			}
+			remountActiveDocument(data, docType);
 			closeDrawer?.();
 		} catch (err) {
 			setStatus(err instanceof Error ? err.message : 'Invalid document', true);
@@ -165,12 +156,12 @@ export function initDocumentPanel(
 			return;
 		}
 		for (const doc of docs) {
-			const row = h('div', { class: 'cv-doc-row' });
+			const row = h('div', { class: 'blemmy-doc-row' });
 			const openBtn = h(
 				'button',
 				{
 					type: 'button',
-					class: 'cv-doc-row__name',
+					class: 'blemmy-doc-row__name',
 					title: `Open "${doc.name}"`,
 					'aria-label': `Open document ${doc.name}`,
 				},
@@ -178,7 +169,7 @@ export function initDocumentPanel(
 			);
 			if (doc.doc_type && doc.doc_type !== 'cv') {
 				openBtn.appendChild(
-					h('span', { class: 'cv-doc-row__meta' }, ` (${doc.doc_type})`),
+					h('span', { class: 'blemmy-doc-row__meta' }, ` (${doc.doc_type})`),
 				);
 			}
 			openBtn.addEventListener('click', () => { void openDoc(doc); });
@@ -186,7 +177,7 @@ export function initDocumentPanel(
 				'button',
 				{
 					type: 'button',
-					class: 'cv-doc-row__action',
+					class: 'blemmy-doc-row__action',
 					title: `Rename "${doc.name}"`,
 					'aria-label': `Rename document ${doc.name}`,
 				},
@@ -204,7 +195,7 @@ export function initDocumentPanel(
 				'button',
 				{
 					type: 'button',
-					class: 'cv-doc-row__action',
+					class: 'blemmy-doc-row__action',
 					title: `Delete "${doc.name}"`,
 					'aria-label': `Delete document ${doc.name}`,
 				},
@@ -221,7 +212,7 @@ export function initDocumentPanel(
 				'button',
 				{
 					type: 'button',
-					class: 'cv-doc-row__action',
+					class: 'blemmy-doc-row__action',
 					title: `Open latest version from "${doc.name}" history`,
 					'aria-label': `Open latest version from history for document ${doc.name}`,
 				},
@@ -231,7 +222,7 @@ export function initDocumentPanel(
 				'button',
 				{
 					type: 'button',
-					class: 'cv-doc-row__action',
+					class: 'blemmy-doc-row__action',
 					title: `Manage share links for "${doc.name}"`,
 					'aria-label': `Manage share links for document ${doc.name}`,
 				},
@@ -246,8 +237,9 @@ export function initDocumentPanel(
 				const loaded = await loadVersion(first.id);
 				if (!loaded.ok) { setStatus(loaded.error.message, true); return; }
 				try {
-					const cv = validateCvData(loaded.data);
-					remount(cv);
+					const docType = doc.doc_type || inferDocTypeFromData(loaded.data);
+					const data = validateDocumentByType(docType, loaded.data);
+					remountActiveDocument(data, docType);
 					openDocument(doc);
 					closeDrawer?.();
 				} catch {
@@ -258,7 +250,7 @@ export function initDocumentPanel(
 				openBtn,
 				h(
 					'span',
-					{ class: 'cv-doc-row__meta' },
+					{ class: 'blemmy-doc-row__meta' },
 					`${rel(doc.updated_at)} · ${fmtBytes(usageByDoc.get(doc.id) ?? 0)}`,
 				),
 				shareBtn,
@@ -274,7 +266,7 @@ export function initDocumentPanel(
 		const origin = window.location.origin;
 		const url = new URL(canonicalSharePath(token, import.meta.env.BASE_URL ?? '/'), origin);
 		if (reviewMode) {
-			url.searchParams.set('cv-review', '1');
+			url.searchParams.set('blemmy-review', '1');
 		}
 		return url.toString();
 	}
@@ -358,18 +350,18 @@ export function initDocumentPanel(
 
 	async function openShareDialog(doc: CloudDocument): Promise<void> {
 		const tokenByShareId = new Map<string, string>();
-		const overlay = h('div', { class: 'cv-share-modal' });
+		const overlay = h('div', { class: 'blemmy-share-modal' });
 		const panel = h('div', {
-			class: 'cv-share-modal__panel',
+			class: 'blemmy-share-modal__panel',
 			role: 'dialog',
 			'aria-modal': 'true',
 			'aria-label': `Share links for ${doc.name}`,
 		});
-		const title = h('h3', { class: 'cv-share-modal__title' }, `Share: ${doc.name}`);
-		const statusEl = h('p', { class: 'cv-share-modal__status', hidden: '' });
+		const title = h('h3', { class: 'blemmy-share-modal__title' }, `Share: ${doc.name}`);
+		const statusEl = h('p', { class: 'blemmy-share-modal__status', hidden: '' });
 		const expirySelect = h(
 			'select',
-			{ class: 'cv-share-modal__select' },
+			{ class: 'blemmy-share-modal__select' },
 			h('option', { value: '1' }, '1 day'),
 			h('option', { value: '7' }, '7 days'),
 			h('option', { value: '30' }, '30 days'),
@@ -378,13 +370,13 @@ export function initDocumentPanel(
 		expirySelect.addEventListener('change', () => {
 			saveShareExpiryPref(expirySelect.value);
 		});
-		const createBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Create link');
-		const createEmbedBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Create embed link');
-		const reviewModeWrap = h('label', { class: 'cv-share-modal__review-opt' },
+		const createBtn = h('button', { class: 'blemmy-doc-btn', type: 'button' }, 'Create link');
+		const createEmbedBtn = h('button', { class: 'blemmy-doc-btn', type: 'button' }, 'Create embed link');
+		const reviewModeWrap = h('label', { class: 'blemmy-share-modal__review-opt' },
 			h('input', { type: 'checkbox' }),
 			' Enable review mode',
 		);
-		const publishEmbedWrap = h('label', { class: 'cv-share-modal__review-opt' },
+		const publishEmbedWrap = h('label', { class: 'blemmy-share-modal__review-opt' },
 			h('input', { type: 'checkbox' }),
 			' Publish for embed',
 		);
@@ -394,14 +386,14 @@ export function initDocumentPanel(
 			saveEmbedPublished(doc.id, publishEmbedCb.checked);
 		});
 		const reviewModeCb = reviewModeWrap.querySelector('input') as HTMLInputElement;
-		const closeBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Close');
-		const listWrap = h('div', { class: 'cv-share-modal__list' });
+		const closeBtn = h('button', { class: 'blemmy-doc-btn', type: 'button' }, 'Close');
+		const listWrap = h('div', { class: 'blemmy-share-modal__list' });
 
 		function setDialogStatus(message: string, isErr = false): void {
 			statusEl.textContent = message;
 			statusEl.hidden = !message;
-			statusEl.className = 'cv-share-modal__status' + (
-				isErr ? ' cv-share-modal__status--error' : ''
+			statusEl.className = 'blemmy-share-modal__status' + (
+				isErr ? ' blemmy-share-modal__status--error' : ''
 			);
 		}
 
@@ -425,12 +417,12 @@ export function initDocumentPanel(
 				return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime();
 			});
 			for (const share of sortedShares) {
-				const row = h('div', { class: 'cv-share-modal__row' });
+				const row = h('div', { class: 'blemmy-share-modal__row' });
 				const expiryRel = relativeExpiry(share.expires_at);
 				const disabled = Boolean(share.revoked_at) || expiryRel === 'expired';
 				const meta = h(
 					'div',
-					{ class: 'cv-share-modal__meta' },
+					{ class: 'blemmy-share-modal__meta' },
 					`Expires ${formatShareDate(share.expires_at)} (${expiryRel}) · Views ${share.access_count}`,
 				);
 				const statusText = share.revoked_at
@@ -438,44 +430,44 @@ export function initDocumentPanel(
 					: expiryRel === 'expired'
 						? 'Expired'
 						: 'Active';
-				const state = h('span', { class: 'cv-share-modal__badge' }, statusText);
+				const state = h('span', { class: 'blemmy-share-modal__badge' }, statusText);
 				const canCopy = tokenByShareId.has(share.id) && !disabled;
 				const copyBtn = canCopy
 					? h(
 						'button',
-						{ class: 'cv-doc-row__action', type: 'button' },
+						{ class: 'blemmy-doc-row__action', type: 'button' },
 						'Copy',
 					)
 					: h(
 						'span',
-						{ class: 'cv-share-modal__copy-unavailable' },
+						{ class: 'blemmy-share-modal__copy-unavailable' },
 						'Copy unavailable',
 					);
 				const copyReviewBtn = canCopy
 					? h(
 						'button',
-						{ class: 'cv-doc-row__action', type: 'button' },
+						{ class: 'blemmy-doc-row__action', type: 'button' },
 						'Copy+Review',
 					)
 					: h(
 						'span',
-						{ class: 'cv-share-modal__copy-unavailable' },
+						{ class: 'blemmy-share-modal__copy-unavailable' },
 						'',
 					);
 				const copyEmbedBtn = canCopy && publishEmbedCb.checked
 					? h(
 						'button',
-						{ class: 'cv-doc-row__action', type: 'button' },
+						{ class: 'blemmy-doc-row__action', type: 'button' },
 						'Copy embed',
 					)
 					: h(
 						'span',
-						{ class: 'cv-share-modal__copy-unavailable' },
+						{ class: 'blemmy-share-modal__copy-unavailable' },
 						'',
 					);
 				const revokeBtn = h(
 					'button',
-					{ class: 'cv-doc-row__action', type: 'button' },
+					{ class: 'blemmy-doc-row__action', type: 'button' },
 					'Revoke',
 				);
 				revokeBtn.toggleAttribute('disabled', Boolean(share.revoked_at));
@@ -580,7 +572,7 @@ export function initDocumentPanel(
 			void createEmbedLink();
 		});
 
-		const rotateEmbedBtn = h('button', { class: 'cv-doc-btn', type: 'button' }, 'Rotate embed link');
+		const rotateEmbedBtn = h('button', { class: 'blemmy-doc-btn', type: 'button' }, 'Rotate embed link');
 		rotateEmbedBtn.addEventListener('click', async () => {
 			if (!publishEmbedCb.checked) {
 				setDialogStatus('Enable "Publish for embed" first.', true);
@@ -609,7 +601,7 @@ export function initDocumentPanel(
 			}
 		});
 
-		const actions = h('div', { class: 'cv-share-modal__actions' },
+		const actions = h('div', { class: 'blemmy-share-modal__actions' },
 			createBtn,
 			createEmbedBtn,
 			rotateEmbedBtn,
@@ -633,7 +625,7 @@ export function initDocumentPanel(
 			list.innerHTML = '';
 			quotaWrap.hidden = true;
 			list.appendChild(
-				h('p', { class: 'cv-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),
+				h('p', { class: 'blemmy-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),
 			);
 			return;
 		}
@@ -657,21 +649,21 @@ export function initDocumentPanel(
 		name: string;
 	} | null> {
 		return new Promise((resolve) => {
-			const overlay = h('div', { class: 'cv-share-modal' });
+			const overlay = h('div', { class: 'blemmy-share-modal' });
 			const panel = h('div', {
-				class: 'cv-share-modal__panel',
+				class: 'blemmy-share-modal__panel',
 				role: 'dialog',
 				'aria-modal': 'true',
 				'aria-label': 'Create new document',
 			});
-			const title = h('h3', { class: 'cv-share-modal__title' }, 'Create new document');
+			const title = h('h3', { class: 'blemmy-share-modal__title' }, 'Create new document');
 			const statusEl = h('p', {
-				class: 'cv-share-modal__status',
+				class: 'blemmy-share-modal__status',
 				hidden: '',
 			});
 			const typeLabel = h('label', {}, 'Document type');
 			const typeSelect = h('select', {
-				class: 'cv-share-modal__select',
+				class: 'blemmy-share-modal__select',
 			}) as HTMLSelectElement;
 			typeSelect.append(
 				h('option', { value: 'cv' }, 'CV'),
@@ -679,7 +671,7 @@ export function initDocumentPanel(
 			);
 			const nameLabel = h('label', {}, 'Document name');
 			const nameInput = h('input', {
-				class: 'cv-share-modal__select',
+				class: 'blemmy-share-modal__select',
 				type: 'text',
 				value: 'Untitled CV',
 				placeholder: 'Enter a document name',
@@ -688,8 +680,8 @@ export function initDocumentPanel(
 				statusEl.textContent = msg;
 				statusEl.hidden = !msg;
 				statusEl.className = isErr
-					? 'cv-share-modal__status cv-share-modal__status--error'
-					: 'cv-share-modal__status';
+					? 'blemmy-share-modal__status blemmy-share-modal__status--error'
+					: 'blemmy-share-modal__status';
 			}
 			typeSelect.addEventListener('change', () => {
 				const nextType = typeSelect.value === 'letter' ? 'letter' : 'cv';
@@ -699,11 +691,11 @@ export function initDocumentPanel(
 			});
 			const createBtn = h('button', {
 				type: 'button',
-				class: 'cv-doc-btn',
+				class: 'blemmy-doc-btn',
 			}, 'Create');
 			const cancelBtn = h('button', {
 				type: 'button',
-				class: 'cv-doc-btn',
+				class: 'blemmy-doc-btn',
 			}, 'Cancel');
 			function closeWith(result: { docType: 'cv' | 'letter'; name: string } | null): void {
 				overlay.remove();
@@ -729,7 +721,7 @@ export function initDocumentPanel(
 				typeSelect,
 				nameLabel,
 				nameInput,
-				h('div', { class: 'cv-share-modal__actions' }, createBtn, cancelBtn),
+				h('div', { class: 'blemmy-share-modal__actions' }, createBtn, cancelBtn),
 			);
 			overlay.appendChild(panel);
 			document.body.appendChild(overlay);
@@ -741,9 +733,10 @@ export function initDocumentPanel(
 		const created = await openCreateDocumentDialog();
 		if (!created) { return; }
 		const { docType, name } = created;
-		let payload: CVData;
+		let payload: StoredDocumentData;
 		if (docType === 'letter') {
-			const cv = window.__CV_DATA__;
+			const active = getActiveDocumentData();
+			const cv = isLikelyCvData(active) ? active : null;
 			const seed = cv
 				? newLetterFromBasics(
 					cv.basics.name,
@@ -753,24 +746,29 @@ export function initDocumentPanel(
 					cv.basics.location ?? '',
 				)
 				: newLetterFromBasics('', '', '', '', '');
-			payload = seed as unknown as CVData;
+			payload = validateLetterData(seed);
 		} else {
-			const data = window.__CV_DATA__;
-			if (!data) { setStatus('No CV loaded', true); return; }
+			const data = getActiveDocumentData();
+			if (!isLikelyCvData(data)) {
+				setStatus('No profile document loaded', true);
+				return;
+			}
 			payload = data;
 		}
 		const res = await createDocument(name, payload, docType);
 		if (!res.ok) { setStatus(res.error.message, true); return; }
 		docs.unshift(res.data);
 		openDocument(res.data);
-		if (docType === 'letter') {
-			window.__blemmySwitchToLetter__?.(payload as unknown as LetterData);
-			closeDrawer?.();
-		}
+		remountActiveDocument(payload, docType);
+		closeDrawer?.();
 		renderDocs();
 		setStatus(`Created "${name}"`);
 	});
 	saveBtn.addEventListener('click', async () => {
+		const snap = getActiveDocumentSnapshot();
+		if (snap.data && getSyncState().documentId) {
+			scheduleSave(snap.data, snap.docType);
+		}
 		await flushSave();
 	});
 	window.addEventListener(AUTH_CHANGED_EVENT, (e) => {
@@ -782,7 +780,7 @@ export function initDocumentPanel(
 			quotaWrap.hidden = true;
 			list.innerHTML = '';
 			list.appendChild(
-				h('p', { class: 'cv-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),
+				h('p', { class: 'blemmy-cloud-drawer__muted' }, 'Sign in via the Account tab to list documents.'),
 			);
 			return;
 		}
@@ -811,7 +809,4 @@ export function initDocumentPanel(
 	};
 }
 
-declare global {
-	interface Window { __CV_DATA__?: CVData; }
-}
 

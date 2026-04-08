@@ -1,14 +1,16 @@
-export const DOCKED_SIDE_PANEL_CLASS = 'cv-unified-side-panel';
+import { BLEMMY_DOC_ROOT_ID } from '@lib/blemmy-dom-ids';
+
+export const DOCKED_SIDE_PANEL_CLASS = 'blemmy-unified-side-panel';
 export const MOBILE_DOCKED_PANEL_MQ = '(max-width: 900px)';
-export const MOBILE_DOCKED_PANEL_HOST_ID = 'cv-mobile-docked-panel-flow';
+export const MOBILE_DOCKED_PANEL_HOST_ID = 'blemmy-mobile-docked-panel-flow';
 export const RIGHT_DOCKED_PANEL_IDS = [
-	'cv-edit-panel',
+	'blemmy-edit-panel',
 	'blemmy-review-panel',
-	'cv-chat-panel',
+	'blemmy-chat-panel',
 ] as const;
 export type RightDockedPanelId = (typeof RIGHT_DOCKED_PANEL_IDS)[number];
-export const DOCKED_PANEL_OPEN_EVENT = 'cv-docked-panel-open';
-export const DOCKED_PANEL_CLOSE_EVENT = 'cv-docked-panel-close';
+export const DOCKED_PANEL_OPEN_EVENT = 'blemmy-docked-panel-open';
+export const DOCKED_PANEL_CLOSE_EVENT = 'blemmy-docked-panel-close';
 
 type DockedSidePanelFlowOptions = {
 	getPanels: () => Array<HTMLElement>;
@@ -24,9 +26,9 @@ function ensureHost(): HTMLElement {
 	if (host instanceof HTMLElement) { return host; }
 	host = document.createElement('div');
 	host.id = MOBILE_DOCKED_PANEL_HOST_ID;
-	host.className = 'cv-mobile-docked-panel-flow no-print';
+	host.className = 'blemmy-mobile-docked-panel-flow no-print';
 	host.hidden = true;
-	const root = document.getElementById('cv-root');
+	const root = document.getElementById(BLEMMY_DOC_ROOT_ID);
 	if (root?.parentElement) {
 		root.parentElement.insertBefore(host, root.nextSibling);
 	} else {
@@ -55,12 +57,12 @@ export function initDockedSidePanelFlow(
 				host.appendChild(openPanel);
 			}
 			host.hidden = false;
-			document.documentElement.classList.add('cv-mobile-docked-panel-open');
+			document.documentElement.classList.add('blemmy-mobile-docked-panel-open');
 			return;
 		}
 
 		host.hidden = true;
-		document.documentElement.classList.remove('cv-mobile-docked-panel-open');
+		document.documentElement.classList.remove('blemmy-mobile-docked-panel-open');
 		for (const panel of panels) {
 			if (panel.parentElement === host) {
 				document.body.appendChild(panel);
@@ -94,7 +96,7 @@ export function initDockedSidePanelFlow(
 			} else {
 				mq.removeListener(sync);
 			}
-			document.documentElement.classList.remove('cv-mobile-docked-panel-open');
+			document.documentElement.classList.remove('blemmy-mobile-docked-panel-open');
 		},
 	};
 }

@@ -41,7 +41,20 @@ export default defineConfig({
 		outDir:      'dist',
 		emptyOutDir: true,
 		rollupOptions: {
-			input: resolve(__dirname, 'index.html'),
+			input: {
+				app:       resolve(__dirname, 'index.html'),
+				embedDemo: resolve(__dirname, 'embed-demo.html'),
+				blemmyDoc: resolve(__dirname, 'src/embed/blemmy-doc-entry.ts'),
+			},
+			output: {
+				entryFileNames(chunkInfo) {
+					const id = chunkInfo.facadeModuleId ?? '';
+					if (id.endsWith('blemmy-doc-entry.ts')) {
+						return 'blemmy-doc.js';
+					}
+					return 'assets/[name]-[hash].js';
+				},
+			},
 		},
 	},
 	// Expose both prefixes — a single string replaces the default `VITE_` and would

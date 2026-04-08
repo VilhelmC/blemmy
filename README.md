@@ -17,7 +17,7 @@ Live site: [blemmy.dev](https://blemmy.dev)
 Most CV tools couple content to layout. Change a job title and you're fighting with text boxes. Change the design and you're re-entering all your data. Blemmy separates them completely:
 
 ```
-src/data/cv-demo.json     ← The only file you edit for content
+src/data/cv-demo.json     ← Default bundled content (Blemmy demo; import your own JSON)
 src/lib/engine/           ← Decides how to lay it out
 src/styles/global.css     ← Design tokens — change once, PDF follows
 ```
@@ -54,7 +54,7 @@ The core of the project. Given a rendered document DOM, the engine runs a constr
 
 All decisions are written as CSS custom properties. The DOM is never reflowed from scratch between candidates — the engine mutates properties and re-measures.
 
-See [`docs/cv-layout-engine.md`](docs/cv-layout-engine.md) for the full technical specification.
+See [`docs/layout-engine.md`](docs/layout-engine.md) for the full technical specification.
 
 ### Project structure
 
@@ -66,16 +66,17 @@ blemmy/
 │   ├── types/
 │   │   └── cv.ts                       # TypeScript interfaces for cv-demo.json
 │   ├── data/
-│   │   └── cv-demo.json                # ← Demo content (edit this, or load your own)
+│   │   ├── cv-demo.json                # ← Default demo (Blemmy Kerning — meta tour)
+│   │   └── cv-demo-alex-meridian.json # Legacy realistic demo JSON (import manually)
 │   ├── lib/
 │   │   ├── engine/                     # @blemmy/engine — AGPL v3
 │   │   │   ├── LICENSE
 │   │   │   ├── package.json
-│   │   │   ├── cv-layout-engine.ts     # 8-stage layout pipeline (1,300 lines)
-│   │   │   ├── cv-candidate.ts         # Candidate generation + scoring
-│   │   │   ├── cv-profile.ts           # Section width-sensitivity measurement
-│   │   │   ├── cv-align.ts             # Cross-column alignment snapping
-│   │   │   ├── cv-column-slack.ts      # Flex gap absorption
+│   │   │   ├── layout-engine.ts        # 8-stage layout pipeline
+│   │   │   ├── layout-candidate.ts     # Candidate generation + scoring
+│   │   │   ├── layout-profile.ts       # Section width-sensitivity measurement
+│   │   │   ├── layout-align.ts         # Cross-column alignment snapping
+│   │   │   ├── layout-slack.ts         # Flex gap absorption
 │   │   │   ├── cv-layout-snapshot.ts   # Serialisable layout state capture
 │   │   │   └── layout-audit.ts         # Edit-sequence audit log
 │   │   ├── cv-chat.ts                  # Multi-provider LLM client (streaming)
@@ -96,8 +97,8 @@ blemmy/
 │   └── styles/
 │       ├── global.css                  # Design tokens + all layout (screen + print)
 │       ├── print.css                   # Minimal print-only layer (@page, A4 shell)
-│       ├── cv-print-surface.css        # Screen mirror of print surface for preview
-│       └── cv-print-parity.css         # Rules shared between print and preview
+│       ├── blemmy-print-surface.css    # Screen mirror of print surface for preview
+│       └── blemmy-print-parity.css     # Rules shared between print and preview
 ├── scripts/
 │   ├── build-cv-pdf.mjs                # Puppeteer HTML→PDF capture
 │   ├── evaluate-layout-engine.mjs      # Layout quality eval across test cases
@@ -106,7 +107,7 @@ blemmy/
 │   ├── audit-layout-edit-sequences.mjs # Sequential edit regression suite
 │   └── run-retention-cleanup.mjs       # GDPR retention enforcement script
 └── docs/
-    ├── cv-layout-engine.md             # Layout engine technical specification
+    ├── layout-engine.md                # Layout engine technical specification
     ├── cv-print-single-source.md       # Print/preview CSS architecture
     ├── supabase-cloud-schema.sql       # Full database schema
     ├── gdpr-data-inventory.md          # GDPR data mapping
@@ -164,7 +165,13 @@ npm run dev
 # → http://localhost:5923
 ```
 
-The app works fully without cloud configuration. Load `src/data/cv-demo.json` as a starting point, or use the AI assistant to generate from your own background material.
+The app works fully without cloud configuration. Load `src/data/cv-demo.json` (the playful Blemmy Kerning tour) or import `src/data/cv-demo-alex-meridian.json` for the older realistic sample, or use the AI assistant to generate from your own background material.
+
+To discard browser-persisted CV data and remount the bundled demos in place, open DevTools and run:
+
+`window.blemmyResetToBundledDefaults()`
+
+That clears `blemmy-user-data`, `blemmy-edit-draft`, `blemmy-app-session-state`, letter draft, and chat source keys — plus legacy `cv-*` keys if still present. Your **portrait cache** (`blemmy-portrait-cache` / IndexedDB) is kept so a re-upload can reuse it; bundled demo CVs without `portraitDataUrl` show **`/blemmy.png`**.
 
 ### Cloud setup (optional)
 
@@ -266,7 +273,7 @@ public/
 
 Blemmy supports read-only embeds for portfolio and published CV use cases.
 
-- Portfolio embed mode: `https://blemmy.dev/?cv-portfolio=1`
+- Portfolio embed mode: `https://blemmy.dev/?blemmy-portfolio=1`
 - Published document embed mode: `https://blemmy.dev/embed/<publicId>`
 - Shared read-only link mode: `https://blemmy.dev/share/<token>`
 
@@ -279,7 +286,7 @@ Example iframe snippet:
 
 ```html
 <iframe
-  src="https://blemmy.dev/?cv-portfolio=1"
+  src="https://blemmy.dev/?blemmy-portfolio=1"
   title="Blemmy demo"
   loading="lazy"
   style="width:100%;min-height:720px;border:0;"
@@ -299,6 +306,26 @@ For user-published documents:
 
 The embed views are read-only and intentionally hide authoring UI.
 
+### Custom element (`<blemmy-doc>`)
+
+Build output includes `dist/blemmy-doc.js` plus shared `dist/assets/*` chunks. Serve them from the **same origin** (module imports are relative), then:
+
+```html
+<script type="module" src="/blemmy-doc.js"></script>
+<blemmy-doc src="/path/to/document.json"></blemmy-doc>
+```
+
+- Optional attribute `doctype="cv"` or `doctype="letter"` forces the type; otherwise it is inferred from the JSON.
+- Optional top-level JSON key `blemmyDocumentStyle` may hold a partial `DocumentStyle` object (colours, bundled font ids, `customFontCssUrl`, custom font-family strings, etc.).
+- **One** `<blemmy-doc>` per page is supported today (fixed `#blemmy-doc-root` ids).
+- While an embed is connected, `<html>` gets the class `blemmy-doc-embed-typography` so `rem`-based document typography stays aligned with print preview.
+
+Local demo: [`embed-demo.html`](embed-demo.html). Use **`npm run dev`** then
+`http://localhost:5923/embed-demo.html`, or **`npm run build`** + **`npm run preview`**
+then `http://localhost:4173/embed-demo.html` (keep preview running). Shortcuts:
+`npm run dev:embed` / `npm run preview:embed`. Do not use `file://`; dev and preview
+use different ports.
+
 ### Layout search in action
 
 The animation below shows the layout engine iterating through candidate
@@ -310,13 +337,14 @@ configurations before converging on the final document layout.
 
 ## Roadmap
 
-- [ ] `DocumentStyle` schema — bot-addressable colour swatches, font pairs, print sidebar mode
-- [ ] Review mode — structured annotation layer with share-link reviewer access
+- [x] `DocumentStyle` schema — bot-addressable colour swatches, font pairs, print sidebar mode
+- [x] Review mode — structured annotation layer with share-link reviewer access
 - [ ] Generic `DocumentLayoutSpec` — decouple engine from CV schema (`@blemmy/engine` v1.0)
-- [ ] Cover letter as second document type
-- [ ] Standalone HTML export
-- [ ] Web component (`<blemmy-doc src="./cv.json">`)
-- [ ] Self-hosted fonts (offline PDF without Google Fonts)
+- [x] Cover letter as second document type
+- [x] Standalone HTML export
+- [x] Assistant **review before apply** — optional staged apply for assistant JSON (layout prefs → Assistant → Review first)
+- [x] **Embeddable custom element** — `<blemmy-doc src="...">` + `dist/blemmy-doc.js` (see Embedding)
+- [x] **Bundled default fonts** — `@fontsource/*` in `src/styles/fonts.css` for offline/PDF; optional `customFontCssUrl` (Google or Bunny Fonts CSS) plus custom font-family fields for other faces; assistant unchanged
 
 ---
 

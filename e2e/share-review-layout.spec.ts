@@ -3,11 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 function reviewUrl(): string {
-	return '/share/debug-share?cv-review=1';
+	return '/share/debug-share?blemmy-review=1';
 }
 
 async function mockShareResolve(page: import('@playwright/test').Page): Promise<void> {
-	const cvJsonPath = join(process.cwd(), 'src', 'data', 'cv-demo.json');
+	const cvJsonPath = join(process.cwd(), 'src', 'data', 'blemmy-demo.json');
 	const cvData = JSON.parse(await readFile(cvJsonPath, 'utf8'));
 	await page.route('**/rpc/resolve_document_share**', async (route) => {
 		await route.fulfill({
@@ -33,9 +33,9 @@ test.describe('shared review mode layout', () => {
 		await expect(page.locator('#blemmy-review-panel')).toBeVisible();
 
 		const widths = await page.evaluate(() => {
-			const shell = document.getElementById('cv-shell');
-			const card = document.getElementById('cv-card');
-			const page1 = document.getElementById('cv-page-1');
+			const shell = document.getElementById('blemmy-doc-shell');
+			const card = document.getElementById('blemmy-card');
+			const page1 = document.getElementById('blemmy-page-1');
 			return {
 				shell: shell?.getBoundingClientRect().width ?? 0,
 				card: card?.getBoundingClientRect().width ?? 0,

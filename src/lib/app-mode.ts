@@ -24,9 +24,9 @@ export function resolveAppModeFromLocation(
 	baseUrl = '/',
 ): ResolvedAppMode {
 	const params = new URLSearchParams(locationLike.search);
-	const isPdfEmbed = params.get('cv-embed') === '1'
+	const isPdfEmbed = params.get('blemmy-embed') === '1'
 		|| params.get('blemmy-pdf') === '1';
-	const isPortfolioEmbed = params.get('cv-portfolio') === '1';
+	const isPortfolioEmbed = params.get('blemmy-portfolio') === '1';
 	const shareToken = shareTokenFromLocationParts(
 		locationLike.pathname,
 		locationLike.search,

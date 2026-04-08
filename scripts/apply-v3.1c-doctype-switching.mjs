@@ -64,18 +64,16 @@ function switchToLetter(data?: LetterData): void {
 \twindow.__ACTIVE_DOC_TYPE__ = 'letter';
 \twindow.__LETTER_DATA__     = letterData;
 
-\tconst existingRoot = document.getElementById('letter-root') ??
-\t                     document.getElementById('cv-root');
+\tconst existingRoot = document.getElementById('blemmy-doc-root');
 \tif (existingRoot) { existingRoot.remove(); }
-\tconst legacyShell = document.getElementById('letter-shell') ??
-\t                    document.getElementById('cv-shell');
+\tconst legacyShell = document.getElementById('blemmy-doc-shell');
 \tif (legacyShell) { legacyShell.remove(); }
 \tif (engineCleanup) { engineCleanup(); engineCleanup = null; }
 
 \tconst root = renderLetter(letterData);
 \tdocument.body.insertBefore(root, document.body.firstChild);
-\tconst shell = document.getElementById('letter-shell');
-\tif (!shell) { throw new Error('[main] #letter-shell not found after render'); }
+\tconst shell = document.getElementById('blemmy-doc-shell');
+\tif (!shell) { throw new Error('[main] #blemmy-doc-shell not found after render'); }
 \tactivateShell(shell);
 
 \tengineCleanup = initCvLayoutEngine(LETTER_DOCUMENT_SPEC) ?? null;

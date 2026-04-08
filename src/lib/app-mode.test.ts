@@ -33,7 +33,7 @@ describe('app-mode resolver', () => {
 	it('resolves portfolio embed mode from query', () => {
 		const resolved = resolveAppModeFromLocation({
 			pathname: '/',
-			search: '?cv-portfolio=1',
+			search: '?blemmy-portfolio=1',
 		});
 		expect(resolved.mode).toBe('portfolioEmbed');
 		expect(resolved.isEmbedLike).toBe(true);
@@ -42,7 +42,7 @@ describe('app-mode resolver', () => {
 	it('resolves pdf embed mode from query', () => {
 		const resolved = resolveAppModeFromLocation({
 			pathname: '/',
-			search: '?cv-embed=1',
+			search: '?blemmy-embed=1',
 		});
 		expect(resolved.mode).toBe('pdfEmbed');
 		expect(resolved.isEmbedLike).toBe(true);

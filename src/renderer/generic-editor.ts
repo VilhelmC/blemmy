@@ -34,7 +34,7 @@ import {
 	processPortraitFile,
 	savePortraitLocalCache,
 	clearPortraitLocalCache,
-} from '@lib/cv-portrait';
+} from '@lib/profile-portrait';
 import { DOCKED_SIDE_PANEL_CLASS } from '@renderer/docked-side-panels';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -330,9 +330,9 @@ function enableImageUploads(
 			input.value = '';
 			if (!file) { return; }
 			void processPortraitFile(file)
-				.then((dataUrl) => {
+				.then((dataUrl: string) => {
 					setAtPath(data, pathForImg, dataUrl);
-					// Clear SHA if portrait is replaced (CV-specific convention,
+					// Clear SHA if portrait is replaced (blemmy-specific convention,
 					// harmless on other document types)
 					const shaPath = pathForImg.replace('portraitDataUrl', 'portraitSha256');
 					if (shaPath !== pathForImg) {

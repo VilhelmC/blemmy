@@ -13,7 +13,7 @@
  * Currently all types use A4; the field is there for future A3 / Letter.
  *
  * The app is navigated to /?blemmy-pdf=1&doc-type={type}
- * and waits for #{domPrefix}-card[data-cv-layout-ready="true"].
+ * and waits for #{domPrefix}-card[data-blemmy-layout-ready="true"].
  * (The legacy /?cv-pdf=1 route still works for backward compatibility.)
  */
 
@@ -150,12 +150,12 @@ async function main() {
 	await page.goto(url, { waitUntil: 'networkidle0', timeout: 20000 });
 
 	// Wait for the layout engine to signal readiness
-	// The card element is #{domPrefix}-card (e.g. #cv-card, #letter-card)
+	// The card element is #{domPrefix}-card (e.g. #blemmy-card)
 	const cardSelector = `#${domPrefix}-card`;
 	try {
 		await page.waitForFunction(
 			(selector) =>
-				document.querySelector(selector)?.getAttribute('data-cv-layout-ready') === 'true',
+				document.querySelector(selector)?.getAttribute('data-blemmy-layout-ready') === 'true',
 			{ timeout: 25000 },
 			cardSelector,
 		);

@@ -5,10 +5,11 @@
  * application and the Blemmy layout engine. It tells the engine where to
  * find elements in the DOM and which sections it is allowed to move.
  *
- * The engine itself contains no hardcoded DOM IDs or section names. Every
- * document-specific identifier comes from the spec provided at init time.
+ * The engine itself contains no hardcoded DOM IDs, section names, or
+ * topology variant IDs. Every document-specific identifier comes from the spec
+ * provided at init time.
  *
- * The CV application provides CV_DOCUMENT_SPEC (src/lib/cv-document-spec.ts).
+ * The CV application provides CV_DOCUMENT_SPEC (src/lib/blemmy-document-spec.ts).
  * Future document types (cover letter, portfolio) provide their own specs.
  */
 
@@ -18,9 +19,12 @@ export interface EngineDocumentSpec {
 
 	// ── Required structural element IDs ──────────────────────────────────────
 
-	/** Root card element. Receives layout classes + data-cv-* attributes. */
+	/**
+	 * Root card element. Receives layout classes and `data-blemmy-layout-*`
+	 * telemetry written by the engine (document-agnostic surface).
+	 */
 	cardId:     string;
-	/** Outer shell element. Receives view-mode classes (cv-print-preview). */
+	/** Outer shell element. Receives view-mode classes (blemmy-print-preview). */
 	shellId:    string;
 	/** Page 1 wrapper. */
 	page1Id:    string;
@@ -60,7 +64,7 @@ export interface EngineDocumentSpec {
 	 * Value = DOM element ID the engine will look up via getElementById.
 	 *
 	 * Example for a CV:
-	 *   { skills: 'cv-rebalance-skills', languages: 'cv-rebalance-languages', interests: 'cv-rebalance-interests' }
+	 *   { skills: 'blemmy-rebalance-skills', languages: 'blemmy-rebalance-languages', interests: 'blemmy-rebalance-interests' }
 	 */
 	movableSections: Record<string, string>;
 
@@ -69,7 +73,7 @@ export interface EngineDocumentSpec {
 	 * These are profiled to inform the minimum sidebar width calculation
 	 * but are never moved by the engine.
 	 *
-	 * Example: ['cv-education']
+	 * Example: ['blemmy-education']
 	 */
 	alwaysSidebarIds: string[];
 
@@ -78,27 +82,40 @@ export interface EngineDocumentSpec {
 	 * movable nor always-sidebar. Typically: content that the engine uses
 	 * to decide masthead topology (e.g. the profile/summary paragraph).
 	 *
-	 * Example: ['cv-rebalance-profile']
+	 * Example: ['blemmy-rebalance-profile']
 	 */
 	profilableIds?: string[];
+
+	// ── Zone topology variants ────────────────────────────────────────────────
+
+	/**
+	 * Discrete topology alternatives for named zones.
+	 * Key = zone element ID. Value = ordered variant IDs (first = default).
+	 */
+	zoneVariants?: Record<string, string[]>;
+
+	/**
+	 * Variant enforced on multi-page candidates per zone (typically default only).
+	 */
+	multiPageDefaultVariants?: Record<string, string>;
 
 	// ── CSS class names (all have sensible defaults) ──────────────────────────
 
 	/**
 	 * Class added to cardId when layout resolves to a single page.
-	 * @default 'cv-single-page'
+	 * @default 'blemmy-single-page'
 	 */
 	singlePageClass?: string;
 
 	/**
 	 * Prefix for density tier classes. The engine appends '1', '2', '3'.
-	 * @default 'cv-density-'
+	 * @default 'blemmy-density-'
 	 */
 	densityClassPrefix?: string;
 
 	/**
 	 * Prefix for fill tier classes. The engine appends '1', '2', '3'.
-	 * @default 'cv-fill-'
+	 * @default 'blemmy-fill-'
 	 */
 	fillClassPrefix?: string;
 }
@@ -118,8 +135,8 @@ export interface ResolvedEngineDocumentSpec extends EngineDocumentSpec {
 export function resolveSpec(spec: EngineDocumentSpec): ResolvedEngineDocumentSpec {
 	return {
 		...spec,
-		singlePageClass:    spec.singlePageClass    ?? 'cv-single-page',
-		densityClassPrefix: spec.densityClassPrefix ?? 'cv-density-',
-		fillClassPrefix:    spec.fillClassPrefix    ?? 'cv-fill-',
+		singlePageClass:    spec.singlePageClass    ?? 'blemmy-single-page',
+		densityClassPrefix: spec.densityClassPrefix ?? 'blemmy-density-',
+		fillClassPrefix:    spec.fillClassPrefix    ?? 'blemmy-fill-',
 	};
 }

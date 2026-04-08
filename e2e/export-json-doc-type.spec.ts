@@ -1,12 +1,22 @@
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const letterDemoPath = join(
+	fileURLToPath(dirname(import.meta.url)),
+	'..',
+	'src',
+	'data',
+	'letter-demo.json',
+);
 
 async function triggerDownload(page: Page): Promise<Download> {
 	const downloadPromise = page.waitForEvent('download');
 	await page.evaluate(() => {
-		const btn = document.getElementById('cv-download-json');
+		const btn = document.getElementById('blemmy-download-json');
 		if (!(btn instanceof HTMLButtonElement)) {
-			throw new Error('Missing #cv-download-json button');
+			throw new Error('Missing #blemmy-download-json button');
 		}
 		btn.click();
 	});
@@ -30,16 +40,20 @@ test('download json includes active docType marker', async ({ page }) => {
 	const cvJson = await readDownloadedJson(cvDownload) as Record<string, unknown>;
 	expect(cvJson.docType).toBe('cv');
 
-	// Letter export path (runtime switch hook from main.ts)
-	await page.evaluate(() => {
-		const switchToLetter = (
-			window as Window & { __blemmySwitchToLetter__?: () => void }
-		).__blemmySwitchToLetter__;
-		if (!switchToLetter) {
-			throw new Error('Missing __blemmySwitchToLetter__ hook');
+	// Letter export path
+	const letterRaw = await readFile(letterDemoPath, 'utf8');
+	await page.evaluate((raw) => {
+		const data = JSON.parse(raw);
+		const remount = (
+			window as Window & {
+				__blemmyRemountDocument__?: (d: unknown, t: string) => void;
+			}
+		).__blemmyRemountDocument__;
+		if (!remount) {
+			throw new Error('Missing __blemmyRemountDocument__ hook');
 		}
-		switchToLetter();
-	});
+		remount(data, 'letter');
+	}, letterRaw);
 
 	const letterDownload = await triggerDownload(page);
 	const letterJson = await readDownloadedJson(letterDownload) as Record<string, unknown>;

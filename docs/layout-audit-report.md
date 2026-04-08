@@ -34,7 +34,7 @@ Captured evidence:
   - Effect: hide -> unhide now restores minimal visibility state
     (removes empty default visibility object when no manual overrides remain).
 
-- `src/lib/cv-layout-engine.ts`
+- `src/lib/engine/layout-engine.ts`
   - Added deterministic sort tie-breakers for scored candidates:
     `combined -> heightScore -> affinityScore -> candidate.id`.
   - Added debug-gated audit logs for request/apply/candidate/winner lifecycle.
@@ -45,7 +45,7 @@ Captured evidence:
 - `src/lib/cv-filter.ts`
   - Added debug-gated audit logs for resolved visibility merges.
 
-- `src/lib/layout-audit.ts`
+- `src/lib/engine/layout-audit.ts`
   - New shared debug-gated instrumentation utility:
     - enable with query `?debug-layout=1` or `localStorage.cv-debug-layout=1`.
     - includes stable hash helpers for state/candidate snapshots.

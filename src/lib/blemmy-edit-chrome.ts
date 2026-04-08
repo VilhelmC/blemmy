@@ -3,7 +3,7 @@
  * as part of field text (highlights, tags, etc.).
  */
 export const BLEMMY_EDIT_CHROME_SELECTORS =
-	'.cv-move-controls, .cv-vis-toggle, button.cv-move-btn';
+	'.blemmy-move-controls, .blemmy-vis-toggle, button.blemmy-move-btn';
 
 /**
  * Glyphs on reorder / visibility / drag controls. Browsers may merge these

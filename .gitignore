@@ -12,6 +12,9 @@ dist/
 .env.local
 .env.*.local
 
+# ── Local debug / exports (not tracked) ─────────────────────
+debug/
+
 # ── Personal data — never commit real CV content ──────────────
 # Use src/data/cv-demo.json as the committed example.
 # Keep your real CV files local or in a private repo.

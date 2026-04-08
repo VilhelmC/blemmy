@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  Do not open this file via file:// — the module script will not load.
+
+  Dev (Vite serves TypeScript; port 5923 from vite.config):
+    npm run dev
+    → http://localhost:5923/embed-demo.html
+    Shortcut: npm run dev:embed
+
+  Production bundle (port from the terminal — default 4173):
+    npm run build
+    npm run preview
+    → http://localhost:4173/embed-demo.html
+    Shortcut: npm run preview:embed
+  Keep the preview process running; if you only ran build, nothing is listening.
+
+  5923 is NOT used by "npm run preview". 4173 is NOT used by "npm run dev"
+  unless you changed ports.
+
+  If you set CV_BASE_URL to a subpath (e.g. GitHub Pages), build embeds that
+  base in asset URLs — open embed-demo from that path on the same origin.
+-->
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Blemmy doc embed demo</title>
+	<script type="module" src="/src/embed/embed-demo-page.ts"></script>
+</head>
+<body style="margin:0;padding:1rem;font-family:system-ui,sans-serif">
+	<p>
+		Below: <code>&lt;blemmy-doc&gt;</code> with bundled demo JSON (blob URL).
+	</p>
+	<div id="blemmy-doc-host"></div>
+</body>
+</html>

@@ -6,8 +6,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"dev:embed": "vite --open /embed-demo.html",
 		"build": "vite build",
 		"preview": "vite preview",
+		"preview:embed": "vite preview --open /embed-demo.html",
 		"pdf": "npm run build && node scripts/build-cv-pdf.mjs",
 		"pdf:letter": "npm run build && node scripts/build-pdf.mjs --doc-type letter",
 		"pdf:generic": "npm run build && node scripts/build-pdf.mjs",

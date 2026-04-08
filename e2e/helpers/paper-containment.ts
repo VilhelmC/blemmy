@@ -28,7 +28,7 @@ type MeasureOpts = {
 	epsilon?: number;
 	maxViolationSamples?: number;
 	/**
-	 * `horizontal` — only left/right vs `#cv-shell` (default). Matches the
+	 * `horizontal` — only left/right vs `#blemmy-doc-shell` (default). Matches the
 	 * “paper wider than column” regression; tall CVs may extend below the
 	 * shell when height is viewport-bound.
 	 * `both` — also top/bottom (stricter).
@@ -37,7 +37,7 @@ type MeasureOpts = {
 };
 
 /**
- * Visible descendants of `#cv-shell` must not extend past the shell’s
+ * Visible descendants of `#blemmy-doc-shell` must not extend past the shell’s
  * left/right edges (viewport coords), within epsilon. Default is
  * horizontal-only; use `axes: 'both'` for full box checks.
  */
@@ -50,9 +50,9 @@ export async function measurePaperContainment(
 	const axes = opts.axes ?? 'horizontal';
 	return page.evaluate(
 		({ epsilon, maxViolationSamples, axes }) => {
-			const shell = document.getElementById('cv-shell');
+			const shell = document.getElementById('blemmy-doc-shell');
 			if (!shell) {
-				return { ok: false as const, reason: 'missing #cv-shell' };
+				return { ok: false as const, reason: 'missing #blemmy-doc-shell' };
 			}
 			const p = shell.getBoundingClientRect();
 			const paper = {
@@ -129,7 +129,7 @@ export async function measurePaperContainment(
 export async function waitForCvLayoutReady(page: Page): Promise<void> {
 	await page.waitForFunction(
 		() =>
-			document.getElementById('cv-card')?.getAttribute('data-cv-layout-ready') ===
+			document.getElementById('blemmy-card')?.getAttribute('data-blemmy-layout-ready') ===
 			'true',
 		{ timeout: 60_000 },
 	);

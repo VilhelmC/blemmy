@@ -67,14 +67,14 @@ function startStaticServer(port) {
 
 async function readMeta(page) {
 	return page.evaluate(() => {
-		const c = document.getElementById('cv-card');
+		const c = document.getElementById('blemmy-card');
 		return {
-			pages: c?.dataset.cvPages ?? '',
-			disposition: c?.dataset.cvDisposition ?? '',
-			winnerId: c?.dataset.cvWinnerId ?? '',
-			sidebarMm: c?.dataset.cvSidebarMm ?? '',
-			split: c?.dataset.cvSplit ?? '',
-			density: c?.dataset.cvDensity ?? '',
+			pages: c?.dataset.blemmyLayoutPages ?? '',
+			disposition: c?.dataset.blemmyLayoutDisposition ?? '',
+			winnerId: c?.dataset.blemmyLayoutWinnerId ?? '',
+			sidebarMm: c?.dataset.blemmyLayoutSidebarMm ?? '',
+			split: c?.dataset.blemmyLayoutWorkSplit ?? '',
+			density: c?.dataset.blemmyLayoutDensity ?? '',
 		};
 	});
 }
@@ -111,7 +111,7 @@ async function run() {
 			}, snap.cv);
 			await page.goto(baseUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 			await page.waitForFunction(
-				() => document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+				() => document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 				{ timeout: 30000 },
 			);
 			runs.push(await readMeta(page));

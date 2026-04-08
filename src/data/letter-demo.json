@@ -6,11 +6,11 @@
 		"targetRole": "Principal Engineer — Design Technology"
 	},
 	"basics": {
-		"name":     "Alex Meridian",
-		"label":    "Computational Designer · Software Engineer · M.Arch",
-		"email":    "alex@meridian.design",
-		"phone":    "+1 415 000 0000",
-		"location": "San Francisco, CA"
+		"name":     "Blemmy Kerning",
+		"label":    "In-App Demo Persona · Layout Docent",
+		"email":    "blemmy@blemmy.dev",
+		"phone":    "+45 00 00 00 00",
+		"location": "Copenhagen, Denmark"
 	},
 	"recipient": {
 		"name":         "Dr. Clara Voss",
@@ -37,7 +37,7 @@
 	],
 	"closing": {
 		"salutation": "Yours sincerely,",
-		"name":        "Alex Meridian",
-		"title":       "Principal Engineer — Design Technology"
+		"name":        "Blemmy Kerning",
+		"title":       "In-App Demo Persona — Layout Docent"
 	}
 }

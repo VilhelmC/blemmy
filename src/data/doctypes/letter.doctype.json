@@ -1,9 +1,9 @@
 {
 	"docType":     "letter",
-	"label":       "Cover Letter",
+	"label":       "Letter",
 	"version":     "2.0",
 	"contentType": "LetterData",
-	"domPrefix":   "letter",
+	"domPrefix":   "blemmy",
 
 	"medium": {
 		"pageSize": "A4",

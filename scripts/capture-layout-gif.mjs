@@ -124,14 +124,14 @@ async function waitForLayoutSettled(page, quietMs, timeoutMs) {
 		const start = now();
 		let lastLayout = now();
 		const onLayout = () => { lastLayout = now(); };
-		window.addEventListener('cv-layout-applied', onLayout);
+		window.addEventListener('blemmy-layout-applied', onLayout);
 		function isReady() {
-			const shell = document.getElementById('cv-shell');
+			const shell = document.getElementById('blemmy-doc-shell');
 			if (!(shell instanceof HTMLElement)) {
 				return false;
 			}
-			const card = document.getElementById('cv-card');
-			return card?.getAttribute('data-cv-layout-ready') === 'true';
+			const card = document.getElementById('blemmy-card');
+			return card?.getAttribute('data-blemmy-layout-ready') === 'true';
 		}
 		try {
 			while ((now() - start) < t) {
@@ -154,7 +154,7 @@ async function waitForLayoutSettled(page, quietMs, timeoutMs) {
 				quietWindowMs: Math.round(now() - lastLayout),
 			};
 		} finally {
-			window.removeEventListener('cv-layout-applied', onLayout);
+			window.removeEventListener('blemmy-layout-applied', onLayout);
 		}
 	}, { q: quietMs, t: timeoutMs });
 	return result;

@@ -2,7 +2,8 @@
  * document-type.ts
  *
  * Runtime document type management: registry, validation, engine bridge.
- * Zone-tree DocumentTypeSpec → EngineDocumentSpec (legacy DOM IDs for cv/letter).
+ * Zone-tree DocumentTypeSpec → EngineDocumentSpec (shared shell id +
+ * per-doctype card/page/zone ids).
  */
 
 import type {
@@ -24,6 +25,7 @@ import {
 	validateRealisedLayout,
 } from '@cv/document-type-spec';
 import type { EngineDocumentSpec } from '@lib/engine/document-spec';
+import { BLEMMY_DOC_SHELL_ID } from '@lib/blemmy-dom-ids';
 
 export type {
 	DocumentTypeSpec,
@@ -100,54 +102,61 @@ export function isDocTypeSpec(raw: unknown): raw is DocumentTypeSpec {
 
 /** Engine wiring matching the shipped CV renderer (pre-{prefix}-zone-* IDs). */
 const CV_LEGACY_ENGINE_SPEC: EngineDocumentSpec = {
-	cardId:     'cv-card',
-	shellId:    'cv-shell',
-	page1Id:    'cv-page-1',
-	page2Id:    'cv-page-2',
-	sidebar1Id: 'cv-sidebar-1',
-	sidebar2Id: 'cv-sidebar-2',
-	main1Id:    'cv-main-1',
-	main2Id:    'cv-main-2',
+	cardId:     'blemmy-card',
+	shellId:    BLEMMY_DOC_SHELL_ID,
+	page1Id:    'blemmy-page-1',
+	page2Id:    'blemmy-page-2',
+	sidebar1Id: 'blemmy-sidebar-1',
+	sidebar2Id: 'blemmy-sidebar-2',
+	main1Id:    'blemmy-main-1',
+	main2Id:    'blemmy-main-2',
 
-	statusElId:      'cv-layout-status',
-	footer1Id:       'cv-page-1-body-footer',
-	footer2Id:       'cv-page-2-body-footer',
-	mastheadId:      'cv-page-1-masthead',
-	portraitCellId:  'cv-p1-portrait-cell',
-	mastheadRightId: 'cv-masthead-right',
-	profileColId:    'cv-masthead-profile-col',
+	statusElId:      'blemmy-layout-status',
+	footer1Id:       'blemmy-page-1-body-footer',
+	footer2Id:       'blemmy-page-2-body-footer',
+	mastheadId:      'blemmy-page-1-masthead',
+	portraitCellId:  'blemmy-p1-portrait-cell',
+	mastheadRightId: 'blemmy-masthead-right',
+	profileColId:    'blemmy-masthead-profile-col',
 
 	movableSections: {
-		skills:    'cv-rebalance-skills',
-		languages: 'cv-rebalance-languages',
-		interests: 'cv-rebalance-interests',
+		skills:    'blemmy-rebalance-skills',
+		languages: 'blemmy-rebalance-languages',
+		interests: 'blemmy-rebalance-interests',
 	},
-	alwaysSidebarIds: ['cv-education'],
-	profilableIds:    ['cv-rebalance-profile'],
+	alwaysSidebarIds: ['blemmy-education'],
+	profilableIds:    ['blemmy-rebalance-profile'],
 
-	singlePageClass:    'cv-single-page',
-	densityClassPrefix: 'cv-density-',
-	fillClassPrefix:    'cv-fill-',
+	zoneVariants: {
+		'blemmy-page-1-masthead': ['full', 'compact', 'minimal', 'strip'],
+	},
+	multiPageDefaultVariants: {
+		'blemmy-page-1-masthead': 'full',
+	},
+
+	singlePageClass:    'blemmy-single-page',
+	densityClassPrefix: 'blemmy-density-',
+	fillClassPrefix:    'blemmy-fill-',
 };
 
 const LETTER_LEGACY_ENGINE_SPEC: EngineDocumentSpec = {
-	cardId:     'letter-card',
-	shellId:    'letter-shell',
-	page1Id:    'letter-page-1',
-	page2Id:    'letter-page-2',
-	sidebar1Id: 'letter-sidebar-1',
-	sidebar2Id: 'letter-sidebar-2',
-	main1Id:    'letter-main-1',
-	main2Id:    'letter-main-2',
+	cardId:     'blemmy-card',
+	shellId:    BLEMMY_DOC_SHELL_ID,
+	page1Id:    'blemmy-page-1',
+	page2Id:    'blemmy-page-2',
+	sidebar1Id: 'blemmy-sidebar-1',
+	sidebar2Id: 'blemmy-sidebar-2',
+	main1Id:    'blemmy-main-1',
+	main2Id:    'blemmy-main-2',
 
-	statusElId: 'letter-layout-status',
+	statusElId: 'blemmy-layout-status',
 
 	movableSections:  {},
 	alwaysSidebarIds: [],
 
-	singlePageClass:    'letter-single-page',
-	densityClassPrefix: 'letter-density-',
-	fillClassPrefix:    'letter-fill-',
+	singlePageClass:    'blemmy-single-page',
+	densityClassPrefix: 'blemmy-density-',
+	fillClassPrefix:    'blemmy-fill-',
 };
 
 /**
@@ -184,7 +193,7 @@ function deriveEngineSpecFromZones(spec: DocumentTypeSpec): EngineDocumentSpec {
 
 	return {
 		cardId:     `${p}-card`,
-		shellId:    `${p}-shell`,
+		shellId:    BLEMMY_DOC_SHELL_ID,
 		page1Id:    `${p}-page-1`,
 		page2Id:    `${p}-page-2`,
 		sidebar1Id: sidebarId,

@@ -1,111 +1,127 @@
 {
 	"meta": {
-		"lastUpdated": "2026-03-25",
+		"lastUpdated": "2026-04-07",
 		"version": "1.0",
 		"language": "en"
 	},
 	"basics": {
-		"name": "Alex Meridian",
-		"label": "Computational Designer · Software Engineer · M.Arch",
-		"email": "alex@meridian.design",
-		"phone": "+1 415 000 0000",
-		"location": "San Francisco, CA",
-		"nationality": "Canadian",
-		"born": "1990-06-15",
-		"summary": "Designer and engineer working at the boundary of computation, fabrication, and built form. Seven years building parametric design tools and data pipelines for large-scale architectural practices; the last three increasingly focused on the software layer — TypeScript, WebGL, and the systems that let non-programmers author complex geometry. Comfortable in the gap between a sketch and a deployed product."
+		"name": "Blemmy Kerning",
+		"label": "In-App Demo Persona · Layout Docent · Friend of the Engine",
+		"email": "blemmy@blemmy.dev",
+		"phone": "+45 00 00 00 00",
+		"location": "Copenhagen, Denmark",
+		"nationality": "Speculative",
+		"born": "1995-04-01",
+		"summary": "Fictional bundled persona for Blemmy — a stress-test for the layout engine. I exist to tease apart single-page merges, two-page dispositions, masthead strip trials, and the quiet drama of vertical slack absorption. If your sidebar and main column are arguing, I'm probably in the JSON somewhere cheering for balance. Prefer print preview when you want to see the same optical weight as PDF; prefer web idle when you want breathing room around the sheets."
 	},
 	"work": [
 		{
-			"company": "Forma Studio",
-			"position": "Principal Engineer — Design Technology",
-			"startDate": "2022",
+			"company": "Blemmy — Core Product",
+			"position": "Disposition Search Intern (promoted to Paperweight)",
+			"startDate": "2024",
 			"endDate": "Present",
-			"summary": "Technical lead for a 12-person design technology unit embedded across three studio offices.",
+			"summary": "Helped ship the mindset that \"every millimetre matters\" — especially the fake ones we spend in binary sidebar search.",
 			"highlights": [
-				"Platform: Designed and shipped a parametric massing tool used on six live projects totalling 2.4 M sq ft — reduced early-stage iteration time from weeks to hours.",
-				"Leadership: Grew the team from 3 to 12; introduced sprint cadence, code review culture, and a shared component library that cut new-tool delivery time by 40%.",
-				"Research: Led an R&D collaboration with UC Berkeley on generative structural optimisation; co-authored a paper accepted at ACADIA 2024.",
-				"Infrastructure: Migrated geometry pipeline from Rhino/Grasshopper scripts to a versioned TypeScript API, eliminating a class of reproducibility failures that had blocked two competition submissions."
+				"Search: Sat through 50+ candidate tables logging single-page vs two-page winners; learned that hospitality matters even for algorithms.",
+				"Diagnostics: Became fluent in reading data-blemmy-layout-* on #blemmy-card without flinching (mostly).",
+				"Culture: Advocated for one vocabulary (blemmy-*) so document chrome and app chrome stop arm-wrestling."
 			],
-			"tags": ["technical", "leadership", "research", "computational"]
+			"tags": ["technical", "leadership", "layout"]
 		},
 		{
-			"company": "Meridian Geometry Lab",
-			"position": "Founder · Independent Consultant",
+			"company": "Slack Absorption Labs",
+			"position": "Senior Column Therapist",
+			"startDate": "2022",
+			"endDate": "2024",
+			"summary": "Iterative gap counselling for flex columns that refused to admit they had feelings (and extra pixels).",
+			"highlights": [
+				"Coached main and sidebar stacks through up to 14 requestAnimationFrame rounds of honest measurement.",
+				"Taught clients that .blemmy-sidebar-tail-spacer is a listener, not a flex bully — exclude it from slack math with care.",
+				"Reduced chronic fr-row denial by distributing slack into row-gap like a civilised adult."
+			],
+			"tags": ["technical", "design", "layout"]
+		},
+		{
+			"company": "Subgrid Breakfast Club",
+			"position": "Masthead Variant Barista",
 			"startDate": "2020",
 			"endDate": "2022",
-			"summary": "Independent practice providing computational design and software development services to architectural and engineering firms.",
 			"highlights": [
-				"Clients: Delivered bespoke parametric tools and facade automation scripts for eight practices across North America and Northern Europe.",
-				"Open source: Published three Grasshopper plugins with a combined 4,200 downloads; maintained community forums and documentation.",
-				"Revenue: Grew annual revenue from zero to $180k in 18 months, entirely through referrals and conference presence."
+				"Calibrated full vs strip modes without spilling espresso on portrait cells.",
+				"Ran a/B tests on profile placement; concluded humans enjoy knowing where their face is.",
+				"Documented that preview uses html.blemmy-print-surface — PDF sticks to @media print; both deserve love."
 			],
-			"tags": ["technical", "strategy", "computational", "design"]
+			"tags": ["design", "technical", "research"]
 		},
 		{
-			"company": "Thornfield & Partners",
-			"position": "Senior Computational Designer",
-			"startDate": "2017",
+			"company": "Footer Slot Collective",
+			"position": "Underfill Scout",
+			"startDate": "2018",
 			"endDate": "2020",
 			"highlights": [
-				"Fabrication: Developed a curtain wall panelisation system for a 44-storey tower; coordinated with the fabricator to reduce panel count by 18% without changing the facade geometry.",
-				"Automation: Wrote Dynamo scripts that automated drawing production for a residential portfolio — saved an estimated 800 drafter-hours across the studio annually.",
-				"Mentorship: Ran monthly lunch-and-learns on computational design for a cohort of 20 architects; built internal wiki that persisted after my departure."
+				"Learned when languages and interests belong in the sidebar, when they vacation in #blemmy-page-2-body-footer, and when they should go outside.",
+				"Paired with scorePage2Balance to honour whitespace without letting it steal the show.",
+				"Shipped zero production bugs — I'm JSON, I don't get runtime errors unless you typo me."
 			],
-			"tags": ["design", "technical", "computational"]
-		},
-		{
-			"company": "Studio Varga Eklund",
-			"position": "Architectural Designer",
-			"startDate": "2014",
-			"endDate": "2017",
-			"highlights": [
-				"Competition: Core team member on an invited competition entry for a 90,000 m² cultural centre — project reached final shortlist of four.",
-				"Visualisation: Produced all project renderings and animations in-house using Rhino and V-Ray; eliminated a $60k/year external visualisation retainer.",
-				"BIM: Led the studio's migration from 2D CAD to Revit across a live hospital extension project; documented the process as a case study presented at an industry forum."
-			],
-			"tags": ["design", "academic", "technical"]
+			"tags": ["strategy", "design", "layout"]
 		}
 	],
 	"education": [
 		{
-			"institution": "Harvard Graduate School of Design",
-			"area": "Architecture",
-			"degree": "Master of Architecture (M.Arch II)",
-			"startDate": "2012",
-			"endDate": "2014",
+			"institution": "Subgrid Polytechnic",
+			"area": "Intrinsic Height Studies",
+			"degree": "M.Sc. (Measuring Correctly)",
+			"startDate": "2016",
+			"endDate": "2018",
 			"highlights": [
-				"Thesis: 'Latent Tectonics' — a generative system for producing structurally rational shell geometries from voxel input fields. Awarded the Thesis Prize.",
-				"Teaching: Teaching assistant for the core computation sequence (GSD 6338) for two consecutive semesters."
+				"Thesis: \"Why minmax(0, 1fr) is a love language\" — awarded the Stretch Prize.",
+				"Teaching: Held office hours on why overflow:hidden is a flex parent's heavy responsibility."
 			],
-			"tags": ["academic", "research", "computational"]
+			"tags": ["academic", "technical"]
 		},
 		{
-			"institution": "University of Waterloo",
-			"area": "Architecture",
-			"degree": "Bachelor of Architectural Studies",
-			"startDate": "2007",
-			"endDate": "2012",
-			"score": "GPA 3.9 / 4.0 — Dean's Honour List",
+			"institution": "Harbor School of Hard Breaks",
+			"area": "Page-break theatre",
+			"degree": "B.A. (Print Color-Adjust With Feeling)",
+			"startDate": "2012",
+			"endDate": "2016",
+			"score": "Honours — Dean's List for never selecting fake Arial",
 			"highlights": [
-				"Exchange: Year-long exchange at TU Delft Faculty of Architecture; studio focus on large-scale urban infrastructure.",
-				"Award: Waterloo Architecture Medal — awarded to the graduating student with the highest combined academic and studio performance."
+				"Capstone: Simulated Puppeteer print runs until the fan curve looked smug enough.",
+				"Club: Captain of the varsity @page { margin: 0 } team."
 			],
 			"tags": ["academic", "design"]
 		}
 	],
 	"skills": {
-		"programming": ["TypeScript", "Python", "Rust", "WebGL / Three.js", "React", "Node.js", "SQL"],
-		"design_bim": ["Rhino 3D", "Grasshopper", "Revit", "Dynamo", "Figma", "V-Ray", "Blender"],
-		"strategic": ["Design Technology Strategy", "Team Leadership", "Research & Publication", "Workshop Facilitation", "Open Source"]
+		"layout_engine": [
+			"Two-page disposition tables",
+			"Masthead mode choreography",
+			"Sidebar width search",
+			"Vertical slack absorption",
+			"RealisedLayout snapshots"
+		],
+		"product_craft": [
+			"Print preview parity",
+			"Doc-type aware prompts",
+			"Review mode ergonomics",
+			"Export hygiene (HTML + PDF)"
+		],
+		"stack": [
+			"TypeScript",
+			"Vite",
+			"Vitest",
+			"Playwright",
+			"A stubborn affection for CSS"
+		]
 	},
 	"languages": [
-		{ "language": "English",  "fluency": "Native" },
-		{ "language": "French",   "fluency": "Fluent" },
-		{ "language": "German",   "fluency": "Conversational" },
-		{ "language": "Mandarin", "fluency": "Basic" }
+		{ "language": "English", "fluency": "Native" },
+		{ "language": "Danish", "fluency": "Conversational" },
+		{ "language": "JSON", "fluency": "Fluent" },
+		{ "language": "Printer dialect", "fluency": "Professional Working Proficiency" }
 	],
 	"personal": {
-		"interests": "Long-distance trail running, amateur radio (callsign VA3AMX), contributing to open source geometry libraries, and an ongoing project to procedurally generate plausible city plans."
+		"interests": "Toggling print preview at 2am to catch a rogue rem baseline, collecting alternate layout candidates like postcards, explaining that \"web idle\" is a mood not a bug, and long romantic walks along the sidebar tail spacer."
 	}
 }

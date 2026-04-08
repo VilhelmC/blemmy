@@ -4,7 +4,7 @@ import { expect, test } from './test-base';
 /** Layout + delayed paper refit (rAF + 120ms). */
 async function waitForPaperStable(page: Page): Promise<void> {
 	await page.waitForFunction(
-		() => document.getElementById('cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+		() => document.getElementById('blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 		{ timeout: 60_000 },
 	);
 	await page.waitForTimeout(250);
@@ -23,8 +23,8 @@ async function measurePaperFit(page: Page): Promise<FitReport> {
 	return page.evaluate(() => {
 		const vv = window.visualViewport;
 		const doc = document.documentElement;
-		const stage = document.querySelector('.cv-paper-stage');
-		const scaler = document.querySelector('.cv-paper-scaler');
+		const stage = document.querySelector('.blemmy-paper-stage');
+		const scaler = document.querySelector('.blemmy-paper-scaler');
 		return {
 			innerW: window.innerWidth,
 			vvW: vv?.width ?? window.innerWidth,
@@ -41,7 +41,7 @@ test.describe('mobile paper viewport', () => {
 
 	test('paper stage stays within viewport after layout', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('#cv-shell')).toBeVisible();
+		await expect(page.locator('#blemmy-doc-shell')).toBeVisible();
 		await waitForPaperStable(page);
 
 		const r = await measurePaperFit(page);
@@ -55,13 +55,13 @@ test.describe('mobile paper viewport', () => {
 		if (r.stageRight != null) {
 			expect(
 				r.stageRight,
-				`.cv-paper-stage right ${r.stageRight} vs vv.width ${r.vvW}`,
+				`.blemmy-paper-stage right ${r.stageRight} vs vv.width ${r.vvW}`,
 			).toBeLessThanOrEqual(limit);
 		}
 		if (r.scalerRight != null) {
 			expect(
 				r.scalerRight,
-				`.cv-paper-scaler right ${r.scalerRight} vs vv.width ${r.vvW}`,
+				`.blemmy-paper-scaler right ${r.scalerRight} vs vv.width ${r.vvW}`,
 			).toBeLessThanOrEqual(limit);
 		}
 	});
@@ -70,10 +70,10 @@ test.describe('mobile paper viewport', () => {
 		page,
 	}) => {
 		await page.goto('/');
-		await expect(page.locator('#cv-shell')).toBeVisible();
+		await expect(page.locator('#blemmy-doc-shell')).toBeVisible();
 		await waitForPaperStable(page);
 
-		const bar = page.locator('#cv-filter-bar');
+		const bar = page.locator('#blemmy-filter-bar');
 		const firstChip = bar.locator('[data-tag]').first();
 		if (!(await bar.isVisible()) || !(await firstChip.isVisible())) {
 			test.skip();

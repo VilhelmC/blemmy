@@ -5,64 +5,96 @@
 import '@styles/fonts.css';
 import '@styles/global.css';
 import '@styles/print.css';
-import '@styles/cv-print-surface.css';
-import '@styles/cv-print-parity.css';
+import '@styles/blemmy-print-surface.css';
+import '@styles/blemmy-print-parity.css';
 import '@styles/style-panel.css';
 import '@styles/review-mode.css';
 import '@styles/generic-editor.css';
 import '@styles/letter.css';
 
-document.documentElement.classList.add('cv-css-ready');
+document.documentElement.classList.add('blemmy-css-ready');
 
 import {
 	bootstrapOAuthFromUrl,
+	inferDocTypeFromData,
 	initPasswordlessAuthFromUrl,
 	resolveShareToken,
 	shouldBootMinimalOAuthPopupOnly,
-} from '@lib/cv-cloud';
+	type StoredDocumentData,
+} from '@lib/cloud-client';
 import {
 	resolveAppModeFromLocation,
 	type AppMode,
 } from '@lib/app-mode';
-import { loadCvData, onCvDataChanged } from '@lib/cv-loader';
-import { toggleFilter, extractAllTags } from '@lib/cv-filter';
+import {
+	prepareBundledDefaultsResetUi,
+	resetBundledDocumentCaches,
+} from '@lib/blemmy-local-reset';
+import {
+	BLEMMY_APP_SESSION_STATE_KEY,
+	LEGACY_CV_APP_SESSION_STATE_KEY,
+} from '@lib/blemmy-storage-keys';
+import {
+	hasUploadedData,
+	isLikelyCvData,
+	loadCvData,
+	onCvDataChanged,
+} from '@lib/profile-data-loader';
+import { toggleFilter, extractAllTags } from '@lib/tag-filter';
 import { hashCvForAudit, initLayoutAuditUi, layoutAuditLog } from '@lib/engine/layout-audit';
 import { canonicalEmbedPath, canonicalSharePath } from '@lib/share-link-url';
-import { applyLayoutSnapshotToDom } from '@lib/engine/cv-layout-snapshot';
+import { applyLayoutSnapshotToDom } from '@lib/engine/document-layout-snapshot';
 import { applyRealisedLayout, migrateSnapshot } from '@lib/engine/layout-realised';
-import { getDocTypeSpec } from '@lib/document-type';
-import { CV_DOCUMENT_SPEC } from '@lib/cv-document-spec';
-import { LETTER_DOCUMENT_SPEC } from '@lib/letter-document-spec';
-import {
-	loadLetterData,
-} from '@lib/letter-loader';
-import type { LetterData } from '@cv/letter';
+import { deriveEngineSpec, getDocTypeSpec } from '@lib/document-type';
+import { isLetterData } from '@lib/composer-data-loader';
+import { getRuntimeHandler, isRegisteredDocumentType } from '@lib/document-runtime-registry';
 import {
 	loadPortraitLocalCache,
 	savePortraitLocalCache,
-} from '@lib/cv-portrait';
+} from '@lib/profile-portrait';
 import { applyReviewWidthClamp } from '@lib/review-layout-clamp';
-import { syncFilterBar }                from '@renderer/cv-renderer';
+import { syncFilterBar }                from '@renderer/profile-renderer';
 import type { CVData }                  from '@cv/cv';
 
-import { renderCV }           from '@renderer/cv-renderer';
-import { renderLetter } from '@renderer/letter-renderer';
 import { initUIComponents, initSharedReviewComponents }   from '@renderer/ui-components';
 import { startUiManager } from '@renderer/ui-manager';
-import { initCvLayoutEngine } from '@lib/engine/cv-layout-engine';
+import { initLayoutEngine as initCvLayoutEngine } from '@lib/engine/layout-engine';
+import {
+	BLEMMY_DOC_ROOT_ID,
+	BLEMMY_DOC_SHELL_ID,
+} from '@lib/blemmy-dom-ids';
+import {
+	BLEMMY_ACTIVE_DOCUMENT_CHANGED,
+	FALLBACK_DOCUMENT_TYPE_ID,
+	getActiveDocumentData,
+	getActiveDocumentSnapshot,
+	validateDocumentByType,
+} from '@lib/active-document-runtime';
+import {
+	clearDocumentEditHistory,
+	cloneDocumentData,
+	documentHistoryFuture,
+	documentHistoryPast,
+	getLastLeafChanges,
+	isLeafChange,
+	recordDocumentApplyHistory,
+	redoDocumentEditHistory,
+	sanitizeLoadedDocumentChanges,
+	setDocumentDataAtPath,
+	setLastLeafChanges,
+	type LeafChange,
+	undoDocumentEditHistory,
+} from '@lib/blemmy-document-edit-history';
 
 declare global {
 	interface Window {
-		__CV_DATA__?: CVData;
-		__LETTER_DATA__?: LetterData;
-		__ACTIVE_DOC_TYPE__?: 'cv' | 'letter';
-		__blemmySwitchToLetter__?: (data?: LetterData) => void;
-		__blemmySwitchToCv__?: (data?: CVData) => void;
 		cvUndo?: () => void;
 		cvRedo?: () => void;
 		cvCanUndo?: () => boolean;
 		cvCanRedo?: () => boolean;
 		cvRevertField?: (path: string) => void;
+		/** DevTools: clear local document caches and remount bundled CV. */
+		blemmyResetToBundledDefaults?: () => void;
 	}
 }
 
@@ -77,6 +109,8 @@ const frameEmbedded = (() => {
 		return true;
 	}
 })();
+const ACTIVE_DOC_TYPE_STORAGE_KEY = 'blemmy-active-doc-type';
+const LEGACY_ACTIVE_DOC_TYPE_STORAGE_KEY = 'cv-active-doc-type';
 const appMode = (resolvedMode.mode === 'normal' && frameEmbedded)
 	? 'portfolioEmbed'
 	: resolvedMode.mode;
@@ -87,8 +121,36 @@ function copyText(text: string): Promise<boolean> {
 		.catch(() => false);
 }
 
+function persistLastActiveDocType(docType: string): void {
+	if (!isRegisteredDocumentType(docType)) {
+		return;
+	}
+	try {
+		localStorage.setItem(ACTIVE_DOC_TYPE_STORAGE_KEY, docType);
+		localStorage.removeItem(LEGACY_ACTIVE_DOC_TYPE_STORAGE_KEY);
+	} catch { /* ignore storage issues */ }
+}
+
+function loadLastActiveDocType(): string | null {
+	try {
+		const rawPrimary = localStorage.getItem(ACTIVE_DOC_TYPE_STORAGE_KEY);
+		const rawLegacy = rawPrimary
+			? null
+			: localStorage.getItem(LEGACY_ACTIVE_DOC_TYPE_STORAGE_KEY);
+		const value = rawPrimary ?? rawLegacy;
+		if (value && isRegisteredDocumentType(value)) {
+			if (!rawPrimary && rawLegacy) {
+				localStorage.setItem(ACTIVE_DOC_TYPE_STORAGE_KEY, value);
+				localStorage.removeItem(LEGACY_ACTIVE_DOC_TYPE_STORAGE_KEY);
+			}
+			return value;
+		}
+	} catch { /* ignore storage issues */ }
+	return null;
+}
+
 function isShareReadonlyMode(): boolean {
-	return document.documentElement.classList.contains('cv-share-readonly');
+	return document.documentElement.classList.contains('blemmy-share-readonly');
 }
 
 function isReadonlyLikeMode(mode: AppMode): boolean {
@@ -97,7 +159,7 @@ function isReadonlyLikeMode(mode: AppMode): boolean {
 
 function isShareReviewModeEnabled(): boolean {
 	try {
-		return new URLSearchParams(location.search).get('cv-review') === '1';
+		return new URLSearchParams(location.search).get('blemmy-review') === '1';
 	} catch {
 		return false;
 	}
@@ -123,8 +185,8 @@ function setupMainReviewWidthClamp(): void {
 	apply();
 	window.addEventListener('resize', apply);
 	window.visualViewport?.addEventListener('resize', apply);
-	window.addEventListener('cv-layout-applied', apply);
-	window.addEventListener('cv-view-mode-changed', apply);
+	window.addEventListener('blemmy-layout-applied', apply);
+	window.addEventListener('blemmy-view-mode-changed', apply);
 	const observer = new MutationObserver(() => { apply(); });
 	observer.observe(document.body, {
 		subtree: true,
@@ -138,8 +200,8 @@ function setupMainReviewWidthClamp(): void {
 }
 
 /**
- * Layout runs at paper CSS px width; fit uses --cv-paper-scale + stage zoom/transform.
- * `cv-layout-applied` can precede a committed frame (fonts, probes), so we refit
+ * Layout runs at paper CSS px width; fit uses --blemmy-paper-scale + stage zoom/transform.
+ * `blemmy-layout-applied` can precede a committed frame (fonts, probes), so we refit
  * across a couple of rAFs after any layout pass — filters, alternatives, resize, etc.
  */
 function schedulePaperStageRefit(apply: () => void): void {
@@ -159,7 +221,7 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 	const baseW = Math.round((210 / 25.4) * 96);
 	let moTimer: number | null = null;
 	const apply = (): void => {
-		const shell = document.getElementById('cv-shell');
+		const shell = activeDocShellEl();
 		if (!shell?.isConnected) {
 			return;
 		}
@@ -173,13 +235,13 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
 		/*
-		 * Match html.cv-panel-open.cv-panel-desktop + body padding-right — not
-		 * only .cv-side-panel visibility (edit panel has no [hidden] while open).
+		 * Match html.blemmy-panel-open.blemmy-panel-desktop + body padding-right — not
+		 * only .blemmy-side-panel visibility (edit panel has no [hidden] while open).
 		 */
 		const unifiedDesktopPanel =
-			html.classList.contains('cv-panel-open') &&
-			html.classList.contains('cv-panel-desktop');
-		const panelWStr = getComputedStyle(html).getPropertyValue('--cv-panel-w')
+			html.classList.contains('blemmy-panel-open') &&
+			html.classList.contains('blemmy-panel-desktop');
+		const panelWStr = getComputedStyle(html).getPropertyValue('--blemmy-panel-w')
 			.trim();
 		const panelWPx = Number.parseFloat(panelWStr) || 344;
 		const reserveRight =
@@ -190,52 +252,52 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 		 * using innerWidth minus the same panel reserve as global.css.
 		 */
 		const columnBudget = Math.max(1, Math.floor(innerW - reserveRight - horizPad));
-		const root = document.getElementById('cv-root');
+		const docRoot = activeDocRootEl();
 		const rawRoot =
-			root instanceof HTMLElement && root.clientWidth > 0
-				? root.clientWidth
+			docRoot instanceof HTMLElement && docRoot.clientWidth > 0
+				? docRoot.clientWidth
 				: 0;
 		const viewportBudget = Math.min(columnBudget, rawRoot > 0 ? rawRoot : columnBudget);
 		/*
 		 * Never let "available" width exceed the layout column: after a remount,
-		 * #cv-root can briefly report paper width (~794px) and over-scale.
+		 * #blemmy-doc-root can briefly report paper width (~794px) and over-scale.
 		 */
 		const availableW = Math.max(1, viewportBudget);
 		const hasFixedPaperStage = readonlyMode ||
-			Boolean(shell.classList.contains('cv-print-preview'));
+			Boolean(shell.classList.contains('blemmy-print-preview'));
 		/*
-		 * Desktop edit/assistant: global.css zooms #cv-shell (like review). Keep
+		 * Desktop edit/assistant: global.css zooms .blemmy-shell print preview. Keep
 		 * stage/scaler zoom at 1 so we do not compound two scales.
 		 */
 		const shellCssSidePanelZoom =
 			unifiedDesktopPanel &&
-			!html.classList.contains('cv-panel-kind-review');
+			!html.classList.contains('blemmy-panel-kind-review');
 		const scale = hasFixedPaperStage
 			? shellCssSidePanelZoom
 				? 1
 				: Math.min(availableW / baseW, 1)
 			: 1;
 		document.documentElement.style.setProperty(
-			'--cv-paper-scale',
+			'--blemmy-paper-scale',
 			String(scale),
 		);
 		document.documentElement.style.setProperty(
-			'--cv-paper-width',
+			'--blemmy-paper-width',
 			`${baseW}px`,
 		);
 
 		const shareHtml = document.documentElement.classList.contains(
-			'cv-share-readonly',
+			'blemmy-share-readonly',
 		);
 		const shellParent = shell.parentElement;
 		const scaler =
-			shellParent?.classList.contains('cv-paper-scaler')
+			shellParent?.classList.contains('blemmy-paper-scaler')
 				? shellParent
 				: null;
 		let stage: HTMLElement | null = null;
-		if (scaler?.parentElement?.classList.contains('cv-paper-stage')) {
+		if (scaler?.parentElement?.classList.contains('blemmy-paper-stage')) {
 			stage = scaler.parentElement;
-		} else if (shellParent?.classList.contains('cv-paper-stage')) {
+		} else if (shellParent?.classList.contains('blemmy-paper-stage')) {
 			stage = shellParent;
 		}
 		const zoomSupported =
@@ -320,7 +382,7 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 	apply();
 	window.addEventListener('resize', apply);
 	window.visualViewport?.addEventListener('resize', apply);
-	window.addEventListener('cv-layout-applied', () => {
+	window.addEventListener('blemmy-layout-applied', () => {
 		schedulePaperStageRefit(apply);
 	});
 	const observer = new MutationObserver(() => {
@@ -343,14 +405,24 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 	});
 }
 
+function activeDocShellEl(): HTMLElement | null {
+	const el = document.getElementById(BLEMMY_DOC_SHELL_ID);
+	return el instanceof HTMLElement ? el : null;
+}
+
+function activeDocRootEl(): HTMLElement | null {
+	const el = document.getElementById(BLEMMY_DOC_ROOT_ID);
+	return el instanceof HTMLElement ? el : null;
+}
+
 function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
-	const shell = document.getElementById('cv-shell');
+	const shell = activeDocShellEl();
 	if (!(shell instanceof HTMLElement) || !shell.parentElement) {
 		if (banner) { document.body.appendChild(banner); }
 		return;
 	}
 	const existingStage = shell.parentElement;
-	if (existingStage.classList.contains('cv-paper-stage')) {
+	if (existingStage.classList.contains('blemmy-paper-stage')) {
 		if (banner && banner.parentElement !== existingStage) {
 			existingStage.insertBefore(banner, shell);
 		}
@@ -358,20 +430,20 @@ function mountPaperStage(sharedMode: boolean, banner?: HTMLElement): void {
 	}
 	const stage = document.createElement('div');
 	stage.className = sharedMode
-		? 'cv-paper-stage cv-share-stage'
-		: 'cv-paper-stage';
+		? 'blemmy-paper-stage blemmy-share-stage'
+		: 'blemmy-paper-stage';
 	shell.parentElement.insertBefore(stage, shell);
 	if (banner) {
 		stage.append(banner, shell);
 		return;
 	}
 	const scaler = document.createElement('div');
-	scaler.className = 'cv-paper-scaler';
+	scaler.className = 'blemmy-paper-scaler';
 	scaler.appendChild(shell);
 	stage.appendChild(scaler);
 }
 
-/** Screen preview needs .cv-paper-stage so --cv-paper-scale applies after each remount. */
+/** Screen preview needs .blemmy-paper-stage so --blemmy-paper-scale applies after each remount. */
 function ensurePaperStageIfNeeded(): void {
 	const readonlyMode = isReadonlyLikeMode(appMode);
 	const portfolioEmbedMode = appMode === 'portfolioEmbed';
@@ -382,29 +454,29 @@ function ensurePaperStageIfNeeded(): void {
 
 function activateShell(shell: HTMLElement): void {
 	// Force print preview by default while web view is temporarily disabled.
-	shell.classList.add('cv-print-preview');
+	shell.classList.add('blemmy-print-preview');
 }
 
 function finishBootUi(): void {
 	const html = document.documentElement;
-	html.classList.remove('cv-booting');
-	const splash = document.getElementById('cv-boot-splash');
+	html.classList.remove('blemmy-booting');
+	const splash = document.getElementById('blemmy-boot-splash');
 	if (splash) { splash.setAttribute('hidden', ''); }
 }
 
 function mountShareError(message: string): void {
-	document.documentElement.classList.add('cv-share-readonly');
-	const priorRoot = document.getElementById('cv-root');
+	document.documentElement.classList.add('blemmy-share-readonly');
+	const priorRoot = document.getElementById(BLEMMY_DOC_ROOT_ID);
 	if (priorRoot) {
 		priorRoot.remove();
 	}
 	const panel = document.createElement('main');
-	panel.className = 'cv-share-error';
+	panel.className = 'blemmy-share-error';
 	const title = document.createElement('h1');
-	title.className = 'cv-share-error__title';
+	title.className = 'blemmy-share-error__title';
 	title.textContent = 'Share link unavailable';
 	const body = document.createElement('p');
-	body.className = 'cv-share-error__body';
+	body.className = 'blemmy-share-error__body';
 	body.textContent = message || 'This share link is not available.';
 	panel.append(title, body);
 	document.body.appendChild(panel);
@@ -433,11 +505,11 @@ function aboutBodyNodes(): Node[] {
 		'by the developer of this app. It does not describe the person whose ' +
 		'CV is being viewed in this shared link.';
 	const repo = document.createElement('p');
-	repo.className = 'cv-about-modal__repo';
+	repo.className = 'blemmy-about-modal__repo';
 	repo.append(
 		document.createTextNode('Repository: '),
 		Object.assign(document.createElement('a'), {
-			className: 'cv-about-modal__repo-link',
+			className: 'blemmy-about-modal__repo-link',
 			href: 'https://github.com/VilhelmC/blemmy',
 			target: '_blank',
 			rel: 'noopener noreferrer',
@@ -445,20 +517,20 @@ function aboutBodyNodes(): Node[] {
 		}),
 	);
 	const diagram = document.createElement('figure');
-	diagram.className = 'cv-about-arch';
+	diagram.className = 'blemmy-about-arch';
 	const caption = document.createElement('figcaption');
-	caption.className = 'cv-about-arch__caption';
+	caption.className = 'blemmy-about-arch__caption';
 	caption.textContent = 'Architecture overview';
 	const flow = document.createElement('ol');
-	flow.className = 'cv-about-arch__flow';
+	flow.className = 'blemmy-about-arch__flow';
 	function flowItem(title: string, text: string): HTMLElement {
 		const li = document.createElement('li');
-		li.className = 'cv-about-arch__item';
+		li.className = 'blemmy-about-arch__item';
 		const t = document.createElement('strong');
-		t.className = 'cv-about-arch__item-title';
+		t.className = 'blemmy-about-arch__item-title';
 		t.textContent = title;
 		const d = document.createElement('span');
-		d.className = 'cv-about-arch__item-text';
+		d.className = 'blemmy-about-arch__item-text';
 		d.textContent = text;
 		li.append(t, d);
 		return li;
@@ -477,24 +549,24 @@ function aboutBodyNodes(): Node[] {
 
 function mountAboutUi(sharedMode: boolean): void {
 	const overlay = document.createElement('div');
-	overlay.id = 'cv-about-modal';
-	overlay.className = 'cv-about-modal no-print';
+	overlay.id = 'blemmy-about-modal';
+	overlay.className = 'blemmy-about-modal no-print';
 	overlay.setAttribute('hidden', '');
 	const panel = document.createElement('section');
-	panel.className = 'cv-about-modal__panel';
+	panel.className = 'blemmy-about-modal__panel';
 	panel.setAttribute('role', 'dialog');
 	panel.setAttribute('aria-modal', 'true');
-	panel.setAttribute('aria-labelledby', 'cv-about-title');
+	panel.setAttribute('aria-labelledby', 'blemmy-about-title');
 	const title = document.createElement('h2');
-	title.id = 'cv-about-title';
-	title.className = 'cv-about-modal__title';
+	title.id = 'blemmy-about-title';
+	title.className = 'blemmy-about-modal__title';
 	title.textContent = 'About this app';
 	const closeBtn = document.createElement('button');
 	closeBtn.type = 'button';
-	closeBtn.className = 'cv-about-modal__close';
+	closeBtn.className = 'blemmy-about-modal__close';
 	closeBtn.textContent = 'Close';
 	const body = document.createElement('div');
-	body.className = 'cv-about-modal__body';
+	body.className = 'blemmy-about-modal__body';
 	body.append(...aboutBodyNodes());
 	panel.append(title, body, closeBtn);
 	overlay.append(panel);
@@ -516,10 +588,10 @@ function mountAboutUi(sharedMode: boolean): void {
 
 	if (sharedMode) {
 		const footer = document.createElement('footer');
-		footer.className = 'cv-share-footer no-print';
+		footer.className = 'blemmy-share-footer no-print';
 		const btn = document.createElement('button');
 		btn.type = 'button';
-		btn.className = 'cv-share-footer__about';
+		btn.className = 'blemmy-share-footer__about';
 		btn.textContent = 'About app';
 		btn.addEventListener('click', open);
 		footer.appendChild(btn);
@@ -529,7 +601,7 @@ function mountAboutUi(sharedMode: boolean): void {
 
 	const mainBtn = document.createElement('button');
 	mainBtn.type = 'button';
-	mainBtn.className = 'cv-about-corner-btn cv-history-btn no-print';
+	mainBtn.className = 'blemmy-about-corner-btn blemmy-history-btn no-print';
 	mainBtn.setAttribute('aria-label', 'About this project');
 	mainBtn.textContent = 'About';
 	mainBtn.addEventListener('click', open);
@@ -538,9 +610,9 @@ function mountAboutUi(sharedMode: boolean): void {
 
 function mountEmbedFooter(label: string, href: string): void {
 	const footer = document.createElement('footer');
-	footer.className = 'cv-share-footer no-print';
+	footer.className = 'blemmy-share-footer no-print';
 	const link = document.createElement('a');
-	link.className = 'cv-share-footer__about';
+	link.className = 'blemmy-share-footer__about';
 	link.href = href;
 	link.target = '_blank';
 	link.rel = 'noopener noreferrer';
@@ -550,187 +622,147 @@ function mountEmbedFooter(label: string, href: string): void {
 }
 
 let engineCleanup: (() => void) | null = null;
-const historyPast: CVData[] = [];
-const historyFuture: CVData[] = [];
-const HISTORY_LIMIT = 50;
-const SESSION_STATE_KEY = 'cv-app-session-state';
-type LeafChange = {
-	path: string;
-	beforeValue: unknown;
-	afterValue: unknown;
-	before: string;
-	after: string;
-	state: 'applied' | 'reverted';
-};
-let lastLeafChanges: LeafChange[] = [];
-
-function cloneCvData(data: CVData): CVData {
-	return JSON.parse(JSON.stringify(data)) as CVData;
-}
-
-function isLikelyCvData(raw: unknown): raw is CVData {
-	if (!raw || typeof raw !== 'object') { return false; }
-	const o = raw as Record<string, unknown>;
-	return Boolean(
-		o.meta && o.basics && o.education && o.work &&
-		o.skills && o.languages && o.personal,
-	);
-}
-
-function isLeafChange(raw: unknown): raw is LeafChange {
-	if (!raw || typeof raw !== 'object') { return false; }
-	const o = raw as Record<string, unknown>;
-	return (
-		typeof o.path === 'string' &&
-		typeof o.before === 'string' &&
-		typeof o.after === 'string' &&
-		(o.state === 'applied' || o.state === 'reverted') &&
-		'beforeValue' in o &&
-		'afterValue' in o
-	);
-}
 
 function persistSessionState(): void {
-	const cv = window.__CV_DATA__;
-	if (!cv) { return; }
+	const snapshot = getActiveDocumentSnapshot();
+	const activeDocType = snapshot.docType;
+	const activeData = snapshot.data;
+	if (!activeData) { return; }
+	const cvForAudit = isLikelyCvData(activeData) ? activeData : undefined;
+	const leafChanges = getLastLeafChanges();
 	layoutAuditLog('persist-session', {
-		cvHash: hashCvForAudit(cv),
-		changes: lastLeafChanges.length,
-		past: historyPast.length,
-		future: historyFuture.length,
+		cvHash: hashCvForAudit(cvForAudit),
+		activeDocType,
+		changes: leafChanges.length,
+		past: documentHistoryPast.length,
+		future: documentHistoryFuture.length,
 	});
 	try {
-		localStorage.setItem(SESSION_STATE_KEY, JSON.stringify({
+		const payload = {
 			savedAt: Date.now(),
-			cv,
-			lastLeafChanges,
-			historyPast,
-			historyFuture,
+			activeDocument: {
+				docType: activeDocType,
+				data: activeData,
+			},
+			lastLeafChanges: leafChanges,
+			historyPast: documentHistoryPast,
+			historyFuture: documentHistoryFuture,
+		};
+		localStorage.setItem(BLEMMY_APP_SESSION_STATE_KEY, JSON.stringify({
+			...payload,
 		}));
+		localStorage.removeItem(LEGACY_CV_APP_SESSION_STATE_KEY);
 	} catch { /* ignore storage issues */ }
 }
 
 function loadSessionState(): {
-	cv: CVData | null;
+	activeDocType: string | null;
+	document: unknown | null;
 	changes: LeafChange[];
-	past: CVData[];
-	future: CVData[];
+	past: StoredDocumentData[];
+	future: StoredDocumentData[];
 } {
+	const empty = (): ReturnType<typeof loadSessionState> => ({
+		activeDocType: null,
+		document: null,
+		changes: [],
+		past: [],
+		future: [],
+	});
 	try {
-		const raw = localStorage.getItem(SESSION_STATE_KEY);
+		let raw = localStorage.getItem(BLEMMY_APP_SESSION_STATE_KEY);
 		if (!raw) {
-			return { cv: null, changes: [], past: [], future: [] };
+			raw = localStorage.getItem(LEGACY_CV_APP_SESSION_STATE_KEY);
+			if (raw) {
+				localStorage.setItem(BLEMMY_APP_SESSION_STATE_KEY, raw);
+				localStorage.removeItem(LEGACY_CV_APP_SESSION_STATE_KEY);
+			}
+		}
+		if (!raw) {
+			return empty();
 		}
 		const parsed = JSON.parse(raw) as {
+			activeDocType?: unknown;
 			cv?: unknown;
+			letter?: unknown;
+			activeDocument?: {
+				docType?: unknown;
+				data?: unknown;
+			};
 			lastLeafChanges?: unknown;
 			historyPast?: unknown;
 			historyFuture?: unknown;
 		};
-		const cv = isLikelyCvData(parsed?.cv) ? (parsed.cv as CVData) : null;
+		const fromEnvelope =
+			typeof parsed.activeDocument?.docType === 'string' &&
+			isRegisteredDocumentType(parsed.activeDocument.docType)
+				? parsed.activeDocument.docType
+				: null;
+		const fromRoot =
+			typeof parsed.activeDocType === 'string' &&
+			isRegisteredDocumentType(parsed.activeDocType)
+				? parsed.activeDocType
+				: null;
+		let activeDocType = fromEnvelope ?? fromRoot;
+		let document: unknown | null = parsed.activeDocument?.data ?? null;
+		if (document == null && isLikelyCvData(parsed.cv)) {
+			document = parsed.cv;
+			activeDocType = activeDocType ?? FALLBACK_DOCUMENT_TYPE_ID;
+		}
+		if (document == null && isLetterData(parsed.letter)) {
+			document = parsed.letter;
+			activeDocType = activeDocType ?? 'letter';
+		}
 		const changes = Array.isArray(parsed.lastLeafChanges)
 			? parsed.lastLeafChanges.filter(isLeafChange)
 			: [];
-		const past = Array.isArray(parsed.historyPast)
-			? parsed.historyPast.filter(isLikelyCvData) as CVData[]
+		const rawPast = Array.isArray(parsed.historyPast) ? parsed.historyPast : [];
+		const rawFuture = Array.isArray(parsed.historyFuture)
+			? parsed.historyFuture
 			: [];
-		const future = Array.isArray(parsed.historyFuture)
-			? parsed.historyFuture.filter(isLikelyCvData) as CVData[]
-			: [];
+		const filterHistory = (items: unknown[]): StoredDocumentData[] => {
+			if (!activeDocType) {
+				return [];
+			}
+			return items.filter((x) => {
+				try {
+					validateDocumentByType(activeDocType, x);
+					return true;
+				} catch {
+					return false;
+				}
+			}) as StoredDocumentData[];
+		};
+		const past = filterHistory(rawPast);
+		const future = filterHistory(rawFuture);
+		const cvForAudit = isLikelyCvData(document) ? document : undefined;
 		layoutAuditLog('load-session', {
-			cvHash: hashCvForAudit(cv),
+			cvHash: hashCvForAudit(cvForAudit),
+			activeDocType,
 			changes: changes.length,
 			past: past.length,
 			future: future.length,
 		});
-		return { cv, changes, past, future };
+		return { activeDocType, document, changes, past, future };
 	} catch {
-		return { cv: null, changes: [], past: [], future: [] };
+		return empty();
 	}
 }
 
 function dispatchHistoryChanged(): void {
-	window.dispatchEvent(new CustomEvent('cv-history-changed', {
-		detail: { canUndo: historyPast.length > 0, canRedo: historyFuture.length > 0 },
+	window.dispatchEvent(new CustomEvent('blemmy-history-changed', {
+		detail: {
+			canUndo: documentHistoryPast.length > 0,
+			canRedo: documentHistoryFuture.length > 0,
+		},
 	}));
 }
 
-function toLeafText(v: unknown): string {
-	if (v == null) { return ''; }
-	if (typeof v === 'string') { return v; }
-	if (typeof v === 'number' || typeof v === 'boolean') { return String(v); }
-	return JSON.stringify(v);
-}
-
-function collectLeafChanges(
-	before: unknown,
-	after: unknown,
-	basePath = '',
-): LeafChange[] {
-	if (before === after) { return []; }
-	const beforeIsObj = before != null && typeof before === 'object';
-	const afterIsObj = after != null && typeof after === 'object';
-	if (!beforeIsObj || !afterIsObj) {
-		if (!basePath) { return []; }
-		return [{
-			path: basePath,
-			beforeValue: before,
-			afterValue: after,
-			before: toLeafText(before),
-			after: toLeafText(after),
-			state: 'applied',
-		}];
-	}
-	const beforeIsArr = Array.isArray(before);
-	const afterIsArr = Array.isArray(after);
-	if (beforeIsArr || afterIsArr) {
-		if (!(beforeIsArr && afterIsArr)) {
-			if (!basePath) { return []; }
-			return [{
-				path: basePath,
-				beforeValue: before,
-				afterValue: after,
-				before: toLeafText(before),
-				after: toLeafText(after),
-				state: 'applied',
-			}];
-		}
-		const a = before as unknown[];
-		const b = after as unknown[];
-		const maxLen = Math.max(a.length, b.length);
-		const out: LeafChange[] = [];
-		for (let i = 0; i < maxLen; i++) {
-			const p = basePath ? `${basePath}.${i}` : String(i);
-			out.push(...collectLeafChanges(a[i], b[i], p));
-		}
-		return out;
-	}
-	if (before == null || after == null) {
-		if (!basePath) { return []; }
-		return [{
-			path: basePath,
-			beforeValue: before,
-			afterValue: after,
-			before: toLeafText(before),
-			after: toLeafText(after),
-			state: 'applied',
-		}];
-	}
-	const a = before as Record<string, unknown>;
-	const b = after as Record<string, unknown>;
-	const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-	const out: LeafChange[] = [];
-	for (const k of keys) {
-		const p = basePath ? `${basePath}.${k}` : k;
-		out.push(...collectLeafChanges(a[k], b[k], p));
-	}
-	return out;
-}
-
 function dispatchLastChanges(): void {
-	window.dispatchEvent(new CustomEvent('cv-last-changes', {
+	const leafChanges = getLastLeafChanges();
+	window.dispatchEvent(new CustomEvent('blemmy-last-changes', {
 		detail: {
-			changes: lastLeafChanges.map((c) => ({
+			changes: leafChanges.map((c) => ({
 				path: c.path,
 				before: c.before,
 				after: c.after,
@@ -740,134 +772,107 @@ function dispatchLastChanges(): void {
 	}));
 }
 
-function pathTokens(path: string): string[] {
-	return path.split('.').filter(Boolean);
-}
-
-function isIndexToken(t: string): boolean {
-	return /^\d+$/.test(t);
-}
-
-function deepEqualUnknown(a: unknown, b: unknown): boolean {
-	if (a === b) { return true; }
-	try {
-		return JSON.stringify(a) === JSON.stringify(b);
-	} catch {
-		return false;
+function remountBlemmyDocument(rawData: unknown, documentType: string): void {
+	const validated = validateDocumentByType(
+		documentType,
+		rawData,
+	) as StoredDocumentData;
+	const prevType = window.__blemmyDocumentType__;
+	if (prevType !== undefined && prevType !== documentType) {
+		clearDocumentEditHistory();
 	}
-}
-
-function getAtPath(obj: Record<string, unknown>, path: string): unknown {
-	const toks = pathTokens(path);
-	if (toks.length === 0) { return undefined; }
-	let cur: unknown = obj;
-	for (const t of toks) {
-		if (cur == null || typeof cur !== 'object') { return undefined; }
-		if (Array.isArray(cur) && isIndexToken(t)) {
-			const idx = Number(t);
-			if (!Number.isInteger(idx) || idx < 0 || idx >= cur.length) { return undefined; }
-			cur = cur[idx];
-			continue;
-		}
-		const rec = cur as Record<string, unknown>;
-		if (!(t in rec)) { return undefined; }
-		cur = rec[t];
+	const existingRoot = document.getElementById(BLEMMY_DOC_ROOT_ID);
+	if (existingRoot) {
+		existingRoot.remove();
 	}
-	return cur;
-}
-
-function sanitizeLoadedChanges(cv: CVData, changes: LeafChange[]): LeafChange[] {
-	const root = cv as unknown as Record<string, unknown>;
-	return changes.filter((c) => {
-		if (deepEqualUnknown(c.beforeValue, c.afterValue)) { return false; }
-		const currentValue = getAtPath(root, c.path);
-		const expected = c.state === 'applied' ? c.afterValue : c.beforeValue;
-		return deepEqualUnknown(currentValue, expected);
-	});
-}
-
-function setAtPath(obj: Record<string, unknown>, path: string, value: unknown): boolean {
-	const toks = pathTokens(path);
-	if (toks.length === 0) { return false; }
-	let cur: unknown = obj;
-	for (let i = 0; i < toks.length - 1; i++) {
-		const t = toks[i] as string;
-		if (cur == null || typeof cur !== 'object') { return false; }
-		if (Array.isArray(cur) && isIndexToken(t)) {
-			const idx = Number(t);
-			if (!Number.isInteger(idx) || idx < 0 || idx >= cur.length) { return false; }
-			cur = cur[idx];
-		} else {
-			const rec = cur as Record<string, unknown>;
-			if (!(t in rec)) { return false; }
-			cur = rec[t];
-		}
+	const legacyShell = document.getElementById(BLEMMY_DOC_SHELL_ID);
+	if (legacyShell) {
+		legacyShell.remove();
 	}
-	const leaf = toks[toks.length - 1] as string;
-	if (cur == null || typeof cur !== 'object') { return false; }
-	if (Array.isArray(cur) && isIndexToken(leaf)) {
-		const idx = Number(leaf);
-		if (!Number.isInteger(idx) || idx < 0 || idx >= cur.length) { return false; }
-		cur[idx] = value;
+	if (engineCleanup) {
+		engineCleanup();
+		engineCleanup = null;
+	}
+
+	window.__blemmyDocumentType__ = documentType;
+	window.__blemmyDocument__ = validated;
+	persistLastActiveDocType(documentType);
+	getRuntimeHandler(documentType).persistLocal?.(validated);
+
+	if (isLikelyCvData(validated) && validated.basics.portraitDataUrl) {
+		void savePortraitLocalCache(validated.basics.portraitDataUrl);
+	}
+
+	const layoutPayload = validated as unknown as {
+		realisedLayout?: unknown;
+		layoutSnapshot?: unknown;
+	};
+	if (isLikelyCvData(validated)) {
+		layoutAuditLog('remount', {
+			cvHash: hashCvForAudit(validated),
+			documentType,
+		});
 	} else {
-		(cur as Record<string, unknown>)[leaf] = value;
-	}
-	return true;
-}
-
-function mount(cv: CVData): void {
-	layoutAuditLog('mount', { cvHash: hashCvForAudit(cv) });
-	const existingRoot = document.getElementById('cv-root');
-	if (existingRoot) { existingRoot.remove(); }
-	const legacyShell = document.getElementById('cv-shell');
-	if (legacyShell) { legacyShell.remove(); }
-	if (engineCleanup) { engineCleanup(); engineCleanup = null; }
-
-	window.__ACTIVE_DOC_TYPE__ = 'cv';
-	window.__CV_DATA__ = cv;
-	if (cv.basics.portraitDataUrl) {
-		void savePortraitLocalCache(cv.basics.portraitDataUrl);
+		layoutAuditLog('remount', { documentType });
 	}
 
-	const root = renderCV(cv);
+	window.dispatchEvent(
+		new CustomEvent(BLEMMY_ACTIVE_DOCUMENT_CHANGED, {
+			detail: { documentType },
+		}),
+	);
+
+	const root = getRuntimeHandler(documentType).render(validated);
 	document.body.insertBefore(root, document.body.firstChild);
-	const shell = document.getElementById('cv-shell');
-	if (!shell) { throw new Error('[main] #cv-shell not found after render'); }
+	const shell = document.getElementById(BLEMMY_DOC_SHELL_ID);
+	if (!shell) {
+		throw new Error(`[main] #${BLEMMY_DOC_SHELL_ID} not found after render`);
+	}
 	activateShell(shell);
 	ensurePaperStageIfNeeded();
 
-	// Wire filter bar chip clicks
-	initFilterBar(cv);
+	if (isLikelyCvData(validated)) {
+		initFilterBar(validated);
+	}
 
-	const hasSharedLayout = Boolean(cv.layoutSnapshot || cv.realisedLayout);
+	const hasSharedLayout = Boolean(
+		layoutPayload.layoutSnapshot || layoutPayload.realisedLayout,
+	);
 	let skipEngineForStaticLayout = false;
-	if (isShareReadonlyMode()) {
-		const cvSpec = getDocTypeSpec('cv');
-		if (cvSpec && cv.realisedLayout && applyRealisedLayout(cv.realisedLayout, cvSpec)) {
+	const docSpec = getDocTypeSpec(documentType);
+	if (isShareReadonlyMode() && docSpec) {
+		if (
+			layoutPayload.realisedLayout &&
+			applyRealisedLayout(
+				layoutPayload.realisedLayout as never,
+				docSpec,
+			)
+		) {
 			skipEngineForStaticLayout = true;
-		} else if (cvSpec && cv.layoutSnapshot) {
-			const migrated = migrateSnapshot(cv.layoutSnapshot, cvSpec);
-			if (applyRealisedLayout(migrated, cvSpec)) {
+		} else if (layoutPayload.layoutSnapshot) {
+			const migrated = migrateSnapshot(
+				layoutPayload.layoutSnapshot as never,
+				docSpec,
+			);
+			if (applyRealisedLayout(migrated, docSpec)) {
 				skipEngineForStaticLayout = true;
 			} else {
-				applyLayoutSnapshotToDom(cv.layoutSnapshot);
-				window.dispatchEvent(new Event('cv-layout-applied'));
+				applyLayoutSnapshotToDom(layoutPayload.layoutSnapshot as never);
+				window.dispatchEvent(new Event('blemmy-layout-applied'));
 				skipEngineForStaticLayout = true;
 			}
-		} else if (cv.layoutSnapshot) {
-			applyLayoutSnapshotToDom(cv.layoutSnapshot);
-			window.dispatchEvent(new Event('cv-layout-applied'));
-			skipEngineForStaticLayout = true;
 		}
+	} else if (isShareReadonlyMode() && layoutPayload.layoutSnapshot) {
+		applyLayoutSnapshotToDom(layoutPayload.layoutSnapshot as never);
+		window.dispatchEvent(new Event('blemmy-layout-applied'));
+		skipEngineForStaticLayout = true;
 	}
-	engineCleanup = (isShareReadonlyMode() && hasSharedLayout && skipEngineForStaticLayout)
-		? null
-		: initCvLayoutEngine(CV_DOCUMENT_SPEC) ?? null;
+	const engineSpec = docSpec ? deriveEngineSpec(docSpec) : null;
+	engineCleanup =
+		isShareReadonlyMode() && hasSharedLayout && skipEngineForStaticLayout
+			? null
+			: (engineSpec ? initCvLayoutEngine(engineSpec) : null) ?? null;
 	persistSessionState();
-	/*
-	 * Android Chrome can measure viewport/root before the paper stage is layed
-	 * out; nudge scale application after the next frame(s).
-	 */
 	queueMicrotask(() => {
 		window.dispatchEvent(new Event('resize'));
 		requestAnimationFrame(() => {
@@ -876,118 +881,108 @@ function mount(cv: CVData): void {
 	});
 }
 
-function switchToLetter(data?: LetterData): void {
-	const letterData = data ?? window.__LETTER_DATA__ ?? loadLetterData();
-	const existingRoot = document.getElementById('letter-root')
-		?? document.getElementById('cv-root');
-	if (existingRoot) { existingRoot.remove(); }
-	const legacyShell = document.getElementById('letter-shell')
-		?? document.getElementById('cv-shell');
-	if (legacyShell) { legacyShell.remove(); }
-	if (engineCleanup) { engineCleanup(); engineCleanup = null; }
-	window.__ACTIVE_DOC_TYPE__ = 'letter';
-	window.__LETTER_DATA__ = letterData;
-	const root = renderLetter(letterData);
-	document.body.insertBefore(root, document.body.firstChild);
-	const shell = document.getElementById('letter-shell');
-	if (shell instanceof HTMLElement) {
-		activateShell(shell);
-	}
-	engineCleanup = initCvLayoutEngine(LETTER_DOCUMENT_SPEC) ?? null;
-	persistSessionState();
+/** DevTools / dock: same data path as upload → remount, without full reload. */
+function resetToBundledDefaultsInApp(): void {
+	prepareBundledDefaultsResetUi();
+	resetBundledDocumentCaches();
+	clearDocumentEditHistory();
+	remountBlemmyDocument(loadCvData(), FALLBACK_DOCUMENT_TYPE_ID);
+	dispatchHistoryChanged();
+	dispatchLastChanges();
+	console.info('[blemmy] Reset to bundled defaults.');
 }
 
-function switchToCv(data?: CVData): void {
-	window.__ACTIVE_DOC_TYPE__ = 'cv';
-	window.__LETTER_DATA__ = undefined;
-	const nextCv = data ?? window.__CV_DATA__ ?? loadCvData();
-	mount(nextCv);
-}
-
-function applyData(cv: CVData, recordHistory = true): void {
-	const next = cloneCvData(cv);
-	const current = window.__CV_DATA__;
-	layoutAuditLog('apply-data:start', {
-		recordHistory,
-		beforeHash: hashCvForAudit(current),
-		afterHash: hashCvForAudit(next),
-	});
-	if (recordHistory && window.__CV_DATA__) {
-		historyPast.push(cloneCvData(window.__CV_DATA__));
-		if (historyPast.length > HISTORY_LIMIT) {
-			historyPast.shift();
-		}
-		historyFuture.length = 0;
+function applyStoredDocumentData(
+	nextData: StoredDocumentData,
+	recordHistory: boolean,
+): void {
+	const snap = getActiveDocumentSnapshot();
+	const current = snap.data ?? undefined;
+	const docType = snap.docType;
+	if (isLikelyCvData(nextData)) {
+		const curCv = isLikelyCvData(current) ? current : undefined;
+		layoutAuditLog('apply-data:start', {
+			recordHistory,
+			beforeHash: hashCvForAudit(curCv),
+			afterHash: hashCvForAudit(nextData),
+		});
 	}
-	const computed = recordHistory && current
-		? collectLeafChanges(current, next)
-		: [];
-	// Preserve pending AI change markers across no-op remount style updates
-	// (e.g. edit-mode reorder/visibility actions that remount UI scaffolding).
-	if (computed.length > 0 || lastLeafChanges.length === 0) {
-		lastLeafChanges = computed;
+	recordDocumentApplyHistory(current, nextData, recordHistory);
+	remountBlemmyDocument(nextData, docType);
+	if (isLikelyCvData(nextData)) {
+		const leafChanges = getLastLeafChanges();
+		layoutAuditLog('apply-data:done', {
+			recordHistory,
+			leafChanges: leafChanges.length,
+			canUndo: documentHistoryPast.length > 0,
+			canRedo: documentHistoryFuture.length > 0,
+		});
 	}
-	mount(next);
-	layoutAuditLog('apply-data:done', {
-		recordHistory,
-		leafChanges: lastLeafChanges.length,
-		canUndo: historyPast.length > 0,
-		canRedo: historyFuture.length > 0,
-	});
 	dispatchHistoryChanged();
 	dispatchLastChanges();
 	persistSessionState();
 }
 
+function applyData(cv: CVData, recordHistory = true): void {
+	applyStoredDocumentData(
+		cloneDocumentData(cv),
+		recordHistory,
+	);
+}
+
 function undoCvChange(): void {
-	const prev = historyPast.pop();
+	const snap = getActiveDocumentSnapshot();
+	const current = snap.data ?? undefined;
+	const prev = undoDocumentEditHistory(current);
 	if (!prev) { return; }
-	if (window.__CV_DATA__) {
-		historyFuture.push(cloneCvData(window.__CV_DATA__));
-		if (historyFuture.length > HISTORY_LIMIT) {
-			historyFuture.shift();
-		}
+	try {
+		const validated = validateDocumentByType(snap.docType, prev);
+		remountBlemmyDocument(validated, snap.docType);
+	} catch {
+		clearDocumentEditHistory();
+		return;
 	}
-	mount(cloneCvData(prev));
-	lastLeafChanges = [];
 	dispatchHistoryChanged();
 	dispatchLastChanges();
 	persistSessionState();
 }
 
 function redoCvChange(): void {
-	const next = historyFuture.pop();
-	if (!next) { return; }
-	if (window.__CV_DATA__) {
-		historyPast.push(cloneCvData(window.__CV_DATA__));
-		if (historyPast.length > HISTORY_LIMIT) {
-			historyPast.shift();
-		}
+	const snap = getActiveDocumentSnapshot();
+	const current = snap.data ?? undefined;
+	const nextState = redoDocumentEditHistory(current);
+	if (!nextState) { return; }
+	try {
+		const validated = validateDocumentByType(snap.docType, nextState);
+		remountBlemmyDocument(validated, snap.docType);
+	} catch {
+		clearDocumentEditHistory();
+		return;
 	}
-	mount(cloneCvData(next));
-	lastLeafChanges = [];
 	dispatchHistoryChanged();
 	dispatchLastChanges();
 	persistSessionState();
 }
 
 function revertFieldChange(path: string): void {
-	const current = window.__CV_DATA__;
+	const snap = getActiveDocumentSnapshot();
+	const current = snap.data;
 	if (!current) { return; }
-	const pending = [...lastLeafChanges];
+	const pending = [...getLastLeafChanges()];
 	const idx = pending.findIndex((c) => c.path === path);
 	if (idx < 0) { return; }
 	const change = pending[idx] as LeafChange;
 	if (!change) { return; }
-	const next = cloneCvData(current) as unknown as Record<string, unknown>;
+	const next = cloneDocumentData(current) as unknown as Record<string, unknown>;
 	const nextValue = change.state === 'applied'
 		? change.beforeValue
 		: change.afterValue;
-	if (!setAtPath(next, path, nextValue)) { return; }
-	applyData(next as unknown as CVData, true);
+	if (!setDocumentDataAtPath(next, path, nextValue)) { return; }
+	const validated = validateDocumentByType(snap.docType, next);
+	applyStoredDocumentData(validated, true);
 	change.state = change.state === 'applied' ? 'reverted' : 'applied';
 	pending[idx] = change;
-	lastLeafChanges = pending;
+	setLastLeafChanges(pending);
 	dispatchLastChanges();
 	persistSessionState();
 }
@@ -997,7 +992,7 @@ function revertFieldChange(path: string): void {
  * Called after every mount since the bar is re-rendered with the shell.
  */
 function initFilterBar(cv: CVData): void {
-	const bar = document.getElementById('cv-filter-bar');
+	const bar = document.getElementById('blemmy-filter-bar');
 	if (!bar) { return; }
 
 	bar.addEventListener('click', (e) => {
@@ -1007,22 +1002,22 @@ function initFilterBar(cv: CVData): void {
 		const chip = target.closest<HTMLElement>('[data-tag]');
 		if (chip) {
 			const tag          = chip.dataset.tag ?? '';
-			const current      = window.__CV_DATA__;
-			if (!current) { return; }
+			const current      = getActiveDocumentData();
+			if (!isLikelyCvData(current)) { return; }
 			const newFilters   = toggleFilter(tag, current.activeFilters ?? []);
 			const updatedData  = { ...current, activeFilters: newFilters };
-			window.__CV_DATA__ = updatedData;
+			window.__blemmyDocument__ = updatedData;
 			syncFilterBar(updatedData);
 			applyData(updatedData, false);
 			return;
 		}
 
 		// Clear button
-		if (target.closest('#cv-filter-clear')) {
-			const current = window.__CV_DATA__;
-			if (!current) { return; }
+		if (target.closest('#blemmy-filter-clear')) {
+			const current = getActiveDocumentData();
+			if (!isLikelyCvData(current)) { return; }
 			const updatedData = { ...current, activeFilters: [] };
-			window.__CV_DATA__ = updatedData;
+			window.__blemmyDocument__ = updatedData;
 			applyData(updatedData, false);
 		}
 	});
@@ -1046,29 +1041,61 @@ async function boot(): Promise<void> {
 	const publishedEmbedMode = appMode === 'publishedEmbed';
 	const portfolioEmbedMode = appMode === 'portfolioEmbed';
 	if (readonlyMode) {
-		document.documentElement.classList.add('cv-share-readonly');
+		document.documentElement.classList.add('blemmy-share-readonly');
 	} else {
-		document.documentElement.classList.remove('cv-share-readonly');
-		document.documentElement.classList.remove('cv-share-host');
+		document.documentElement.classList.remove('blemmy-share-readonly');
+		document.documentElement.classList.remove('blemmy-share-host');
 	}
-	document.documentElement.classList.toggle('cv-portfolio-embed', portfolioEmbedMode);
-	document.documentElement.classList.toggle('cv-published-embed', publishedEmbedMode);
+	document.documentElement.classList.toggle('blemmy-portfolio-embed', portfolioEmbedMode);
+	document.documentElement.classList.toggle('blemmy-published-embed', publishedEmbedMode);
 	startUiManager();
 	setupPaperStageScale(readonlyMode || portfolioEmbedMode || appMode === 'pdfEmbed');
 	if (appMode === 'normal') {
 		await initPasswordlessAuthFromUrl();
 	}
-	const loaded = appMode === 'normal'
-		? loadSessionState()
-		: { cv: null, changes: [], past: [], future: [] };
-	const usingSessionCv = loaded.cv != null;
-	if (usingSessionCv && loaded.past.length > 0) {
-		historyPast.push(...loaded.past.map((x) => cloneCvData(x)));
+	const emptySession = {
+		activeDocType: null as string | null,
+		document: null as unknown | null,
+		changes: [] as LeafChange[],
+		past: [] as StoredDocumentData[],
+		future: [] as StoredDocumentData[],
+	};
+	const loaded = appMode === 'normal' ? loadSessionState() : emptySession;
+	const preferredDocType = appMode === 'normal' ? loadLastActiveDocType() : null;
+
+	let bootDocType = FALLBACK_DOCUMENT_TYPE_ID;
+	let bootData: unknown = loadCvData();
+	let bootFromPreferredFallback = false;
+
+	if (loaded.activeDocType != null && loaded.document != null) {
+		bootDocType = loaded.activeDocType;
+		bootData = loaded.document;
+	} else if (preferredDocType != null) {
+		const h = getRuntimeHandler(preferredDocType);
+		const fb = h.loadLocalFallback?.();
+		if (fb != null) {
+			bootDocType = preferredDocType;
+			bootData = fb;
+			bootFromPreferredFallback = true;
+		}
 	}
-	if (usingSessionCv && loaded.future.length > 0) {
-		historyFuture.push(...loaded.future.map((x) => cloneCvData(x)));
+
+	if (
+		(loaded.document != null && loaded.activeDocType != null) ||
+		bootFromPreferredFallback
+	) {
+		if (loaded.past.length > 0) {
+			documentHistoryPast.push(
+				...loaded.past.map((x) => cloneDocumentData(x)),
+			);
+		}
+		if (loaded.future.length > 0) {
+			documentHistoryFuture.push(
+				...loaded.future.map((x) => cloneDocumentData(x)),
+			);
+		}
 	}
-	let initialData = usingSessionCv ? loaded.cv as CVData : loadCvData();
+
 	if (shareToken || embedToken) {
 		if (shareToken && appMode === 'shareReadonly' && !location.pathname.includes('/share/')) {
 			const targetPath = canonicalSharePath(
@@ -1089,38 +1116,62 @@ async function boot(): Promise<void> {
 			mountShareError(shared.error.message);
 			return;
 		}
-		initialData = shared.data.data;
+		bootData = shared.data.data;
+		bootDocType = inferDocTypeFromData(shared.data.data as StoredDocumentData);
 	}
-	if (usingSessionCv && loaded.changes.length > 0) {
-		lastLeafChanges = sanitizeLoadedChanges(
-			initialData,
-			loaded.changes.map((c) => ({ ...c })),
+
+	if (
+		((loaded.document != null && loaded.activeDocType != null) ||
+			bootFromPreferredFallback) &&
+		loaded.changes.length > 0
+	) {
+		const baseForChanges = validateDocumentByType(
+			bootDocType,
+			bootData,
+		) as StoredDocumentData;
+		setLastLeafChanges(
+			sanitizeLoadedDocumentChanges(
+				baseForChanges,
+				loaded.changes.map((c) => ({ ...c })),
+			),
 		);
 	}
-	if (appMode === 'pdfEmbed' && resolvedMode.pdfDocType === 'letter') {
-		switchToLetter(loadLetterData());
+
+	if (appMode === 'pdfEmbed') {
+		const pdfRaw = resolvedMode.pdfDocType;
+		const pdfType =
+			typeof pdfRaw === 'string' && isRegisteredDocumentType(pdfRaw)
+				? pdfRaw
+				: bootDocType;
+		const h = getRuntimeHandler(pdfType);
+		const pdfData = h.loadLocalFallback?.() ?? bootData;
+		remountBlemmyDocument(pdfData, pdfType);
 		const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
-		window.addEventListener('cv-layout-applied', () => {
+		window.addEventListener('blemmy-layout-applied', () => {
 			window.clearTimeout(bootTimeout);
 			finishBootUi();
 		}, { once: true });
 		return;
 	}
-	if (!initialData.basics.portraitDataUrl) {
-		const cachedPortrait = await loadPortraitLocalCache();
-		if (cachedPortrait) {
-			initialData = {
-				...initialData,
-				basics: {
-					...initialData.basics,
-					portraitDataUrl: cachedPortrait,
-				},
-			};
+
+	if (isLikelyCvData(bootData)) {
+		if (!bootData.basics.portraitDataUrl && hasUploadedData()) {
+			const cachedPortrait = await loadPortraitLocalCache();
+			if (cachedPortrait) {
+				bootData = {
+					...bootData,
+					basics: {
+						...bootData.basics,
+						portraitDataUrl: cachedPortrait,
+					},
+				};
+			}
 		}
 	}
-	mount(initialData);
+
+	remountBlemmyDocument(bootData, bootDocType);
 	const bootTimeout = window.setTimeout(() => { finishBootUi(); }, 2200);
-	window.addEventListener('cv-layout-applied', () => {
+	window.addEventListener('blemmy-layout-applied', () => {
 		window.clearTimeout(bootTimeout);
 		finishBootUi();
 	}, { once: true });
@@ -1128,13 +1179,13 @@ async function boot(): Promise<void> {
 		initLayoutAuditUi();
 	}
 	if (appMode === 'normal') {
-		window.__blemmySwitchToLetter__ = switchToLetter;
-		window.__blemmySwitchToCv__ = switchToCv;
+		window.__blemmyRemountDocument__ = remountBlemmyDocument;
 		window.cvUndo = undoCvChange;
 		window.cvRedo = redoCvChange;
-		window.cvCanUndo = () => historyPast.length > 0;
-		window.cvCanRedo = () => historyFuture.length > 0;
+		window.cvCanUndo = () => documentHistoryPast.length > 0;
+		window.cvCanRedo = () => documentHistoryFuture.length > 0;
 		window.cvRevertField = revertFieldChange;
+		window.blemmyResetToBundledDefaults = resetToBundledDefaultsInApp;
 		document.addEventListener('keydown', (e) => {
 			const target = e.target as HTMLElement | null;
 			const isTyping = Boolean(
@@ -1170,12 +1221,12 @@ async function boot(): Promise<void> {
 	}
 	if (sharedMode) {
 		const banner = document.createElement('div');
-		banner.className = 'cv-share-banner no-print';
+		banner.className = 'blemmy-share-banner no-print';
 		const label = document.createElement('span');
 		label.textContent = 'Shared CV view - read only';
 		const copyBtn = document.createElement('button');
 		copyBtn.type = 'button';
-		copyBtn.className = 'cv-share-banner__btn';
+		copyBtn.className = 'blemmy-share-banner__btn';
 		copyBtn.textContent = 'Copy link';
 		copyBtn.addEventListener('click', () => {
 			void copyText(window.location.href).then((ok) => {

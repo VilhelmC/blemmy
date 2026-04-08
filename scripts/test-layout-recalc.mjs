@@ -83,7 +83,7 @@ function startStaticServer(port) {
 
 async function readCardDiag(page) {
 	return page.evaluate(() => {
-		const c = document.getElementById('cv-card');
+		const c = document.getElementById('blemmy-card');
 		if (!c) return null;
 		const d = c.dataset;
 		return {
@@ -116,10 +116,10 @@ async function readCardDiag(page) {
 async function waitNextLayout(page, prevLayoutMs) {
 	await page.waitForFunction(
 		(previous) => {
-			const c = document.getElementById('cv-card');
+			const c = document.getElementById('blemmy-card');
 			if (!c) return false;
-			const ready = c.getAttribute('data-cv-layout-ready') === 'true';
-			const ms = Number(c.dataset.cvLayoutMs ?? 0);
+			const ready = c.getAttribute('data-blemmy-layout-ready') === 'true';
+			const ms = Number(c.dataset.blemmyLayoutMs ?? 0);
 			return ready && ms > previous;
 		},
 		{ timeout: 30000 },
@@ -132,7 +132,7 @@ async function installLayoutCounter(page) {
 		const w = window;
 		if (typeof w.__layoutAppliedCount !== 'number') {
 			w.__layoutAppliedCount = 0;
-			window.addEventListener('cv-layout-applied', () => {
+			window.addEventListener('blemmy-layout-applied', () => {
 				w.__layoutAppliedCount += 1;
 			});
 		}
@@ -153,7 +153,7 @@ async function main() {
 	await page.setViewport({ width: 1500, height: 2100, deviceScaleFactor: 1 });
 	await page.goto(baseUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 	await page.waitForFunction(
-		() => document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+		() => document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 		{ timeout: 30000 },
 	);
 	await installLayoutCounter(page);

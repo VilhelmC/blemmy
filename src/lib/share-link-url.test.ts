@@ -21,7 +21,7 @@ describe('share-link-url helpers', () => {
 
 	it('extracts token from legacy query fallback', () => {
 		expect(
-			shareTokenFromLocationParts('/', '?cv-share=legacy-token'),
+			shareTokenFromLocationParts('/', '?blemmy-share=legacy-token'),
 		).toBe('legacy-token');
 		expect(
 			shareTokenFromLocationParts('/', '?share=legacy-token'),
@@ -30,7 +30,7 @@ describe('share-link-url helpers', () => {
 
 	it('prefers pathname token over query token', () => {
 		expect(
-			shareTokenFromLocationParts('/share/path-token', '?cv-share=query-token'),
+			shareTokenFromLocationParts('/share/path-token', '?blemmy-share=query-token'),
 		).toBe('path-token');
 	});
 
@@ -46,7 +46,7 @@ describe('share-link-url helpers', () => {
 
 	it('extracts embed token from query fallback', () => {
 		expect(
-			embedTokenFromLocationParts('/', '?cv-embed-share=abc'),
+			embedTokenFromLocationParts('/', '?blemmy-embed-share=abc'),
 		).toBe('abc');
 		expect(
 			embedTokenFromLocationParts('/', '?embed=abc'),

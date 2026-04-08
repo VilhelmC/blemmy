@@ -91,7 +91,7 @@ async function installLayoutCounter(page) {
 		const w = window;
 		if (typeof w.__layoutAppliedCount !== 'number') {
 			w.__layoutAppliedCount = 0;
-			window.addEventListener('cv-layout-applied', () => {
+			window.addEventListener('blemmy-layout-applied', () => {
 				w.__layoutAppliedCount += 1;
 			});
 		}
@@ -110,27 +110,27 @@ async function waitNextLayout(page, prevCount) {
 
 async function waitLayoutReady(page) {
 	await page.waitForFunction(
-		() => document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+		() => document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 		{ timeout: 30000 },
 	);
 }
 
 async function readSnapshot(page, step) {
 	return page.evaluate((label) => {
-		const card = document.getElementById('cv-card');
+		const card = document.getElementById('blemmy-card');
 		const cv = window.__CV_DATA__ ?? null;
 		const json = cv ? JSON.stringify(cv) : '';
 		return {
 			step: label,
 			stateHash: json ? (window.__hashString ? window.__hashString(json) : json.length) : null,
 			card: {
-				pages: card?.dataset.cvPages ?? '',
-				disposition: card?.dataset.cvDisposition ?? '',
-				winnerId: card?.dataset.cvWinnerId ?? '',
-				sidebarMm: card?.dataset.cvSidebarMm ?? '',
-				split: card?.dataset.cvSplit ?? '',
-				density: card?.dataset.cvDensity ?? '',
-				layoutMs: card?.dataset.cvLayoutMs ?? '',
+				pages: card?.dataset.blemmyLayoutPages ?? '',
+				disposition: card?.dataset.blemmyLayoutDisposition ?? '',
+				winnerId: card?.dataset.blemmyLayoutWinnerId ?? '',
+				sidebarMm: card?.dataset.blemmyLayoutSidebarMm ?? '',
+				split: card?.dataset.blemmyLayoutWorkSplit ?? '',
+				density: card?.dataset.blemmyLayoutDensity ?? '',
+				layoutMs: card?.dataset.blemmyLayoutMs ?? '',
 			},
 			visibility: cv?.visibility ?? {},
 			cv,

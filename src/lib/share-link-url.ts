@@ -26,7 +26,7 @@ export function shareTokenFromLocationParts(
 		return fromPath;
 	}
 	const params = new URLSearchParams(search);
-	const token = params.get('cv-share') ?? params.get('share');
+	const token = params.get('blemmy-share') ?? params.get('share');
 	return token?.trim() || null;
 }
 
@@ -67,7 +67,7 @@ export function embedTokenFromLocationParts(
 		return fromPath;
 	}
 	const params = new URLSearchParams(search);
-	const token = params.get('cv-embed-share') ?? params.get('embed');
+	const token = params.get('blemmy-embed-share') ?? params.get('embed');
 	return token?.trim() || null;
 }
 

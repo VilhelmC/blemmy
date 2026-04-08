@@ -23,11 +23,11 @@
 This licence applies to the following layout engine source files, regardless
 of their physical location within the repository:
 
-  - src/lib/cv-layout-engine.ts
-  - src/lib/cv-candidate.ts
-  - src/lib/cv-align.ts
-  - src/lib/cv-column-slack.ts
-  - src/lib/cv-profile.ts
+  - src/lib/engine/layout-engine.ts
+  - src/lib/engine/layout-candidate.ts
+  - src/lib/engine/layout-align.ts
+  - src/lib/engine/layout-slack.ts
+  - src/lib/engine/layout-profile.ts
   - src/lib/cv-layout-snapshot.ts
   - src/lib/layout-audit.ts
 

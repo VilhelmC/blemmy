@@ -12,8 +12,9 @@
  * Indicators re-position on window resize and on each updateOverlay() call.
  */
 
-import type { CVReview, ReviewComment, ContentPath } from '@cv/cv-review';
-import { resolvePathToElement, commentsForPath, openCommentCount } from '@lib/cv-review';
+import type { CVReview, ReviewComment, ContentPath } from '@cv/review-types';
+import { resolvePathToElement, commentsForPath, openCommentCount } from '@lib/review-dom';
+import { BLEMMY_DOC_SHELL_ID } from '@lib/blemmy-dom-ids';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,11 +189,24 @@ export function initReviewOverlay(onIndicatorClick: IndicatorClickHandler): HTML
 	};
 
 	window.addEventListener('resize', reposition);
-	window.addEventListener('cv-layout-applied', reposition);
+	window.addEventListener('blemmy-layout-applied', reposition);
+
+	let observedShell: Element | null = null;
+	function observeActiveDocShell(): void {
+		if (observedShell) {
+			resizeObserver?.unobserve(observedShell);
+			observedShell = null;
+		}
+		const shell = document.getElementById(BLEMMY_DOC_SHELL_ID);
+		if (shell && resizeObserver) {
+			resizeObserver.observe(shell);
+			observedShell = shell;
+		}
+	}
 
 	resizeObserver = new ResizeObserver(reposition);
-	const shell = document.getElementById('cv-shell');
-	if (shell) { resizeObserver.observe(shell); }
+	observeActiveDocShell();
+	window.addEventListener('blemmy-layout-applied', observeActiveDocShell);
 
 	return overlayEl;
 }

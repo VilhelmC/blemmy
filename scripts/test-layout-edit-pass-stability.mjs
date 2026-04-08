@@ -76,20 +76,20 @@ function startStaticServer(port) {
 
 async function waitLayoutReady(page) {
 	await page.waitForFunction(
-		() => document.querySelector('#cv-card')?.getAttribute('data-cv-layout-ready') === 'true',
+		() => document.querySelector('#blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
 		{ timeout: 30000 },
 	);
 }
 
 async function readMeta(page) {
 	return page.evaluate(() => {
-		const c = document.getElementById('cv-card');
+		const c = document.getElementById('blemmy-card');
 		return {
-			pages: c?.dataset.cvPages ?? '',
-			winnerId: c?.dataset.cvWinnerId ?? '',
-			scoredTotal: c?.dataset.cvScoredTotal ?? '',
-			scoredSingle: c?.dataset.cvScoredSingle ?? '',
-			scoredTwo: c?.dataset.cvScoredTwo ?? '',
+			pages: c?.dataset.blemmyLayoutPages ?? '',
+			winnerId: c?.dataset.blemmyLayoutWinnerId ?? '',
+			scoredTotal: c?.dataset.blemmyLayoutScoredTotal ?? '',
+			scoredSingle: c?.dataset.blemmyLayoutScoredSingle ?? '',
+			scoredTwo: c?.dataset.blemmyLayoutScoredTwo ?? '',
 		};
 	});
 }

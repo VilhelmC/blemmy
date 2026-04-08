@@ -5,10 +5,10 @@ async function expandPeekDocksForDockClicks(
 	page: import('@playwright/test').Page,
 ): Promise<void> {
 	for (const side of ['left', 'right'] as const) {
-		const handle = page.locator(`#cv-ui-dock-${side}-handle`);
+		const handle = page.locator(`#blemmy-ui-dock-${side}-handle`);
 		if (!await handle.isVisible()) { continue; }
-		const dock = page.locator(`#cv-ui-dock-${side}`);
-		const isEx = await dock.evaluate((el) => el.classList.contains('cv-ui-dock--expanded'));
+		const dock = page.locator(`#blemmy-ui-dock-${side}`);
+		const isEx = await dock.evaluate((el) => el.classList.contains('blemmy-ui-dock--expanded'));
 		if (!isEx) { await handle.click(); }
 	}
 }
@@ -18,10 +18,10 @@ async function setPeekDockExpanded(
 	side: 'left' | 'right',
 	expanded: boolean,
 ): Promise<void> {
-	const handle = page.locator(`#cv-ui-dock-${side}-handle`);
+	const handle = page.locator(`#blemmy-ui-dock-${side}-handle`);
 	if (!await handle.isVisible()) { return; }
-	const dock = page.locator(`#cv-ui-dock-${side}`);
-	const isEx = await dock.evaluate((el) => el.classList.contains('cv-ui-dock--expanded'));
+	const dock = page.locator(`#blemmy-ui-dock-${side}`);
+	const isEx = await dock.evaluate((el) => el.classList.contains('blemmy-ui-dock--expanded'));
 	if (isEx !== expanded) { await handle.click(); }
 }
 
@@ -38,7 +38,7 @@ async function clickControl(
 		return;
 	}
 	const mobileActive = await page.evaluate(() =>
-		document.documentElement.classList.contains('cv-mobile-utility-active'),
+		document.documentElement.classList.contains('blemmy-mobile-utility-active'),
 	);
 	if (!mobileActive) {
 		await page.locator(`#${id}`).first().click();
@@ -46,13 +46,13 @@ async function clickControl(
 	}
 	if (fromMore) {
 		const moreBtn = page.locator(
-			'#cv-mobile-utility-bar button:has-text("More")',
+			'#blemmy-mobile-utility-bar button:has-text("More")',
 		).first();
 		if (await moreBtn.isVisible()) { await moreBtn.click(); }
 	}
 	await page.locator(
-		`#cv-mobile-utility-bar button:has-text("${mobileLabel}"), ` +
-		`#cv-mobile-utility-sheet button:has-text("${mobileLabel}")`,
+		`#blemmy-mobile-utility-bar button:has-text("${mobileLabel}"), ` +
+		`#blemmy-mobile-utility-sheet button:has-text("${mobileLabel}")`,
 	).first().click();
 }
 
@@ -71,28 +71,28 @@ async function ensureReviewOpen(page: import('@playwright/test').Page): Promise<
 }
 
 async function ensureChatClosed(page: import('@playwright/test').Page): Promise<void> {
-	const chatBtn = page.locator('#cv-chat-trigger');
+	const chatBtn = page.locator('#blemmy-chat-trigger');
 	if (!await chatBtn.isVisible()) {
-		await clickControl(page, 'cv-chat-trigger', 'Assistant');
+		await clickControl(page, 'blemmy-chat-trigger', 'Assistant');
 	}
-	const panel = page.locator('#cv-chat-panel');
+	const panel = page.locator('#blemmy-chat-panel');
 	if (await panel.isVisible()) {
-		await page.locator('#cv-chat-close').click();
+		await page.locator('#blemmy-chat-close').click();
 	}
 	await expect(panel).toBeHidden();
 }
 
 async function ensureEditClosed(page: import('@playwright/test').Page): Promise<void> {
-	const editBtn = page.locator('#cv-edit-btn');
+	const editBtn = page.locator('#blemmy-edit-btn');
 	if (!await editBtn.isVisible()) {
-		await clickControl(page, 'cv-edit-btn', 'Edit');
+		await clickControl(page, 'blemmy-edit-btn', 'Edit');
 	}
 	const pressed = await editBtn.getAttribute('aria-pressed');
 	if (pressed === 'true') {
-		await clickControl(page, 'cv-edit-btn', 'Edit');
+		await clickControl(page, 'blemmy-edit-btn', 'Edit');
 	}
 	await expect(editBtn).toHaveAttribute('aria-pressed', 'false');
-	await expect(page.locator('#cv-edit-panel')).toHaveCount(0);
+	await expect(page.locator('#blemmy-edit-panel')).toHaveCount(0);
 }
 
 async function readWidths(page: import('@playwright/test').Page): Promise<{
@@ -101,9 +101,9 @@ async function readWidths(page: import('@playwright/test').Page): Promise<{
 	page1: number;
 }> {
 	return page.evaluate(() => {
-		const shell = document.getElementById('cv-shell');
-		const card = document.getElementById('cv-card');
-		const page1 = document.getElementById('cv-page-1');
+		const shell = document.getElementById('blemmy-doc-shell');
+		const card = document.getElementById('blemmy-card');
+		const page1 = document.getElementById('blemmy-page-1');
 		return {
 			shell: shell?.getBoundingClientRect().width ?? 0,
 			card: card?.getBoundingClientRect().width ?? 0,
@@ -120,9 +120,9 @@ async function readDebugSnapshot(page: import('@playwright/test').Page): Promise
 	panel: { hidden: boolean; ariaExpanded: string | null };
 }> {
 	return page.evaluate(() => {
-		const shell = document.getElementById('cv-shell');
-		const card = document.getElementById('cv-card');
-		const page1 = document.getElementById('cv-page-1');
+		const shell = document.getElementById('blemmy-doc-shell');
+		const card = document.getElementById('blemmy-card');
+		const page1 = document.getElementById('blemmy-page-1');
 		const panel = document.getElementById('blemmy-review-panel');
 		const toggle = document.getElementById('blemmy-review-toggle');
 		const shellW = shell?.getBoundingClientRect().width ?? 0;
@@ -141,7 +141,7 @@ async function readDebugSnapshot(page: import('@playwright/test').Page): Promise
 			},
 			gapPx,
 			mode: {
-				printPreview: Boolean(shell?.classList.contains('cv-print-preview')),
+				printPreview: Boolean(shell?.classList.contains('blemmy-print-preview')),
 				reviewModeClass: document.documentElement.classList.contains('blemmy-review-mode'),
 				desktopSideMode: window.matchMedia('(min-width: 901px)').matches,
 			},
@@ -162,19 +162,19 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 	printFabInsideRightDock: boolean;
 }> {
 	return page.evaluate(() => {
-		const leftDock = document.getElementById('cv-ui-dock-left');
-		const rightDock = document.getElementById('cv-ui-dock-right');
-		const history = document.getElementById('cv-history-controls');
+		const leftDock = document.getElementById('blemmy-ui-dock-left');
+		const rightDock = document.getElementById('blemmy-ui-dock-right');
+		const history = document.getElementById('blemmy-history-controls');
 		const compactIds = [
-			'cv-layout-debug-toggle',
-			'cv-prefs-trigger',
-			'cv-upload-btn',
-			'cv-download-json',
-			'cv-edit-btn',
+			'blemmy-layout-debug-toggle',
+			'blemmy-prefs-trigger',
+			'blemmy-upload-btn',
+			'blemmy-export-menu-trigger',
+			'blemmy-edit-btn',
 			'blemmy-review-toggle',
 			'theme-toggle',
-			'cv-chat-trigger',
-			'cv-cloud-trigger',
+			'blemmy-chat-trigger',
+			'blemmy-cloud-trigger',
 		];
 		const compactButtons = compactIds
 			.map((id) => document.getElementById(id))
@@ -185,20 +185,20 @@ async function readDockSnapshot(page: import('@playwright/test').Page): Promise<
 				hasIconAttr: el.hasAttribute('data-icon'),
 			}));
 		const titleIds = [
-			'cv-layout-debug-toggle',
+			'blemmy-layout-debug-toggle',
 			'theme-toggle',
-			'cv-upload-btn',
-			'cv-download-json',
-			'cv-edit-btn',
-			'cv-chat-trigger',
-			'cv-cloud-trigger',
+			'blemmy-upload-btn',
+			'blemmy-export-menu-trigger',
+			'blemmy-edit-btn',
+			'blemmy-chat-trigger',
+			'blemmy-cloud-trigger',
 			'blemmy-review-toggle',
 		];
 		const titles: Record<string, string | null> = {};
 		for (const id of titleIds) {
 			titles[id] = document.getElementById(id)?.getAttribute('title') ?? null;
 		}
-		const printBtn = document.getElementById('cv-download-pdf');
+		const printBtn = document.getElementById('blemmy-download-pdf');
 		const printFabInsideRightDock = Boolean(
 			printBtn && rightDock?.contains(printBtn),
 		);
@@ -312,17 +312,17 @@ test.describe('review panel layout', () => {
 		await ensureEditClosed(page);
 		await ensureChatClosed(page);
 
-		const editBtn = page.locator('#cv-edit-btn');
-		await clickControl(page, 'cv-edit-btn', 'Edit');
+		const editBtn = page.locator('#blemmy-edit-btn');
+		await clickControl(page, 'blemmy-edit-btn', 'Edit');
 		await expect(editBtn).toHaveAttribute('aria-pressed', 'true');
-		await expect(page.locator('#cv-edit-panel')).toHaveCount(1);
-		await clickControl(page, 'cv-edit-btn', 'Edit');
+		await expect(page.locator('#blemmy-edit-panel')).toHaveCount(1);
+		await clickControl(page, 'blemmy-edit-btn', 'Edit');
 		await ensureEditClosed(page);
 
-		const chatBtn = page.locator('#cv-chat-trigger');
-		await clickControl(page, 'cv-chat-trigger', 'Assistant');
-		await expect(page.locator('#cv-chat-panel')).toBeVisible();
-		await page.locator('#cv-chat-close').click();
+		const chatBtn = page.locator('#blemmy-chat-trigger');
+		await clickControl(page, 'blemmy-chat-trigger', 'Assistant');
+		await expect(page.locator('#blemmy-chat-panel')).toBeVisible();
+		await page.locator('#blemmy-chat-close').click();
 		await ensureChatClosed(page);
 
 		await ensureReviewOpen(page);

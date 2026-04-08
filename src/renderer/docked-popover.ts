@@ -56,7 +56,7 @@ export function initDockedPopover(
 		const viewportH = vv?.height ?? window.innerHeight;
 		const cssVars = getComputedStyle(document.documentElement);
 		const utilityH = Number.parseFloat(
-			cssVars.getPropertyValue('--cv-mobile-utility-h'),
+			cssVars.getPropertyValue('--blemmy-mobile-utility-h'),
 		);
 		const reservedBottom = Number.isFinite(utilityH) ? utilityH : 0;
 		const baseMaxH = Math.max(
@@ -159,7 +159,7 @@ export function initDockedPopover(
 	window.addEventListener('resize', applyViewportFit);
 	window.visualViewport?.addEventListener('resize', applyViewportFit);
 	window.visualViewport?.addEventListener('scroll', applyViewportFit);
-	window.addEventListener('cv-ui-viewport-changed', applyViewportFit);
+	window.addEventListener('blemmy-ui-viewport-changed', applyViewportFit);
 
 	syncOpenUi();
 
@@ -178,7 +178,7 @@ export function initDockedPopover(
 			window.removeEventListener('resize', applyViewportFit);
 			window.visualViewport?.removeEventListener('resize', applyViewportFit);
 			window.visualViewport?.removeEventListener('scroll', applyViewportFit);
-			window.removeEventListener('cv-ui-viewport-changed', applyViewportFit);
+			window.removeEventListener('blemmy-ui-viewport-changed', applyViewportFit);
 		},
 	};
 }

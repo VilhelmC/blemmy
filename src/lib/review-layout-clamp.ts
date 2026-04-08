@@ -1,3 +1,5 @@
+import { BLEMMY_DOC_SHELL_ID } from '@lib/blemmy-dom-ids';
+
 type ClampReport = {
 	applied: boolean;
 	shellWidth: number;
@@ -16,8 +18,8 @@ function desktopSidePanelActive(doc: Document, isDesktop: boolean): boolean {
 		review && !review.hasAttribute('hidden'),
 	);
 	const unifiedOpen = Boolean(
-		html.classList.contains('cv-panel-open') &&
-			html.classList.contains('cv-panel-desktop'),
+		html.classList.contains('blemmy-panel-open') &&
+			html.classList.contains('blemmy-panel-desktop'),
 	);
 	return reviewOpen || unifiedOpen;
 }
@@ -30,10 +32,12 @@ function clearNodeStyles(node: HTMLElement): void {
 }
 
 export function clearReviewWidthClamp(doc: Document = document): void {
-	const card = doc.getElementById('cv-card') as HTMLElement | null;
-	const page1 = doc.getElementById('cv-page-1') as HTMLElement | null;
-	const page2 = doc.getElementById('cv-page-2') as HTMLElement | null;
-	const grids = doc.querySelectorAll<HTMLElement>('#cv-shell .cv-page .cv-grid');
+	const card = doc.getElementById('blemmy-card') as HTMLElement | null;
+	const page1 = doc.getElementById('blemmy-page-1') as HTMLElement | null;
+	const page2 = doc.getElementById('blemmy-page-2') as HTMLElement | null;
+	const grids = doc.querySelectorAll<HTMLElement>(
+		`#${BLEMMY_DOC_SHELL_ID} .blemmy-page .blemmy-grid`,
+	);
 	for (const node of [card, page1, page2]) {
 		if (node) { clearNodeStyles(node); }
 	}
@@ -45,10 +49,10 @@ export function applyReviewWidthClamp(
 	isDesktop = window.matchMedia('(min-width: 901px)').matches,
 ): ClampReport {
 	const html = doc.documentElement;
-	const shell = doc.getElementById('cv-shell') as HTMLElement | null;
-	const card = doc.getElementById('cv-card') as HTMLElement | null;
+	const shell = doc.getElementById(BLEMMY_DOC_SHELL_ID) as HTMLElement | null;
+	const card = doc.getElementById('blemmy-card') as HTMLElement | null;
 	if (
-		html.classList.contains('cv-share-readonly')
+		html.classList.contains('blemmy-share-readonly')
 		|| !isDesktop
 		|| !shell
 		|| !card
@@ -62,8 +66,11 @@ export function applyReviewWidthClamp(
 		return { applied: false, shellWidth: 0, cardWidth: 0, overflowPx: 0 };
 	}
 	const max = `${shellWidth}px`;
+	const shellSel = `#${BLEMMY_DOC_SHELL_ID}`;
 	const targets = [card, ...Array.from(
-		doc.querySelectorAll<HTMLElement>('#cv-shell .cv-page, #cv-shell .cv-page .cv-grid'),
+		doc.querySelectorAll<HTMLElement>(
+			`${shellSel} .blemmy-page, ${shellSel} .blemmy-page .blemmy-grid`,
+		),
 	)];
 	targets.forEach((node) => {
 		node.style.setProperty('width', '100%');

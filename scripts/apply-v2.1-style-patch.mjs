@@ -8,7 +8,7 @@
  * Files modified:
  *   src/styles/global.css          — font tokens + CV content override block
  *   src/styles/print.css           — var(--font-body) replaces hardcoded font
- *   src/styles/cv-print-parity.css — same
+ *   src/styles/blemmy-print-parity.css — same
  *   index.html                     — Google Font preloads for all pairs
  *   src/main.ts                    — imports style-panel.css
  *   src/renderer/ui-components.ts  — style section + rehydrateStyle in prefs
@@ -79,13 +79,13 @@ console.log('\nBlemmy v2.1 style schema patch\n');
 	}
 }
 
-// 3. cv-print-parity.css
+// 3. blemmy-print-parity.css
 {
-	let css = read('src/styles/cv-print-parity.css');
-	if (has(css, 'var(--font-body)')) { skip('src/styles/cv-print-parity.css'); } else {
+	let css = read('src/styles/blemmy-print-parity.css');
+	if (has(css, 'var(--font-body)')) { skip('src/styles/blemmy-print-parity.css'); } else {
 		const OLD = "font-family: 'DM Sans', system-ui, sans-serif !important;";
-		check(css.includes(OLD), 'cv-print-parity.css: hardcoded font-family not found');
-		write('src/styles/cv-print-parity.css', css.replace(OLD, 'font-family: var(--font-body) !important;'));
+		check(css.includes(OLD), 'blemmy-print-parity.css: hardcoded font-family not found');
+		write('src/styles/blemmy-print-parity.css', css.replace(OLD, 'font-family: var(--font-body) !important;'));
 	}
 }
 
@@ -108,8 +108,8 @@ console.log('\nBlemmy v2.1 style schema patch\n');
 {
 	let ts = read('src/main.ts');
 	if (has(ts, 'style-panel.css')) { skip('src/main.ts'); } else {
-		const ANCHOR = "import '@styles/cv-print-parity.css';";
-		check(ts.includes(ANCHOR), 'main.ts: cv-print-parity.css import not found');
+		const ANCHOR = "import '@styles/blemmy-print-parity.css';";
+		check(ts.includes(ANCHOR), 'main.ts: blemmy-print-parity.css import not found');
 		ts = ts.replace(ANCHOR, ANCHOR + "\nimport '@styles/style-panel.css';");
 		write('src/main.ts', ts);
 	}

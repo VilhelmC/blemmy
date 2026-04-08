@@ -31,7 +31,7 @@ function isEnabledByQuery(): boolean {
 function isEnabledByStorage(): boolean {
 	if (!canUseStorage()) { return false; }
 	try {
-		return localStorage.getItem('cv-debug-layout') === '1';
+		return localStorage.getItem('blemmy-debug-layout') === '1';
 	} catch {
 		return false;
 	}
@@ -91,23 +91,23 @@ function ensureDebugBadge(): void {
 	if (badgeReady || typeof document === 'undefined') { return; }
 	const btn = document.createElement('button');
 	btn.type = 'button';
-	btn.id = 'cv-layout-debug-badge';
-	btn.className = 'cv-layout-debug-badge no-print';
+	btn.id = 'blemmy-layout-debug-badge';
+	btn.className = 'blemmy-layout-debug-badge no-print';
 	btn.textContent = 'Copy layout debug';
 	btn.title = 'Copy layout audit trace to clipboard';
 	btn.addEventListener('click', async () => {
-		const card = document.getElementById('cv-card');
+		const card = document.getElementById('blemmy-card');
 		const snapshot = {
 			generatedAt: new Date().toISOString(),
 			url: typeof location !== 'undefined' ? location.href : '',
 			card: {
-				pages: card?.dataset.cvPages ?? '',
-				disposition: card?.dataset.cvDisposition ?? '',
-				winnerId: card?.dataset.cvWinnerId ?? '',
-				pagePreference: card?.dataset.cvPagePreference ?? '',
-				workItemsCount: card?.dataset.cvWorkItemsCount ?? '',
-				candidatesTotal: card?.dataset.cvCandidatesTotal ?? '',
-				scoredTotal: card?.dataset.cvScoredTotal ?? '',
+				pages: card?.dataset.blemmyLayoutPages ?? '',
+				disposition: card?.dataset.blemmyLayoutDisposition ?? '',
+				winnerId: card?.dataset.blemmyLayoutWinnerId ?? '',
+				pagePreference: card?.dataset.blemmyLayoutPagePreference ?? '',
+				workItemsCount: card?.dataset.blemmyLayoutWorkItemsCount ?? '',
+				candidatesTotal: card?.dataset.blemmyLayoutCandidatesTotal ?? '',
+				scoredTotal: card?.dataset.blemmyLayoutScoredTotal ?? '',
 			},
 			entries,
 		};

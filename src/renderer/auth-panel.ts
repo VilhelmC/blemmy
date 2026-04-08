@@ -20,7 +20,7 @@ import {
 	signUp,
 	supabaseAuthSessionStorageKey,
 	type AuthChangedDetail,
-} from '@lib/cv-cloud';
+} from '@lib/cloud-client';
 
 export { AUTH_CHANGED_EVENT, type AuthChangedDetail };
 
@@ -52,7 +52,7 @@ function svgPath(svg: SVGSVGElement, d: string, fill: string): void {
 /** GitHub mark (monochrome; follows https://github.com/logos). */
 function buildGithubOAuthIcon(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('class', 'cv-auth-oauth-icon');
+	svg.setAttribute('class', 'blemmy-auth-oauth-icon');
 	svg.setAttribute('viewBox', '0 0 24 24');
 	svg.setAttribute('aria-hidden', 'true');
 	const d =
@@ -71,7 +71,7 @@ function buildGithubOAuthIcon(): SVGSVGElement {
 /** Google "G" (brand colors; trademark Google LLC). */
 function buildGoogleOAuthIcon(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, 'svg');
-	svg.setAttribute('class', 'cv-auth-oauth-icon');
+	svg.setAttribute('class', 'blemmy-auth-oauth-icon');
 	svg.setAttribute('viewBox', '0 0 24 24');
 	svg.setAttribute('aria-hidden', 'true');
 	const parts: Array<{ d: string; fill: string }> = [
@@ -113,10 +113,10 @@ function buildOAuthProviderButton(
 ): HTMLButtonElement {
 	const btn = h('button', {
 		id,
-		class: 'cv-auth-btn cv-auth-btn--oauth',
+		class: 'blemmy-auth-btn blemmy-auth-btn--oauth',
 		type: 'button',
 	}) as HTMLButtonElement;
-	btn.append(icon, h('span', { class: 'cv-auth-oauth-label' }, label));
+	btn.append(icon, h('span', { class: 'blemmy-auth-oauth-label' }, label));
 	return btn;
 }
 
@@ -172,98 +172,83 @@ export function initAuthPanel(opts: AuthPanelOptions): void {
 	const { mount, closeDrawer } = opts;
 	if (!CLOUD_ENABLED) {
 		mount.appendChild(
-			h('p', { class: 'cv-cloud-drawer__muted' }, 'Cloud disabled (.env not configured).'),
+			h('p', { class: 'blemmy-cloud-drawer__muted' }, 'Cloud disabled (.env not configured).'),
 		);
 		return;
 	}
 	const introHint = h(
 		'p',
-		{ class: 'cv-cloud-drawer__muted cv-auth-intro' },
+		{ class: 'blemmy-cloud-drawer__muted blemmy-auth-intro' },
 		'GitHub and Google open in a small window. Magic links usually open in a new tab ' +
 			'because of your email app; this page updates automatically when sign-in finishes.',
 	);
 	const email = h('input', {
-		id: 'cv-auth-email',
-		class: 'cv-auth-input',
+		id: 'blemmy-auth-email',
+		class: 'blemmy-auth-input',
 		type: 'email',
 		autocomplete: 'email',
 		placeholder: 'Email address (required for magic link and password sign-in)',
 	});
 	const pass = h('input', {
-		id: 'cv-auth-password',
-		class: 'cv-auth-input',
+		id: 'blemmy-auth-password',
+		class: 'blemmy-auth-input',
 		type: 'password',
 		autocomplete: 'current-password',
 		placeholder: 'Password — only if you use sign in or sign up, not for magic link',
 	});
 	const fieldHint = h(
 		'p',
-		{ class: 'cv-cloud-drawer__muted cv-auth-field-hint' },
+		{ class: 'blemmy-cloud-drawer__muted blemmy-auth-field-hint' },
 		'Enter your email first. Use the password field only with Sign in or Sign up. ' +
 			'Magic link emails a sign-in link to that address.',
 	);
-	const authPolicyLabel = h('label', { class: 'cv-auth-policy' });
+	const authPolicyLabel = h('label', { class: 'blemmy-auth-policy' });
 	const authPolicyInput = h('input', {
-		id: 'cv-auth-policy-accept',
+		id: 'blemmy-auth-policy-accept',
 		type: 'checkbox',
 	}) as HTMLInputElement;
-	const authPolicyText = h(
-		'span',
-		{},
-		'I agree to the ',
-		h(
-			'a',
-			{
-				href: 'https://gdpr.eu/what-is-gdpr/',
-				target: '_blank',
-				rel: 'noopener noreferrer',
-			},
-			'privacy policy',
-		),
-		' and data processing terms.',
-	);
-	authPolicyLabel.append(authPolicyInput, authPolicyText);
+	authPolicyLabel.append(authPolicyInput, buildGdprPolicyTextSpan());
 	const msg = h('p', {
-		id: 'cv-auth-msg',
-		class: 'cv-auth-msg',
+		id: 'blemmy-auth-msg',
+		class: 'blemmy-auth-msg',
 		hidden: '',
 		'aria-live': 'polite',
 		role: 'status',
 	});
-	const submit = h('button', { id: 'cv-auth-submit', class: 'cv-auth-btn', type: 'button' }, 'Sign in');
-	const toggle = h('button', { id: 'cv-auth-toggle', class: 'cv-auth-btn', type: 'button' }, 'Switch to sign up');
-	const magic = h('button', { id: 'cv-auth-magic', class: 'cv-auth-btn', type: 'button' }, 'Send magic link');
+	const submit = h('button', { id: 'blemmy-auth-submit', class: 'blemmy-auth-btn', type: 'button' }, 'Sign in');
+	const toggle = h('button', { id: 'blemmy-auth-toggle', class: 'blemmy-auth-btn', type: 'button' }, 'Switch to sign up');
+	const magic = h('button', { id: 'blemmy-auth-magic', class: 'blemmy-auth-btn', type: 'button' }, 'Send magic link');
 	const emailPassBlock = h('div', {
-		id: 'cv-auth-email-pass',
-		class: 'cv-auth-email-pass',
+		id: 'blemmy-auth-email-pass',
+		class: 'blemmy-auth-email-pass',
 		hidden: '',
 	});
 	const expandBtn = h(
 		'button',
 		{
 			type: 'button',
-			class: 'cv-auth-btn cv-auth-expand',
+			class: 'blemmy-auth-btn blemmy-auth-expand',
 			'aria-expanded': 'false',
-			'aria-controls': 'cv-auth-email-pass',
+			'aria-controls': 'blemmy-auth-email-pass',
 		},
 		'Sign in, sign up, or magic link',
 	);
 	const github = buildOAuthProviderButton(
-		'cv-auth-github',
+		'blemmy-auth-github',
 		'Continue with GitHub',
 		buildGithubOAuthIcon(),
 	);
 	const google = buildOAuthProviderButton(
-		'cv-auth-google',
+		'blemmy-auth-google',
 		'Continue with Google',
 		buildGoogleOAuthIcon(),
 	);
-	const out = h('button', { id: 'cv-auth-signout', class: 'cv-auth-btn', type: 'button', hidden: '' }, 'Sign out');
-	const privacy = h('div', { id: 'cv-auth-privacy', class: 'cv-auth-privacy', hidden: '' });
-	const privacyTitle = h('p', { class: 'cv-auth-privacy__title' }, 'Privacy');
-	const privacyStatus = h('p', { class: 'cv-auth-privacy__status', hidden: '' });
+	const out = h('button', { id: 'blemmy-auth-signout', class: 'blemmy-auth-btn', type: 'button', hidden: '' }, 'Sign out');
+	const privacy = h('div', { id: 'blemmy-auth-privacy', class: 'blemmy-auth-privacy', hidden: '' });
+	const privacyTitle = h('p', { class: 'blemmy-auth-privacy__title' }, 'Privacy');
+	const privacyStatus = h('p', { class: 'blemmy-auth-privacy__status', hidden: '' });
 	const consentLabel = h('label', {
-		class: 'cv-auth-policy cv-auth-privacy__consent',
+		class: 'blemmy-auth-policy blemmy-auth-privacy__consent',
 	});
 	const consentInput = h('input', { type: 'checkbox' }) as HTMLInputElement;
 	const noticeLink = h('a', {
@@ -273,15 +258,18 @@ export function initAuthPanel(opts: AuthPanelOptions): void {
 	}, 'cloud processing notice (v1)');
 	consentLabel.append(
 		consentInput,
-		buildGdprPolicyTextSpan(),
-		document.createTextNode(' See also '),
-		noticeLink,
-		document.createTextNode('.'),
+		h(
+			'span',
+			{},
+			'Allow cloud storage and sync under the ',
+			noticeLink,
+			' (matches sign-in consent).',
+		),
 	);
-	const exportBtn = h('button', { class: 'cv-auth-btn', type: 'button' }, 'Export my data');
-	const exportReqBtn = h('button', { class: 'cv-auth-btn', type: 'button' }, 'Request export record');
-	const deleteBtn = h('button', { class: 'cv-auth-btn', type: 'button' }, 'Delete my cloud data');
-	const requestList = h('div', { class: 'cv-auth-privacy__requests' });
+	const exportBtn = h('button', { class: 'blemmy-auth-btn', type: 'button' }, 'Export my data');
+	const exportReqBtn = h('button', { class: 'blemmy-auth-btn', type: 'button' }, 'Request export record');
+	const deleteBtn = h('button', { class: 'blemmy-auth-btn', type: 'button' }, 'Delete my cloud data');
+	const requestList = h('div', { class: 'blemmy-auth-privacy__requests' });
 	privacy.append(
 		privacyTitle,
 		privacyStatus,
@@ -455,8 +443,8 @@ export function initAuthPanel(opts: AuthPanelOptions): void {
 	function setPrivacyStatus(text: string, isErr = false): void {
 		privacyStatus.textContent = text;
 		privacyStatus.hidden = !text;
-		privacyStatus.className = 'cv-auth-privacy__status' + (
-			isErr ? ' cv-auth-privacy__status--error' : ''
+		privacyStatus.className = 'blemmy-auth-privacy__status' + (
+			isErr ? ' blemmy-auth-privacy__status--error' : ''
 		);
 	}
 	async function refreshPrivacy(user: User | null): Promise<void> {
@@ -473,19 +461,19 @@ export function initAuthPanel(opts: AuthPanelOptions): void {
 		requestList.innerHTML = '';
 		if (!requests.ok) {
 			requestList.appendChild(
-				h('p', { class: 'cv-cloud-drawer__muted' }, requests.error.message),
+				h('p', { class: 'blemmy-cloud-drawer__muted' }, requests.error.message),
 			);
 			return;
 		}
 		if (requests.data.length === 0) {
 			requestList.appendChild(
-				h('p', { class: 'cv-cloud-drawer__muted' }, 'No privacy requests yet.'),
+				h('p', { class: 'blemmy-cloud-drawer__muted' }, 'No privacy requests yet.'),
 			);
 			return;
 		}
 		for (const req of requests.data.slice(0, 5)) {
 			requestList.appendChild(
-				h('p', { class: 'cv-cloud-drawer__muted' }, `${req.request_type}: ${req.status}`),
+				h('p', { class: 'blemmy-cloud-drawer__muted' }, `${req.request_type}: ${req.status}`),
 			);
 		}
 	}
@@ -511,7 +499,7 @@ export function initAuthPanel(opts: AuthPanelOptions): void {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = 'cv-export.json';
+		a.download = 'blemmy-export.json';
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

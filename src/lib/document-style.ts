@@ -29,7 +29,7 @@ export type { PrintSidebarStyle } from '@cv/document-style';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STYLE_KEY = 'blemmy-document-style';
-const CUSTOM_FONT_LINK_ID = 'cv-custom-font-css';
+const CUSTOM_FONT_LINK_ID = 'blemmy-custom-font-css';
 const ALLOWED_CUSTOM_CSS_VARS = new Set<string>([
 	'--text-body',
 	'--text-meta',
@@ -37,14 +37,14 @@ const ALLOWED_CUSTOM_CSS_VARS = new Set<string>([
 	'--text-name',
 	'--print-main-padding',
 	'--print-sidebar-padding',
-	'--cv-slack-gap-p1-main',
-	'--cv-slack-gap-p1-sidebar',
-	'--cv-slack-gap-p2-main',
-	'--cv-slack-gap-p2-sidebar',
-	'--cv-align-gap-p1-main',
-	'--cv-align-gap-p1-sidebar',
-	'--cv-align-gap-p2-main',
-	'--cv-align-gap-p2-sidebar',
+	'--blemmy-slack-gap-p1-main',
+	'--blemmy-slack-gap-p1-sidebar',
+	'--blemmy-slack-gap-p2-main',
+	'--blemmy-slack-gap-p2-sidebar',
+	'--blemmy-align-gap-p1-main',
+	'--blemmy-align-gap-p1-sidebar',
+	'--blemmy-align-gap-p2-main',
+	'--blemmy-align-gap-p2-sidebar',
 ]);
 
 export const STYLE_DEFAULTS: DocumentStyle = {
@@ -56,7 +56,13 @@ export const STYLE_DEFAULTS: DocumentStyle = {
 	printSidebar:    'color',
 };
 
-function assertSafeGoogleFontUrl(raw?: string): string | null {
+/** Allowlisted hosts for optional remote @font-face stylesheets. */
+const CUSTOM_FONT_CSS_HOSTS = new Set<string>([
+	'fonts.googleapis.com',
+	'fonts.bunny.net',
+]);
+
+function assertSafeRemoteFontCssUrl(raw?: string): string | null {
 	if (!raw) { return null; }
 	const value = raw.trim();
 	if (!value) { return null; }
@@ -69,8 +75,10 @@ function assertSafeGoogleFontUrl(raw?: string): string | null {
 	if (url.protocol !== 'https:') {
 		throw new Error('customFontCssUrl must use https.');
 	}
-	if (url.hostname !== 'fonts.googleapis.com') {
-		throw new Error('customFontCssUrl must point to fonts.googleapis.com.');
+	if (!CUSTOM_FONT_CSS_HOSTS.has(url.hostname)) {
+		throw new Error(
+			'customFontCssUrl must point to fonts.googleapis.com or fonts.bunny.net.',
+		);
 	}
 	return url.toString();
 }
@@ -348,6 +356,19 @@ export function saveStyle(style: DocumentStyle): void {
 
 // ─── Apply ────────────────────────────────────────────────────────────────────
 
+export type ApplyDocumentStyleOptions = {
+	/**
+	 * Element that receives CSS variables and data-print-sidebar.
+	 * Defaults to document.documentElement.
+	 */
+	tokenRoot?: HTMLElement;
+	/**
+	 * When true, merge only against STYLE_DEFAULTS (ignore localStorage).
+	 * When omitted, defaults to true if tokenRoot is not document.documentElement.
+	 */
+	isolated?: boolean;
+};
+
 /**
  * Applies a (partial) DocumentStyle to the document.
  * Merges with the current persisted style, then:
@@ -356,12 +377,19 @@ export function saveStyle(style: DocumentStyle): void {
  *   3. Sets --color-teal-mid/light/deep (accent derivation or override)
  *   4. Sets --font-body and --font-heading CSS vars
  *   5. Sets data-print-sidebar attribute for print.css selectors
- *   6. Persists the merged style to localStorage
+ *   6. Persists the merged style to localStorage (full app shell only)
  *
  * Call this on startup (loadStyle + applyDocumentStyle) and on every change.
  */
-export function applyDocumentStyle(patch: Partial<DocumentStyle>): DocumentStyle {
-	const current = loadStyle();
+export function applyDocumentStyle(
+	patch: Partial<DocumentStyle>,
+	opts?: ApplyDocumentStyleOptions,
+): DocumentStyle {
+	const tokenRoot = opts?.tokenRoot ?? document.documentElement;
+	const isolated =
+		opts?.isolated ??
+		tokenRoot !== document.documentElement;
+	const current = isolated ? { ...STYLE_DEFAULTS } : loadStyle();
 	const style: DocumentStyle = { ...current, ...patch };
 
 	// Clear presetName if the user changed a value manually (not via preset)
@@ -369,55 +397,54 @@ export function applyDocumentStyle(patch: Partial<DocumentStyle>): DocumentStyle
 		style.presetName = undefined;
 	}
 
-	const root = document.documentElement;
-	const safeFontUrl = assertSafeGoogleFontUrl(style.customFontCssUrl);
+	const safeFontUrl = assertSafeRemoteFontCssUrl(style.customFontCssUrl);
 	applyCustomFontStylesheet(safeFontUrl);
 
 	// ── Sidebar colour ────────────────────────────────────────────────────────
-	root.style.setProperty('--color-sidebar', style.sidebarColor);
+	tokenRoot.style.setProperty('--color-sidebar', style.sidebarColor);
 
 	// Sidebar text contrast — auto-switch between white and dark text
 	if (needsLightText(style.sidebarColor)) {
 		// Dark sidebar → white text (default behaviour; remove any overrides)
-		root.style.removeProperty('--color-sidebar-text');
-		root.style.removeProperty('--color-sidebar-muted');
-		root.style.removeProperty('--color-sidebar-muted-2');
-		root.style.removeProperty('--color-sidebar-muted-3');
-		root.style.removeProperty('--color-sidebar-muted-4');
-		root.style.removeProperty('--color-sidebar-muted-5');
-		root.style.removeProperty('--color-sidebar-muted-6');
-		root.style.removeProperty('--color-sidebar-muted-7');
-		root.style.removeProperty('--color-sidebar-muted-8');
-		root.style.removeProperty('--color-sidebar-border');
-		root.style.removeProperty('--color-skill-tag-bg');
-		root.style.removeProperty('--color-skill-tag-border');
+		tokenRoot.style.removeProperty('--color-sidebar-text');
+		tokenRoot.style.removeProperty('--color-sidebar-muted');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-2');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-3');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-4');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-5');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-6');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-7');
+		tokenRoot.style.removeProperty('--color-sidebar-muted-8');
+		tokenRoot.style.removeProperty('--color-sidebar-border');
+		tokenRoot.style.removeProperty('--color-skill-tag-bg');
+		tokenRoot.style.removeProperty('--color-skill-tag-border');
 	} else {
 		// Light sidebar → dark text
-		root.style.setProperty('--color-sidebar-text',    '#1A1A1A');
-		root.style.setProperty('--color-sidebar-muted',   '#1A1A1A80');
-		root.style.setProperty('--color-sidebar-muted-2', '#1A1A1A99');
-		root.style.setProperty('--color-sidebar-muted-3', '#1A1A1AB3');
-		root.style.setProperty('--color-sidebar-muted-4', '#1A1A1ACC');
-		root.style.setProperty('--color-sidebar-muted-5', '#1A1A1AE0');
-		root.style.setProperty('--color-sidebar-muted-6', '#1A1A1AEE');
-		root.style.setProperty('--color-sidebar-muted-7', '#1A1A1A73');
-		root.style.setProperty('--color-sidebar-muted-8', '#1A1A1AF2');
-		root.style.setProperty('--color-sidebar-border',  '#1A1A1A30');
-		root.style.setProperty('--color-skill-tag-bg',    'rgba(0,0,0,0.06)');
-		root.style.setProperty('--color-skill-tag-border','rgba(0,0,0,0.14)');
+		tokenRoot.style.setProperty('--color-sidebar-text',    '#1A1A1A');
+		tokenRoot.style.setProperty('--color-sidebar-muted',   '#1A1A1A80');
+		tokenRoot.style.setProperty('--color-sidebar-muted-2', '#1A1A1A99');
+		tokenRoot.style.setProperty('--color-sidebar-muted-3', '#1A1A1AB3');
+		tokenRoot.style.setProperty('--color-sidebar-muted-4', '#1A1A1ACC');
+		tokenRoot.style.setProperty('--color-sidebar-muted-5', '#1A1A1AE0');
+		tokenRoot.style.setProperty('--color-sidebar-muted-6', '#1A1A1AEE');
+		tokenRoot.style.setProperty('--color-sidebar-muted-7', '#1A1A1A73');
+		tokenRoot.style.setProperty('--color-sidebar-muted-8', '#1A1A1AF2');
+		tokenRoot.style.setProperty('--color-sidebar-border',  '#1A1A1A30');
+		tokenRoot.style.setProperty('--color-skill-tag-bg',    'rgba(0,0,0,0.06)');
+		tokenRoot.style.setProperty('--color-skill-tag-border','rgba(0,0,0,0.14)');
 	}
 
 	// ── Page background (CV paper only, not app canvas) ──────────────────────
-	root.style.setProperty('--color-paper', style.pageBackground);
+	tokenRoot.style.setProperty('--color-paper', style.pageBackground);
 	// Clear legacy override from earlier builds where pageBackground targeted
 	// --color-ink-bg (app UI surface token).
-	root.style.removeProperty('--color-ink-bg');
+	tokenRoot.style.removeProperty('--color-ink-bg');
 
 	// ── Accent colours ────────────────────────────────────────────────────────
 	const accents = style.accentOverride ?? deriveAccents(style.sidebarColor);
-	root.style.setProperty('--color-teal-mid',   accents.mid);
-	root.style.setProperty('--color-teal-light',  accents.light);
-	root.style.setProperty('--color-teal-deep',   accents.deep);
+	tokenRoot.style.setProperty('--color-teal-mid',   accents.mid);
+	tokenRoot.style.setProperty('--color-teal-light',  accents.light);
+	tokenRoot.style.setProperty('--color-teal-deep',   accents.deep);
 
 	// ── Font families ─────────────────────────────────────────────────────────
 	const bodyCSS    = BODY_FONT_CSS[style.bodyFont];
@@ -426,15 +453,17 @@ export function applyDocumentStyle(patch: Partial<DocumentStyle>): DocumentStyle
 		HEADING_FONT_CSS[style.headingFont];
 	const headingCSS = style.headingDistinct ? headingFontCss : bodyFontCss;
 
-	root.style.setProperty('--font-body',    bodyFontCss);
-	root.style.setProperty('--font-heading', headingCSS);
+	tokenRoot.style.setProperty('--font-body',    bodyFontCss);
+	tokenRoot.style.setProperty('--font-heading', headingCSS);
 
 	// ── Print sidebar mode ────────────────────────────────────────────────────
-	root.dataset.printSidebar = style.printSidebar;
-	applyCustomCssVars(root, style.customCssVars);
+	tokenRoot.dataset.printSidebar = style.printSidebar;
+	applyCustomCssVars(tokenRoot, style.customCssVars);
 
 	// ── Persist ───────────────────────────────────────────────────────────────
-	saveStyle(style);
+	if (!isolated) {
+		saveStyle(style);
+	}
 
 	return style;
 }

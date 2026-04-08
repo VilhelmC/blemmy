@@ -12,6 +12,17 @@ that breaks an existing `cv-content.json` file is a major version bump.
 
 ## [Unreleased]
 
+### Added
+
+- **Assistant “review before apply”** — Layout preferences include **Assistant → Auto-apply / Review first**. In Review first mode, assistant JSON is staged as a leaf diff; include or exclude fields, then **Apply included** as a single undo step (`#blemmy-chat-pending-apply`). See `docs/phase-3-change-review-plan.md`.
+- **`assistant-apply-preferences`** — `blemmy-assistant-apply-mode` in `localStorage` and `blemmy-assistant-apply-mode-changed` on `window`.
+- **`computeLeafDiffBetweenDocuments`** — exported from `blemmy-document-edit-history.ts` for generic JSON diffs.
+- **`assistant-pending-merge`** — merges accepted leaf paths onto a base snapshot with validation.
+
+### Changed
+
+- **Planning docs** — README roadmap checkboxes updated for shipped items; Phase 3 doc technical notes aligned with unified active document (`__blemmyDocument__`, `__blemmyRemountDocument__`).
+
 ---
 
 ## [2.0.1] — 2026-03-25
@@ -68,12 +79,12 @@ fully client-side Vite + TypeScript SPA.
 - **Data loading**: build-time JSON import → runtime JSON load with validation
 
 ### Added
-- `src/lib/engine/cv-layout-engine.ts`: 8-stage layout pipeline
-- `src/lib/engine/cv-candidate.ts`: constraint-driven candidate generation and
+- `src/lib/engine/layout-engine.ts`: 8-stage layout pipeline
+- `src/lib/engine/layout-candidate.ts`: constraint-driven candidate generation and
   scoring
-- `src/lib/engine/cv-align.ts`: cross-column landmark snapping
-- `src/lib/engine/cv-column-slack.ts`: flex gap absorption
-- `src/lib/engine/cv-profile.ts`: section width-sensitivity measurement
+- `src/lib/engine/layout-align.ts`: cross-column landmark snapping
+- `src/lib/engine/layout-slack.ts`: flex gap absorption
+- `src/lib/engine/layout-profile.ts`: section width-sensitivity measurement
 - `src/lib/cv-chat.ts`: provider-agnostic streaming LLM client (Anthropic,
   Gemini)
 - `src/lib/cv-chat-prompts.ts`: layout-aware and schema-aware system prompt

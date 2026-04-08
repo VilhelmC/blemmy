@@ -66,7 +66,7 @@ export type ZoneSizing =
  *   internal arrangements the engine evaluates.
  *
  * DOM convention: {domPrefix}-zone-{id}
- * Example: cv prefix + sidebar id → element id "cv-zone-sidebar"
+ * Example: cv prefix + sidebar id → element id "blemmy-zone-sidebar"
  */
 export interface ZoneNode {
 	/** Unique identifier within this spec. Used for DOM ID derivation. */

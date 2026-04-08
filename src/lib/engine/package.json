@@ -22,7 +22,7 @@
 		"",
 		"The engine is fully decoupled from CVData. Callers provide an",
 		"EngineDocumentSpec (document-spec.ts) that maps logical section names",
-		"to DOM element IDs. The CV application wires this via cv-document-spec.ts.",
+		"to DOM element IDs. The CV application wires this via blemmy-document-spec.ts.",
 		"",
 		"Consumed via the @lib/engine Vite alias within the monorepo.",
 		"Future: extract to a standalone npm package when a second consumer exists.",

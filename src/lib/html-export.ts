@@ -14,9 +14,60 @@
  */
 
 import printCss       from '@styles/print.css?raw';
-import surfaceCss     from '@styles/cv-print-surface.css?raw';
-import parityCss      from '@styles/cv-print-parity.css?raw';
+import surfaceCss     from '@styles/blemmy-print-surface.css?raw';
+import parityCss      from '@styles/blemmy-print-parity.css?raw';
 import letterCss      from '@styles/letter.css?raw';
+import { BLEMMY_DOC_SHELL_ID } from '@lib/blemmy-dom-ids';
+import { getActiveDocumentType } from '@lib/active-document-runtime';
+
+const PRINT_SURFACE_HTML_CLASS = 'blemmy-print-surface';
+
+/** CSS vars and selectors: strip legacy blemmy-/letter- prefixes in exports. */
+function portableizeExportCss(css: string): string {
+	let s = css.replace(/--blemmy-/g, '--blemmy-');
+	s = s.replace(/--letter-/g, '--blemmy-');
+	s = s.replace(/\bblemmy-print-parity\b/g, 'blemmy-print-parity');
+	s = s.replace(/\bblemmy-print\b/g, 'blemmy-print');
+	const tokenRe = /(^|[^a-zA-Z0-9_])(cv|letter)-/gm;
+	let prev = '';
+	while (s !== prev) {
+		prev = s;
+		s = s.replace(tokenRe, '$1blemmy-');
+	}
+	return s;
+}
+
+function portableizeExportedDom(root: Element): void {
+	const visit = (el: Element): void => {
+		if (el.id) {
+			el.id = el.id.replace(/^(cv|letter)-/, 'blemmy-');
+		}
+		if (el.hasAttribute('class')) {
+			const c = el.getAttribute('class');
+			if (c) {
+				const next = c
+					.split(/\s+/)
+					.filter(Boolean)
+					.map((t) => t.replace(/^(cv|letter)-/, 'blemmy-'))
+					.join(' ');
+				el.setAttribute('class', next);
+			}
+		}
+		const st = el.getAttribute('style');
+		if (st) {
+			el.setAttribute(
+				'style',
+				st
+					.replace(/--blemmy-/g, '--blemmy-')
+					.replace(/--letter-/g, '--blemmy-'),
+			);
+		}
+		for (const ch of Array.from(el.children)) {
+			visit(ch);
+		}
+	};
+	visit(root);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +114,7 @@ function buildExportCss(docType: string): string {
 		align-items: center;
 		font-family: system-ui, sans-serif;
 	}
-	.cv-shell, .letter-shell {
+	.blemmy-shell, .blemmy-shell {
 		box-shadow: 0 4px 32px rgba(0,0,0,0.18);
 	}
 	.no-print { display: none !important; }
@@ -74,7 +125,7 @@ function buildExportCss(docType: string): string {
 }
 `);
 
-	return parts.join('\n\n');
+	return portableizeExportCss(parts.join('\n\n'));
 }
 
 // ─── Shell capture ────────────────────────────────────────────────────────────
@@ -83,9 +134,8 @@ function buildExportCss(docType: string): string {
  * Captures the current document shell DOM, stripping all non-print elements.
  * Returns null if no shell is found.
  */
-function captureShell(docType: string): string | null {
-	const shellId = docType === 'letter' ? 'letter-shell' : 'cv-shell';
-	const shell   = document.getElementById(shellId);
+function captureShell(): string | null {
+	const shell = document.getElementById(BLEMMY_DOC_SHELL_ID);
 	if (!shell) { return null; }
 
 	// Deep clone so we don't mutate the live DOM
@@ -96,10 +146,8 @@ function captureShell(docType: string): string | null {
 
 	// Strip edit-mode attributes
 	clone.removeAttribute('data-blemmy-editing');
-	clone.removeAttribute('data-cv-editing');
-	clone.querySelectorAll('[data-blemmy-editing],[data-cv-editing]').forEach((el) => {
+	clone.querySelectorAll('[data-blemmy-editing]').forEach((el) => {
 		el.removeAttribute('data-blemmy-editing');
-		el.removeAttribute('data-cv-editing');
 	});
 
 	// Strip contenteditable
@@ -108,9 +156,11 @@ function captureShell(docType: string): string | null {
 		el.removeAttribute('spellcheck');
 	});
 
-	// Strip blemmy-edit-mode / cv-edit-mode from documentElement class
+	// Strip blemmy-edit-mode / blemmy-edit-mode from documentElement class
 	// (has no effect in the export but keeps the HTML clean)
-	clone.classList.remove('blemmy-edit-mode', 'cv-edit-mode');
+	clone.classList.remove('blemmy-edit-mode', 'blemmy-edit-mode');
+
+	portableizeExportedDom(clone);
 
 	return clone.outerHTML;
 }
@@ -119,7 +169,7 @@ function captureShell(docType: string): string | null {
 
 function buildHtml(shellHtml: string, css: string, title: string, lang: string): string {
 	return `<!DOCTYPE html>
-<html lang="${lang}">
+<html lang="${lang}" class="${PRINT_SURFACE_HTML_CLASS}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -150,18 +200,24 @@ function escapeHtml(str: string): string {
  *
  * Returns false if no shell element was found.
  */
+function exportFilenameSlug(docType: string): string {
+	if (docType === 'cv') { return 'profile'; }
+	if (docType === 'letter') { return 'letter'; }
+	const safe = docType.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
+	return safe.replace(/^-+|-+$/g, '') || 'document';
+}
+
 export function exportStandaloneHtml(opts: HtmlExportOptions = {}): boolean {
-	const winType = (window as Window & { __ACTIVE_DOC_TYPE__?: string }).__ACTIVE_DOC_TYPE__;
-	const docType = opts.docType ?? winType ?? 'cv';
+	const docType = opts.docType ?? getActiveDocumentType();
 	const title   = opts.title ?? (document.title || 'Blemmy document');
 	const lang    = opts.lang  ?? (document.documentElement.lang || 'en');
 
-	const shellHtml = captureShell(docType);
+	const shellHtml = captureShell();
 	if (!shellHtml) { return false; }
 
 	const css      = buildExportCss(docType);
 	const html     = buildHtml(shellHtml, css, title, lang);
-	const filename = `${docType}-${Date.now()}.html`;
+	const filename = `blemmy-${exportFilenameSlug(docType)}-${Date.now()}.html`;
 
 	const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
 	const url  = URL.createObjectURL(blob);

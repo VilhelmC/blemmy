@@ -1,0 +1,32 @@
+{
+  "blemmyLayoutAttrNames": [
+    "data-blemmy-layout-candidates-reject-top",
+    "data-blemmy-layout-candidates-rejected",
+    "data-blemmy-layout-candidates-single",
+    "data-blemmy-layout-candidates-total",
+    "data-blemmy-layout-candidates-tried",
+    "data-blemmy-layout-candidates-two",
+    "data-blemmy-layout-disposition",
+    "data-blemmy-layout-fill",
+    "data-blemmy-layout-header-variant",
+    "data-blemmy-layout-ms",
+    "data-blemmy-layout-page-preference",
+    "data-blemmy-layout-pages",
+    "data-blemmy-layout-ready",
+    "data-blemmy-layout-scored-single",
+    "data-blemmy-layout-scored-total",
+    "data-blemmy-layout-scored-two",
+    "data-blemmy-layout-sections",
+    "data-blemmy-layout-sidebar-mm",
+    "data-blemmy-layout-slack-fill",
+    "data-blemmy-layout-winner-id",
+    "data-blemmy-layout-work-items-count",
+    "data-blemmy-layout-work-items-source",
+    "data-blemmy-layout-work-split"
+  ],
+  "pages": "2",
+  "disposition": "two-page",
+  "headerVariant": "full",
+  "sectionsJson": "{\"skills\":\"sidebar\",\"languages\":\"sidebar\",\"interests\":\"sidebar\"}",
+  "workSplit": "1"
+}

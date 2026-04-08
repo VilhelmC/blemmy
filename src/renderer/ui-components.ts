@@ -1,14 +1,16 @@
 /**
  * ui-components.ts
  *
- * Builds and mounts all fixed-position UI chrome that lives outside #cv-shell:
- *   - Layout status badge           (#cv-layout-status)
- *   - Debug toggle button           (#cv-layout-debug-toggle)
- *   - View mode toggle              (#cv-view-mode-toggle)
- *   - Preferences panel + trigger   (#cv-prefs-panel, #cv-prefs-trigger)
- *   - Cloud drawer + trigger        (#cv-cloud-drawer, #cv-cloud-trigger)
- *   - Candidate selector logic      (HTML is in cv-renderer.ts; script wired here)
- *   - Print / PDF button + modal    (#cv-download-pdf, #cv-pdf-modal)
+ * Builds and mounts fixed UI chrome outside #blemmy-doc-shell:
+ *   - Layout status badge           (#blemmy-layout-status)
+ *   - Debug toggle button           (#blemmy-layout-debug-toggle)
+ *   - Dev console help (dev only)   (#blemmy-dev-console-help-trigger, …)
+ *   - View mode toggle              (#blemmy-view-mode-toggle)
+ *   - Preferences panel + trigger   (#blemmy-prefs-panel, #blemmy-prefs-trigger)
+ *   - Export menu (JSON + HTML)     (#blemmy-export-menu-trigger, …)
+ *   - Cloud drawer + trigger        (#blemmy-cloud-drawer, #blemmy-cloud-trigger)
+ *   - Candidate selector logic      (HTML is in blemmy-renderer.ts; script wired here)
+ *   - Print / PDF button + modal    (#blemmy-download-pdf, #blemmy-pdf-modal)
  *   - Dark mode toggle              (#theme-toggle)
  *
  * Call initUIComponents() once after renderCV() has run.
@@ -27,35 +29,47 @@ import {
 	type PagePreference,
 	type AlternativesReadyDetail,
 	type AlternativeOption,
-} from '@lib/cv-prefs';
+} from '@lib/layout-preferences';
 import { rehydrateStyle, type DocumentStyle } from '@lib/document-style';
 
-import { uploadCvData, hasUploadedData } from '@lib/cv-loader';
+import { uploadCvData, hasUploadedData } from '@lib/profile-data-loader';
 
-import {
-	activateEditMode,
-	activateGenericEdit,
-	loadDraft,
-	clearDraft,
-	type EditModeInstance,
-} from '@renderer/cv-editor';
+import { activateGenericEdit } from '@renderer/profile-editor';
 import {
 	loadDraft as loadGenericDraft,
 	clearDraftByKey,
 	type EditModeInstance as GenericEditModeInstance,
 } from '@renderer/generic-editor';
 import { getDocTypeSpec } from '@lib/document-type';
+import { getRuntimeHandler } from '@lib/document-runtime-registry';
+import {
+	getActiveDocumentData,
+	getActiveDocumentType,
+} from '@lib/active-document-runtime';
+import { commitDocumentEditFromUi } from '@lib/blemmy-document-apply';
+import { isLikelyCvData } from '@lib/profile-data-loader';
+import {
+	BLEMMY_DOC_ROOT_ID,
+	BLEMMY_DOC_SHELL_ID,
+} from '@lib/blemmy-dom-ids';
 import { buildStyleSection } from '@renderer/style-panel';
 import { initReviewPanel } from '@renderer/review-panel';
 import { REVIEW_PANEL_OPEN_EVENT } from '@renderer/review-panel';
 import { initReviewOverlay, updateOverlay } from '@renderer/review-overlay';
-import type { CVReview, ContentPath } from '@cv/cv-review';
-import { applyCommentOps } from '@lib/cv-review';
+import type { CVReview, ContentPath } from '@cv/review-types';
+import { applyCommentOps } from '@lib/review-dom';
 
-import { stripPortraitForJsonExport } from '@lib/cv-json-export';
+import { stripPortraitForJsonExport } from '@lib/profile-json-export';
 import { exportStandaloneHtml } from '@lib/html-export';
-import { CLOUD_ENABLED } from '@lib/cv-cloud';
-import { initBeforeUnloadGuard } from '@lib/cv-sync';
+import { CLOUD_ENABLED, type StoredDocumentData } from '@lib/cloud-client';
+import {
+	ASSISTANT_APPLY_MODE_CHANGED_EVENT,
+	loadAssistantApplyMode,
+	saveAssistantApplyMode,
+	type AssistantApplyMode,
+	type AssistantApplyModeChangedDetail,
+} from '@lib/assistant-apply-preferences';
+import { initBeforeUnloadGuard } from '@lib/document-sync';
 import { initChatPanel } from '@renderer/chat-panel';
 import { CHAT_OPEN_EVENT } from '@renderer/chat-panel';
 import { DOCK_CONTROLS, buildDockButton } from '@renderer/dock-controls';
@@ -76,16 +90,22 @@ import {
 	type AuthChangedDetail,
 } from '@renderer/auth-panel';
 import { initDocumentPanel } from '@renderer/document-panel';
+import { BLEMMY_RESET_BUNDLED_UI_EVENT } from '@lib/blemmy-local-reset';
+import {
+	BLEMMY_DEV_CONSOLE_ENTRIES,
+	copyBlemmyDevConsoleExpr,
+	formatBlemmyDevConsoleHelpText,
+	printBlemmyDevConsoleHelp,
+	runBlemmyDevConsoleExpr,
+} from '@lib/dev-console-help';
 
 import type { CVData } from '@cv/cv';
-import type { LetterData } from '@cv/letter';
-
 import {
 	columnSlackBelowDirectDivBlocksPx,
-} from '@lib/engine/cv-column-slack';
+} from '@lib/engine/layout-slack';
 import {
 	analysePageAlignment,
-} from '@lib/engine/cv-align';
+} from '@lib/engine/layout-align';
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
@@ -125,8 +145,8 @@ let latestChanges: Array<{
 
 function buildLayoutStatus(): HTMLElement {
 	return h('div', {
-		id:         'cv-layout-status',
-		class:      'cv-layout-status no-print',
+		id:         'blemmy-layout-status',
+		class:      'blemmy-layout-status no-print',
 		'aria-live': 'polite',
 	});
 }
@@ -136,19 +156,213 @@ function buildLayoutStatus(): HTMLElement {
 function buildDebugToggle(): HTMLElement {
 	return buildDockButton(h, DOCK_CONTROLS.debugLayout, {
 		id: DOCK_CONTROLS.debugLayout.id,
-		className: 'cv-layout-debug-toggle cv-history-btn',
+		className: 'blemmy-layout-debug-toggle blemmy-history-btn',
 		pressed: 'false',
 	});
 }
 
+function buildDevConsoleHelpPanel(): {
+	panel: HTMLElement;
+	trigger: HTMLButtonElement;
+} {
+	const intro = h(
+		'p',
+		{ class: 'blemmy-dev-console-help__intro blemmy-prefs-heading' },
+		'Browser console',
+	);
+	const note = h(
+		'p',
+		{ class: 'blemmy-dev-console-help__note' },
+		'Normal app mode only. Open DevTools → Console, then paste or type.',
+	);
+	const list = h('ul', { class: 'blemmy-dev-console-help__list' });
+	BLEMMY_DEV_CONSOLE_ENTRIES.forEach((e) => {
+		const codeBtn = h(
+			'button',
+			{
+				type: 'button',
+				class: 'blemmy-dev-console-help__code-btn',
+				title: 'Copy to clipboard',
+				'aria-label': `Copy ${e.expr}`,
+			},
+			e.expr,
+		) as HTMLButtonElement;
+		const runBtn = h(
+			'button',
+			{
+				type: 'button',
+				class: 'blemmy-dev-console-help__run',
+				title: e.kind === 'call' ? 'Run in page' : 'Inspect (log to console)',
+				'aria-label':
+					e.kind === 'call'
+						? `Run ${e.expr}`
+						: `Log ${e.expr} to console`,
+			},
+			'▶',
+		) as HTMLButtonElement;
+		const row = h(
+			'div',
+			{ class: 'blemmy-dev-console-help__row' },
+			codeBtn,
+			runBtn,
+		);
+		const hint = h('span', { class: 'blemmy-dev-console-help__hint' }, e.hint);
+		codeBtn.addEventListener('click', () => {
+			void (async (): Promise<void> => {
+				const ok = await copyBlemmyDevConsoleExpr(e.expr);
+				if (!ok) {
+					window.alert('Clipboard unavailable.');
+					return;
+				}
+				const prevTitle = codeBtn.title;
+				codeBtn.title = 'Copied';
+				window.setTimeout(() => { codeBtn.title = prevTitle; }, 1200);
+			})();
+		});
+		runBtn.addEventListener('click', (ev) => {
+			ev.stopPropagation();
+			runBlemmyDevConsoleExpr(e.expr, e.kind);
+		});
+		list.appendChild(
+			h('li', { class: 'blemmy-dev-console-help__item' }, row, hint),
+		);
+	});
+	const logBtn = h(
+		'button',
+		{
+			type: 'button',
+			class: 'blemmy-dev-console-help__btn blemmy-dev-console-help__btn--ghost',
+		},
+		'Log to console',
+	) as HTMLButtonElement;
+	const copyBtn = h(
+		'button',
+		{ type: 'button', class: 'blemmy-dev-console-help__btn' },
+		'Copy all',
+	) as HTMLButtonElement;
+	const actions = h(
+		'div',
+		{ class: 'blemmy-dev-console-help__actions' },
+		copyBtn,
+		logBtn,
+	);
+	logBtn.addEventListener('click', () => { printBlemmyDevConsoleHelp(); });
+	copyBtn.addEventListener('click', () => {
+		void navigator.clipboard.writeText(formatBlemmyDevConsoleHelpText()).catch(
+			() => { window.alert('Clipboard unavailable.'); },
+		);
+	});
+	const inner = h(
+		'div',
+		{ class: 'blemmy-prefs-inner blemmy-dev-console-help__inner' },
+		intro,
+		note,
+		list,
+		actions,
+	);
+	const panel = h(
+		'div',
+		{
+			id: 'blemmy-dev-console-help-panel',
+			class:
+				'blemmy-dev-console-help blemmy-prefs-panel blemmy-docked-popover no-print',
+			'aria-label': 'Developer console commands',
+			hidden: '',
+		},
+		inner,
+	);
+	const trigger = buildDockButton(h, DOCK_CONTROLS.devConsoleHelp, {
+		id: DOCK_CONTROLS.devConsoleHelp.id,
+		className: 'blemmy-dev-console-help-trigger blemmy-history-btn',
+		extraAttrs: {
+			'aria-expanded': 'false',
+			'aria-controls': 'blemmy-dev-console-help-panel',
+		},
+	});
+	return { panel, trigger };
+}
+
+function initDevConsoleHelpPopover(): void {
+	const panel = document.getElementById('blemmy-dev-console-help-panel');
+	const trigger = document.getElementById('blemmy-dev-console-help-trigger');
+	if (!panel || !trigger) { return; }
+	initDockedPopover({
+		panel,
+		trigger,
+		openClass: 'blemmy-dev-console-help-trigger--open',
+		group: 'right-docked-panels',
+		marginPx: 12,
+	});
+}
+
+/** Debug overlays stay under dock chrome (z-index 220). */
+const LAYOUT_DEBUG_OVERLAY_Z = 80;
+
+function buildExportMenu(hCreate: typeof h): {
+	root: HTMLElement;
+	downloadJsonBtn: HTMLButtonElement;
+	exportHtmlBtn: HTMLButtonElement;
+} {
+	const root = hCreate('div', { class: 'blemmy-export-menu-wrap' });
+	const trigger = buildDockButton(hCreate, DOCK_CONTROLS.exportMenu, {
+		id: DOCK_CONTROLS.exportMenu.id,
+		className: 'blemmy-export-menu-trigger blemmy-history-btn',
+		extraAttrs: {
+			'aria-haspopup': 'true',
+			'aria-expanded': 'false',
+			'aria-controls': 'blemmy-export-menu-dropdown',
+		},
+	});
+	const panel = hCreate('div', {
+		id: 'blemmy-export-menu-dropdown',
+		class: 'blemmy-export-menu-dropdown no-print',
+		role: 'menu',
+		hidden: '',
+	});
+	const downloadJsonBtn = buildDockButton(hCreate, DOCK_CONTROLS.downloadJson, {
+		id: DOCK_CONTROLS.downloadJson.id,
+		className: 'blemmy-export-menu__item blemmy-history-btn',
+	});
+	const exportHtmlBtn = buildDockButton(hCreate, DOCK_CONTROLS.exportHtml, {
+		id: DOCK_CONTROLS.exportHtml.id,
+		className: 'blemmy-export-menu__item blemmy-history-btn',
+	});
+	downloadJsonBtn.setAttribute('role', 'menuitem');
+	exportHtmlBtn.setAttribute('role', 'menuitem');
+	panel.append(downloadJsonBtn, exportHtmlBtn);
+	root.append(trigger, panel);
+	function close(): void {
+		panel.hidden = true;
+		trigger.setAttribute('aria-expanded', 'false');
+	}
+	function open(): void {
+		panel.hidden = false;
+		trigger.setAttribute('aria-expanded', 'true');
+	}
+	trigger.addEventListener('click', (ev) => {
+		ev.stopPropagation();
+		if (panel.hidden) { open(); }
+		else { close(); }
+	});
+	downloadJsonBtn.addEventListener('click', () => { close(); });
+	exportHtmlBtn.addEventListener('click', () => { close(); });
+	document.addEventListener('click', (ev) => {
+		if (!root.contains(ev.target as Node)) { close(); }
+	});
+	document.addEventListener('keydown', (ev) => {
+		if (ev.key === 'Escape') { close(); }
+	});
+	return { root, downloadJsonBtn, exportHtmlBtn };
+}
+
 function initDebugToggle(): void {
 	const html      = document.documentElement;
-	const toggleEl  = document.getElementById('cv-layout-debug-toggle');
+	const toggleEl  = document.getElementById('blemmy-layout-debug-toggle');
 	const MM_TO_PX  = 96 / 25.4;
 	let rafPending  = false;
 
 	function setDebugState(on: boolean): void {
-		html.classList.toggle('cv-debug-mode', on);
+		html.classList.toggle('blemmy-debug-mode', on);
 		if (toggleEl) {
 			toggleEl.setAttribute('aria-pressed', String(on));
 			toggleEl.textContent = on ? 'Debug On' : 'Debug';
@@ -162,7 +376,7 @@ function initDebugToggle(): void {
 	}
 
 	function clearHighlights(): void {
-		document.querySelectorAll('.cv-debug-ws-highlight').forEach((n) => n.remove());
+		document.querySelectorAll('.blemmy-debug-ws-highlight').forEach((n) => n.remove());
 	}
 
 	function runDiagnostics(): void {
@@ -170,14 +384,14 @@ function initDebugToggle(): void {
 		function mm(px: number): string {
 			return `${(px / MM_TO_PX).toFixed(1)}mm`;
 		}
-		const cols = document.querySelectorAll<HTMLElement>('.cv-sidebar, .cv-main');
+		const cols = document.querySelectorAll<HTMLElement>('.blemmy-sidebar, .blemmy-main');
 		cols.forEach((col) => {
 			const slack = columnSlackBelowDirectDivBlocksPx(col);
 			if (slack > 5 * MM_TO_PX) {
 				const r     = col.getBoundingClientRect();
 				const ov    = document.createElement('div');
-				ov.className = 'cv-debug-ws-highlight ' +
-					(col.classList.contains('cv-sidebar') ? 'cv-debug-ws-col-slack--sidebar' : 'cv-debug-ws-col-slack--main');
+				ov.className = 'blemmy-debug-ws-highlight ' +
+					(col.classList.contains('blemmy-sidebar') ? 'blemmy-debug-ws-col-slack--sidebar' : 'blemmy-debug-ws-col-slack--main');
 				ov.style.cssText = [
 					`position:fixed`,
 					`left:${r.left}px`,
@@ -185,28 +399,28 @@ function initDebugToggle(): void {
 					`width:${r.width}px`,
 					`height:${slack}px`,
 					`pointer-events:none`,
-					`z-index:9999`,
+					`z-index:${LAYOUT_DEBUG_OVERLAY_Z}`,
 				].join(';');
 				document.body.appendChild(ov);
 
 				const dim = document.createElement('div');
-				dim.className = 'cv-debug-ws-highlight cv-debug-ws-dim';
+				dim.className = 'blemmy-debug-ws-highlight blemmy-debug-ws-dim';
 				dim.style.cssText = [
 					'position:fixed',
 					`left:${Math.round(r.left + r.width - 18)}px`,
 					`top:${Math.round(r.bottom - slack + 2)}px`,
 					`height:${Math.max(4, Math.round(slack - 4))}px`,
 					'pointer-events:none',
-					'z-index:10000',
+					`z-index:${LAYOUT_DEBUG_OVERLAY_Z + 1}`,
 				].join(';');
 				const line = document.createElement('div');
-				line.className = 'cv-debug-ws-dim__line';
+				line.className = 'blemmy-debug-ws-dim__line';
 				const topArrow = document.createElement('div');
-				topArrow.className = 'cv-debug-ws-dim__arrow cv-debug-ws-dim__arrow--top';
+				topArrow.className = 'blemmy-debug-ws-dim__arrow blemmy-debug-ws-dim__arrow--top';
 				const bottomArrow = document.createElement('div');
-				bottomArrow.className = 'cv-debug-ws-dim__arrow cv-debug-ws-dim__arrow--bottom';
+				bottomArrow.className = 'blemmy-debug-ws-dim__arrow blemmy-debug-ws-dim__arrow--bottom';
 				const label = document.createElement('div');
-				label.className = 'cv-debug-ws-dim__label';
+				label.className = 'blemmy-debug-ws-dim__label';
 				label.textContent = mm(slack);
 				dim.append(topArrow, line, bottomArrow, label);
 				document.body.appendChild(dim);
@@ -215,27 +429,26 @@ function initDebugToggle(): void {
 
 		const pages = [
 			{
-				page: document.getElementById('cv-page-1') as HTMLElement | null,
-				sidebar: document.getElementById('cv-sidebar-1') as HTMLElement | null,
-				main: document.getElementById('cv-main-1') as HTMLElement | null,
+				page: document.getElementById('blemmy-page-1') as HTMLElement | null,
+				sidebar: document.getElementById('blemmy-sidebar-1') as HTMLElement | null,
+				main: document.getElementById('blemmy-main-1') as HTMLElement | null,
 			},
 			{
-				page: document.getElementById('cv-page-2') as HTMLElement | null,
-				sidebar: document.getElementById('cv-sidebar-2') as HTMLElement | null,
-				main: document.getElementById('cv-main-2') as HTMLElement | null,
+				page: document.getElementById('blemmy-page-2') as HTMLElement | null,
+				sidebar: document.getElementById('blemmy-sidebar-2') as HTMLElement | null,
+				main: document.getElementById('blemmy-main-2') as HTMLElement | null,
 			},
 		];
 		pages.forEach(({ page, sidebar, main }) => {
 			if (!page || !sidebar || !main) { return; }
 			if (getComputedStyle(page).display === 'none') { return; }
 			const report = analysePageAlignment(page, sidebar, main);
-			const pageRect = page.getBoundingClientRect();
 			report.pairs.forEach((pair) => {
-				const y = Math.round(pageRect.top + (pair.sidebar.yPage + pair.main.yPage) / 2);
 				const sbRect = pair.sidebar.el.getBoundingClientRect();
 				const mnRect = pair.main.el.getBoundingClientRect();
+				const y = Math.round((sbRect.top + mnRect.top) / 2);
 				const line = document.createElement('div');
-				line.className = 'cv-debug-ws-highlight cv-debug-ws-align-line';
+				line.className = 'blemmy-debug-ws-highlight blemmy-debug-ws-align-line';
 				line.style.cssText = [
 					'position:fixed',
 					`left:${Math.round(sbRect.left)}px`,
@@ -243,21 +456,21 @@ function initDebugToggle(): void {
 					`width:${Math.round(mnRect.right - sbRect.left)}px`,
 					'height:1px',
 					'pointer-events:none',
-					'z-index:9999',
+					`z-index:${LAYOUT_DEBUG_OVERLAY_Z}`,
 				].join(';');
 				document.body.appendChild(line);
 			});
 		});
 
-		const portraitCell = document.getElementById('cv-p1-portrait-cell');
-		const portraitWrap = portraitCell?.querySelector<HTMLElement>('.cv-portrait-wrap');
+		const portraitCell = document.getElementById('blemmy-p1-portrait-cell');
+		const portraitWrap = portraitCell?.querySelector<HTMLElement>('.blemmy-portrait-wrap');
 		if (portraitCell && portraitWrap) {
 			const cellRect = portraitCell.getBoundingClientRect();
 			const wrapRect = portraitWrap.getBoundingClientRect();
 			const topGap = Math.max(0, wrapRect.top - cellRect.top);
 			if (topGap > 2) {
 				const ov = document.createElement('div');
-				ov.className = 'cv-debug-ws-highlight cv-debug-ws-portrait-gap';
+				ov.className = 'blemmy-debug-ws-highlight blemmy-debug-ws-portrait-gap';
 				ov.style.cssText = [
 					'position:fixed',
 					`left:${cellRect.left}px`,
@@ -265,7 +478,7 @@ function initDebugToggle(): void {
 					`width:${cellRect.width}px`,
 					`height:${topGap}px`,
 					'pointer-events:none',
-					'z-index:9999',
+					`z-index:${LAYOUT_DEBUG_OVERLAY_Z}`,
 				].join(';');
 				document.body.appendChild(ov);
 			}
@@ -273,40 +486,66 @@ function initDebugToggle(): void {
 	}
 
 	function scheduleDiagnostics(): void {
-		if (!html.classList.contains('cv-debug-mode')) { return; }
+		if (!html.classList.contains('blemmy-debug-mode')) { return; }
 		if (rafPending) { return; }
 		rafPending = true;
 		requestAnimationFrame(() => {
-			rafPending = false;
-			runDiagnostics();
+			requestAnimationFrame(() => {
+				rafPending = false;
+				runDiagnostics();
+			});
 		});
 	}
 
 	toggleEl?.addEventListener('click', () => {
-		const on = html.classList.contains('cv-debug-mode');
+		const on = html.classList.contains('blemmy-debug-mode');
 		setDebugState(!on);
 	});
 
-	// Re-run diagnostics after each layout pass
-	window.addEventListener('cv-layout-applied', () => {
+	const debugScrollRoots = new WeakSet<Element>();
+	function bindDocRootScroll(): void {
+		for (const id of [BLEMMY_DOC_ROOT_ID] as const) {
+			const el = document.getElementById(id);
+			if (!el || debugScrollRoots.has(el)) { continue; }
+			debugScrollRoots.add(el);
+			el.addEventListener('scroll', scheduleDiagnostics, { passive: true });
+		}
+	}
+
+	// Re-run diagnostics after each layout pass (+ track doc root after remount).
+	window.addEventListener('blemmy-layout-applied', () => {
+		bindDocRootScroll();
 		scheduleDiagnostics();
 	});
 
-	// Keep overlays aligned while scrolling and resizing.
+	// Keep overlays aligned while scrolling, resizing, and dock/panel layout.
 	window.addEventListener('scroll', scheduleDiagnostics, { passive: true });
 	window.addEventListener('resize', scheduleDiagnostics);
+	window.addEventListener('blemmy-ui-viewport-changed', scheduleDiagnostics);
+	bindDocRootScroll();
 
 	// Init from URL param
 	const flag = new URL(window.location.href).searchParams.get('debug-layout');
 	if (flag === '1') { setDebugState(true); }
 }
 
+/** Document shell for the mounted CV or letter (single id). */
+function activeDocumentShell(): HTMLElement | null {
+	const el = document.getElementById(BLEMMY_DOC_SHELL_ID);
+	return el instanceof HTMLElement ? el : null;
+}
+
+function activeLayoutCard(): HTMLElement | null {
+	const el = document.getElementById('blemmy-card');
+	return el instanceof HTMLElement ? el : null;
+}
+
 /** Web view → “Preview PDF”; Print view → “Print”. */
 function syncPrintFabLabel(): void {
-	const fab   = document.getElementById('cv-download-pdf');
-	const shell = document.getElementById('cv-shell');
+	const fab   = document.getElementById('blemmy-download-pdf');
+	const shell = activeDocumentShell();
 	if (!fab || !shell) { return; }
-	const printView = shell.classList.contains('cv-print-preview');
+	const printView = shell.classList.contains('blemmy-print-preview');
 	if (printView) {
 		fab.setAttribute('aria-label', 'Print or save as PDF');
 		fab.setAttribute('title', 'Print or save as PDF');
@@ -323,23 +562,22 @@ function syncPrintFabLabel(): void {
 function buildViewModeToggle(): HTMLElement {
 	return buildDockButton(h, DOCK_CONTROLS.viewMode, {
 		id: DOCK_CONTROLS.viewMode.id,
-		className: 'cv-view-mode-toggle',
+		className: 'blemmy-view-mode-toggle',
 		pressed: 'false',
 	});
 }
 
 function initViewModeToggle(): void {
-	const btn   = document.getElementById('cv-view-mode-toggle') as HTMLButtonElement | null;
-	const KEY   = 'cv-view-mode';
+	const btn   = document.getElementById('blemmy-view-mode-toggle') as HTMLButtonElement | null;
+	const KEY   = 'blemmy-view-mode';
 	function currentShell(): HTMLElement | null {
-		const el = document.getElementById('cv-shell');
-		return el instanceof HTMLElement ? el : null;
+		return activeDocumentShell();
 	}
 
 	function setLabel(): void {
 		const shell = currentShell();
 		if (!btn || !shell) { return; }
-		const on = shell.classList.contains('cv-print-preview');
+		const on = shell.classList.contains('blemmy-print-preview');
 		btn.setAttribute('aria-pressed', String(on));
 		btn.textContent = on ? 'Web view' : 'Print view';
 		btn.setAttribute(
@@ -351,20 +589,20 @@ function initViewModeToggle(): void {
 	function apply(mode: 'print' | 'web'): void {
 		const shell = currentShell();
 		if (!shell) { return; }
-		document.documentElement.classList.toggle('cv-print-surface', mode === 'print');
-		shell.classList.toggle('cv-print-preview', mode === 'print');
+		document.documentElement.classList.toggle('blemmy-print-surface', mode === 'print');
+		shell.classList.toggle('blemmy-print-preview', mode === 'print');
 		try { localStorage.setItem(KEY, mode); } catch { /* ignore */ }
 		setLabel();
 		syncPrintFabLabel();
-		window.dispatchEvent(new Event('cv-view-mode-changed'));
+		window.dispatchEvent(new Event('blemmy-view-mode-changed'));
 		window.dispatchEvent(new Event('resize'));
 	}
 
 	btn?.addEventListener('click', () => {
 		const shell = currentShell();
-		apply(shell?.classList.contains('cv-print-preview') ? 'web' : 'print');
+		apply(shell?.classList.contains('blemmy-print-preview') ? 'web' : 'print');
 	});
-	window.addEventListener('cv-layout-applied', () => {
+	window.addEventListener('blemmy-layout-applied', () => {
 		setLabel();
 		syncPrintFabLabel();
 	});
@@ -394,90 +632,134 @@ function weightToStep(weight: number): number {
 
 function buildPreferencesPanel(): { panel: HTMLElement; trigger: HTMLElement } {
 	// Density row
-	const densityVal    = h('span', { id: 'cv-prefs-density-val', class: 'cv-prefs-val' }, 'Balanced');
+	const densityVal    = h('span', { id: 'blemmy-prefs-density-val', class: 'blemmy-prefs-val' }, 'Balanced');
 	const densitySlider = h('input', {
-		id:    'cv-prefs-density',
-		class: 'cv-prefs-slider',
+		id:    'blemmy-prefs-density',
+		class: 'blemmy-prefs-slider',
 		type:  'range',
 		min:   '0', max: '3', step: '1', value: '3',
 		'aria-valuetext': 'Dense',
 	});
-	const densityRow = h('div', { class: 'cv-prefs-row' },
-		h('label', { class: 'cv-prefs-label', for: 'cv-prefs-density' },
+	const densityRow = h('div', { class: 'blemmy-prefs-row' },
+		h('label', { class: 'blemmy-prefs-label', for: 'blemmy-prefs-density' },
 			h('span', {}, 'Typography'),
 			densityVal,
 		),
-		h('div', { class: 'cv-prefs-track-row' },
-			h('span', { class: 'cv-prefs-tick-label' }, 'Spacious'),
+		h('div', { class: 'blemmy-prefs-track-row' },
+			h('span', { class: 'blemmy-prefs-tick-label' }, 'Spacious'),
 			densitySlider,
-			h('span', { class: 'cv-prefs-tick-label cv-prefs-tick-right' }, 'Dense'),
+			h('span', { class: 'blemmy-prefs-tick-label blemmy-prefs-tick-right' }, 'Dense'),
 		),
 	);
 
 	// Affinity row
-	const affinityVal    = h('span', { id: 'cv-prefs-affinity-val', class: 'cv-prefs-val' }, 'Balanced');
+	const affinityVal    = h('span', { id: 'blemmy-prefs-affinity-val', class: 'blemmy-prefs-val' }, 'Balanced');
 	const affinitySlider = h('input', {
-		id:    'cv-prefs-affinity',
-		class: 'cv-prefs-slider',
+		id:    'blemmy-prefs-affinity',
+		class: 'blemmy-prefs-slider',
 		type:  'range',
 		min:   '0', max: '4', step: '1', value: '2',
 		'aria-valuetext': 'Balanced',
 	});
-	const affinityRow = h('div', { class: 'cv-prefs-row' },
-		h('label', { class: 'cv-prefs-label', for: 'cv-prefs-affinity' },
+	const affinityRow = h('div', { class: 'blemmy-prefs-row' },
+		h('label', { class: 'blemmy-prefs-label', for: 'blemmy-prefs-affinity' },
 			h('span', {}, 'Column fit'),
 			affinityVal,
 		),
-		h('div', { class: 'cv-prefs-track-row' },
-			h('span', { class: 'cv-prefs-tick-label' }, 'Flexible'),
+		h('div', { class: 'blemmy-prefs-track-row' },
+			h('span', { class: 'blemmy-prefs-tick-label' }, 'Flexible'),
 			affinitySlider,
-			h('span', { class: 'cv-prefs-tick-label cv-prefs-tick-right' }, 'Strict'),
+			h('span', { class: 'blemmy-prefs-tick-label blemmy-prefs-tick-right' }, 'Strict'),
 		),
 	);
 
 	// Page preference row
 	const pageBtns: HTMLButtonElement[] = [
-		h('button', { class: 'cv-prefs-page-btn', 'data-pref': 'prefer-1', type: 'button' }, '1 page') as HTMLButtonElement,
-		h('button', { class: 'cv-prefs-page-btn cv-prefs-page-btn--active', 'data-pref': 'auto', type: 'button' }, 'Auto') as HTMLButtonElement,
-		h('button', { class: 'cv-prefs-page-btn', 'data-pref': 'prefer-2', type: 'button' }, '2 pages') as HTMLButtonElement,
+		h('button', { class: 'blemmy-prefs-page-btn', 'data-pref': 'prefer-1', type: 'button' }, '1 page') as HTMLButtonElement,
+		h('button', { class: 'blemmy-prefs-page-btn blemmy-prefs-page-btn--active', 'data-pref': 'auto', type: 'button' }, 'Auto') as HTMLButtonElement,
+		h('button', { class: 'blemmy-prefs-page-btn', 'data-pref': 'prefer-2', type: 'button' }, '2 pages') as HTMLButtonElement,
 	];
-	const pageToggle = h('div', { class: 'cv-prefs-page-toggle', role: 'group', 'aria-label': 'Page preference' },
+	const pageToggle = h('div', { class: 'blemmy-prefs-page-toggle', role: 'group', 'aria-label': 'Page preference' },
 		...pageBtns,
 	);
-	const pageRow = h('div', { class: 'cv-prefs-row' },
-		h('p', { class: 'cv-prefs-label' }, h('span', {}, 'Pages')),
+	const pageRow = h('div', { class: 'blemmy-prefs-row' },
+		h('p', { class: 'blemmy-prefs-label' }, h('span', {}, 'Pages')),
 		pageToggle,
 	);
 
-	const resetBtn = h('button', { id: 'cv-prefs-reset', class: 'cv-prefs-reset', type: 'button' }, 'Reset defaults');
+	const assistantApplyBtns: HTMLButtonElement[] = [
+		h(
+			'button',
+			{
+				class: 'blemmy-prefs-page-btn blemmy-prefs-page-btn--active',
+				'data-assistant-apply': 'auto',
+				type: 'button',
+			},
+			'Auto-apply',
+		) as HTMLButtonElement,
+		h(
+			'button',
+			{
+				class: 'blemmy-prefs-page-btn',
+				'data-assistant-apply': 'review',
+				type: 'button',
+			},
+			'Review first',
+		) as HTMLButtonElement,
+	];
+	const assistantApplyToggle = h(
+		'div',
+		{
+			class: 'blemmy-prefs-page-toggle',
+			role: 'group',
+			'aria-label': 'Assistant document JSON',
+		},
+		...assistantApplyBtns,
+	);
+	const assistantRow = h('div', { class: 'blemmy-prefs-row' },
+		h(
+			'p',
+			{ class: 'blemmy-prefs-label' },
+			h('span', {}, 'Assistant'),
+			h(
+				'span',
+				{ class: 'blemmy-prefs-assistant-hint' },
+				' — JSON from the assistant',
+			),
+		),
+		assistantApplyToggle,
+	);
+
+	const resetBtn = h('button', { id: 'blemmy-prefs-reset', class: 'blemmy-prefs-reset', type: 'button' }, 'Reset defaults');
 	const { el: styleSection, syncUI: syncStyleUI } = buildStyleSection();
 	(window as Window & {
 		__blemmySyncStyleUI__?: (style: DocumentStyle) => void;
 	}).__blemmySyncStyleUI__ = syncStyleUI;
 
-	const inner = h('div', { class: 'cv-prefs-inner' },
-		h('p', { class: 'cv-prefs-heading' }, 'Layout preferences'),
+	const inner = h('div', { class: 'blemmy-prefs-inner' },
+		h('p', { class: 'blemmy-prefs-heading' }, 'Layout preferences'),
 		densityRow,
 		affinityRow,
 		pageRow,
+		assistantRow,
 		resetBtn,
-		h('hr', { class: 'cv-prefs-divider' }),
+		h('hr', { class: 'blemmy-prefs-divider' }),
 		styleSection,
 	);
 
 	const panel = h('div', {
-		id:           'cv-prefs-panel',
-		class:        'cv-prefs-panel cv-docked-popover no-print',
+		id:           'blemmy-prefs-panel',
+		class:        'blemmy-prefs-panel blemmy-docked-popover no-print',
 		'aria-label': 'Layout preferences',
 		hidden:       '',
 	}, inner);
 
 	const trigger = buildDockButton(h, DOCK_CONTROLS.layoutPreferences, {
 		id: DOCK_CONTROLS.layoutPreferences.id,
-		className: 'cv-prefs-trigger',
+		className: 'blemmy-prefs-trigger',
 		extraAttrs: {
 			'aria-expanded': 'false',
-			'aria-controls': 'cv-prefs-panel',
+			'aria-controls': 'blemmy-prefs-panel',
 		},
 	});
 
@@ -485,17 +767,22 @@ function buildPreferencesPanel(): { panel: HTMLElement; trigger: HTMLElement } {
 }
 
 function initPreferencesPanel(): void {
-	const panel          = document.getElementById('cv-prefs-panel');
-	const trigger        = document.getElementById('cv-prefs-trigger');
-	const densitySlider  = document.getElementById('cv-prefs-density') as HTMLInputElement | null;
-	const densityValEl   = document.getElementById('cv-prefs-density-val');
-	const affinitySlider = document.getElementById('cv-prefs-affinity') as HTMLInputElement | null;
-	const affinityValEl  = document.getElementById('cv-prefs-affinity-val');
-	const resetBtn = document.getElementById('cv-prefs-reset');
+	const panel          = document.getElementById('blemmy-prefs-panel');
+	const trigger        = document.getElementById('blemmy-prefs-trigger');
+	const densitySlider  = document.getElementById('blemmy-prefs-density') as HTMLInputElement | null;
+	const densityValEl   = document.getElementById('blemmy-prefs-density-val');
+	const affinitySlider = document.getElementById('blemmy-prefs-affinity') as HTMLInputElement | null;
+	const affinityValEl  = document.getElementById('blemmy-prefs-affinity-val');
+	const resetBtn = document.getElementById('blemmy-prefs-reset');
 
 	if (!panel || !trigger || !densitySlider || !affinitySlider) { return; }
 
-	const pageBtns = panel.querySelectorAll<HTMLButtonElement>('.cv-prefs-page-btn');
+	const pageBtns = panel.querySelectorAll<HTMLButtonElement>(
+		'.blemmy-prefs-page-btn:not([data-assistant-apply])',
+	);
+	const assistantApplyBtns = panel.querySelectorAll<HTMLButtonElement>(
+		'[data-assistant-apply]',
+	);
 
 	// Narrowed non-nullable references for use inside closures.
 	const densityEl  = densitySlider;
@@ -517,7 +804,15 @@ function initPreferencesPanel(): void {
 
 		pageBtns.forEach((btn) => {
 			const active = btn.dataset.pref === p.pagePreference;
-			btn.classList.toggle('cv-prefs-page-btn--active', active);
+			btn.classList.toggle('blemmy-prefs-page-btn--active', active);
+			btn.setAttribute('aria-pressed', String(active));
+		});
+	}
+
+	function syncAssistantApplyUI(mode: AssistantApplyMode): void {
+		assistantApplyBtns.forEach((btn) => {
+			const active = btn.dataset.assistantApply === mode;
+			btn.classList.toggle('blemmy-prefs-page-btn--active', active);
 			btn.setAttribute('aria-pressed', String(active));
 		});
 	}
@@ -552,11 +847,32 @@ function initPreferencesPanel(): void {
 		});
 	});
 
+	syncAssistantApplyUI(loadAssistantApplyMode());
+	assistantApplyBtns.forEach((btn) => {
+		btn.addEventListener('click', () => {
+			const m = btn.dataset.assistantApply;
+			if (m !== 'auto' && m !== 'review') {
+				return;
+			}
+			saveAssistantApplyMode(m);
+			syncAssistantApplyUI(m);
+		});
+	});
+	window.addEventListener(
+		ASSISTANT_APPLY_MODE_CHANGED_EVENT,
+		((ev: Event) => {
+			const e = ev as CustomEvent<AssistantApplyModeChangedDetail>;
+			if (e.detail?.mode) {
+				syncAssistantApplyUI(e.detail.mode);
+			}
+		}) as EventListener,
+	);
+
 	resetBtn?.addEventListener('click', () => { emit({ ...PREFS_DEFAULTS }); });
 	initDockedPopover({
 		panel,
 		trigger,
-		openClass: 'cv-prefs-trigger--open',
+		openClass: 'blemmy-prefs-trigger--open',
 		group: 'left-docked-popovers',
 		marginPx: 12,
 	});
@@ -567,8 +883,8 @@ function initPreferencesPanel(): void {
 // ─── Candidate selector logic ─────────────────────────────────────────────────
 
 function initCandidateSelector(): void {
-	const container = document.getElementById('cv-candidate-selector');
-	const optionsEl = document.getElementById('cv-candidate-options');
+	const container = document.getElementById('blemmy-layout-alternatives');
+	const optionsEl = document.getElementById('blemmy-layout-alternative-options');
 	if (!container || !optionsEl) { return; }
 
 	// Non-nullable refs for closure use
@@ -578,19 +894,19 @@ function initCandidateSelector(): void {
 	function applySizeClass(): void {
 		const w = cont.getBoundingClientRect().width;
 		cont.classList.remove(
-			'cv-candidate-selector--s',
-			'cv-candidate-selector--m',
-			'cv-candidate-selector--l',
+			'blemmy-layout-alternatives--s',
+			'blemmy-layout-alternatives--m',
+			'blemmy-layout-alternatives--l',
 		);
 		if (w < 360) {
-			cont.classList.add('cv-candidate-selector--s');
+			cont.classList.add('blemmy-layout-alternatives--s');
 			return;
 		}
 		if (w < 620) {
-			cont.classList.add('cv-candidate-selector--m');
+			cont.classList.add('blemmy-layout-alternatives--m');
 			return;
 		}
-		cont.classList.add('cv-candidate-selector--l');
+		cont.classList.add('blemmy-layout-alternatives--l');
 	}
 
 	function renderOptions(options: AlternativeOption[]): void {
@@ -603,13 +919,14 @@ function initCandidateSelector(): void {
 		options.forEach((opt, i) => {
 			const btn = document.createElement('button') as HTMLButtonElement;
 			btn.type      = 'button';
-			btn.className = 'cv-candidate-option' + (opt.active ? ' cv-candidate-option--active' : '');
+			btn.className = 'blemmy-layout-alternative' +
+				(opt.active ? ' blemmy-layout-alternative--active' : '');
 			btn.dataset.candidateId = opt.candidateId;
 			btn.setAttribute('role',         'radio');
 			btn.setAttribute('aria-checked', String(opt.active));
 			btn.setAttribute('aria-label',   `Layout ${i + 1}: ${opt.label}`);
 			const inner       = document.createElement('span');
-			inner.className   = 'cv-candidate-option__inner';
+			inner.className   = 'blemmy-layout-alternative__inner';
 			inner.textContent = opt.label;
 			btn.appendChild(inner);
 			btn.addEventListener('click', () => { dispatchAlternativeSelected(opt.candidateId); });
@@ -623,7 +940,7 @@ function initCandidateSelector(): void {
 	});
 	window.addEventListener('resize', applySizeClass);
 	window.visualViewport?.addEventListener('resize', applySizeClass);
-	window.addEventListener('cv-ui-viewport-changed', applySizeClass);
+	window.addEventListener('blemmy-ui-viewport-changed', applySizeClass);
 }
 
 // ─── Print / PDF button + modal ───────────────────────────────────────────────
@@ -631,32 +948,32 @@ function initCandidateSelector(): void {
 function buildPrintButton(): { fab: HTMLElement; modal: HTMLElement } {
 	const fab = buildDockButton(h, DOCK_CONTROLS.printPdf, {
 		id: DOCK_CONTROLS.printPdf.id,
-		className: 'cv-download-pdf-btn',
+		className: 'blemmy-download-pdf-btn',
 	});
 
-	const backdrop     = h('div', { class: 'cv-pdf-modal-backdrop', id: 'cv-pdf-modal-backdrop' });
-	const downloadBtn  = h('button', { type: 'button', id: 'cv-pdf-modal-download', class: 'cv-pdf-modal-download-btn' }, 'Print / Save PDF');
-	const closeBtn     = h('button', { type: 'button', id: 'cv-pdf-modal-close', class: 'cv-pdf-modal-close', 'aria-label': 'Close' }, 'Close');
-	const loadingEl    = h('p', { id: 'cv-pdf-modal-loading', class: 'cv-pdf-modal-loading', 'aria-live': 'polite' }, 'Loading preview…');
+	const backdrop     = h('div', { class: 'blemmy-pdf-modal-backdrop', id: 'blemmy-pdf-modal-backdrop' });
+	const downloadBtn  = h('button', { type: 'button', id: 'blemmy-pdf-modal-download', class: 'blemmy-pdf-modal-download-btn' }, 'Print / Save PDF');
+	const closeBtn     = h('button', { type: 'button', id: 'blemmy-pdf-modal-close', class: 'blemmy-pdf-modal-close', 'aria-label': 'Close' }, 'Close');
+	const loadingEl    = h('p', { id: 'blemmy-pdf-modal-loading', class: 'blemmy-pdf-modal-loading', 'aria-live': 'polite' }, 'Loading preview…');
 	const frameEl      = h('iframe', {
-		id: 'cv-pdf-modal-frame',
-		class: 'cv-pdf-modal-embed',
+		id: 'blemmy-pdf-modal-frame',
+		class: 'blemmy-pdf-modal-embed',
 		title: 'Live PDF preview',
 	});
 
-	const modalScroll  = h('div', { class: 'cv-pdf-modal-scroll' }, frameEl);
-	const modalBody    = h('div', { class: 'cv-pdf-modal-body' }, loadingEl, modalScroll);
-	const modalHeader  = h('header', { class: 'cv-pdf-modal-header' },
-		h('h2', { id: 'cv-pdf-modal-title', class: 'cv-pdf-modal-title' }, 'PDF Preview'),
-		h('div', { class: 'cv-pdf-modal-actions' }, downloadBtn, closeBtn),
+	const modalScroll  = h('div', { class: 'blemmy-pdf-modal-scroll' }, frameEl);
+	const modalBody    = h('div', { class: 'blemmy-pdf-modal-body' }, loadingEl, modalScroll);
+	const modalHeader  = h('header', { class: 'blemmy-pdf-modal-header' },
+		h('h2', { id: 'blemmy-pdf-modal-title', class: 'blemmy-pdf-modal-title' }, 'PDF Preview'),
+		h('div', { class: 'blemmy-pdf-modal-actions' }, downloadBtn, closeBtn),
 	);
-	const modalPanel   = h('div', { class: 'cv-pdf-modal-panel' }, modalHeader, modalBody);
+	const modalPanel   = h('div', { class: 'blemmy-pdf-modal-panel' }, modalHeader, modalBody);
 	const modal = h('div', {
-		id:               'cv-pdf-modal',
-		class:            'cv-pdf-modal no-print',
+		id:               'blemmy-pdf-modal',
+		class:            'blemmy-pdf-modal no-print',
 		role:             'dialog',
 		'aria-modal':     'true',
-		'aria-labelledby': 'cv-pdf-modal-title',
+		'aria-labelledby': 'blemmy-pdf-modal-title',
 		hidden:           '',
 	}, backdrop, modalPanel);
 
@@ -667,19 +984,19 @@ const PDF_MODAL_LOADING_TEXT = 'Loading preview…';
 
 /** Print view + engine ready: same document, no iframe. */
 function canPrintCurrentDocument(): boolean {
-	const shell = document.getElementById('cv-shell');
-	const card  = document.getElementById('cv-card');
-	const ready = card?.getAttribute('data-cv-layout-ready') === 'true';
-	return !!shell?.classList.contains('cv-print-preview') && ready;
+	const shell = activeDocumentShell();
+	const card  = activeLayoutCard();
+	const ready = card?.getAttribute('data-blemmy-layout-ready') === 'true';
+	return Boolean(shell?.classList.contains('blemmy-print-preview') && ready);
 }
 
 function initPrintButton(): void {
-	const modal       = document.getElementById('cv-pdf-modal');
-	const frame       = document.getElementById('cv-pdf-modal-frame') as HTMLIFrameElement | null;
-	const loadingEl   = document.getElementById('cv-pdf-modal-loading');
-	const downloadBtn = document.getElementById('cv-pdf-modal-download');
-	const closeBtn    = document.getElementById('cv-pdf-modal-close');
-	const backdrop    = document.getElementById('cv-pdf-modal-backdrop');
+	const modal       = document.getElementById('blemmy-pdf-modal');
+	const frame       = document.getElementById('blemmy-pdf-modal-frame') as HTMLIFrameElement | null;
+	const loadingEl   = document.getElementById('blemmy-pdf-modal-loading');
+	const downloadBtn = document.getElementById('blemmy-pdf-modal-download');
+	const closeBtn    = document.getElementById('blemmy-pdf-modal-close');
+	const backdrop    = document.getElementById('blemmy-pdf-modal-backdrop');
 
 	function openModalIframe(url: string): void {
 		modal?.removeAttribute('hidden');
@@ -704,7 +1021,7 @@ function initPrintButton(): void {
 		}
 	}
 
-	document.getElementById('cv-download-pdf')?.addEventListener('click', (e) => {
+	document.getElementById('blemmy-download-pdf')?.addEventListener('click', (e) => {
 		e.preventDefault();
 		if (canPrintCurrentDocument()) {
 			window.print();
@@ -713,8 +1030,10 @@ function initPrintButton(): void {
 		const u = new URL(window.location.href);
 		u.search = '';
 		u.hash = '';
-		u.searchParams.set('cv-pdf', '1');
-		u.searchParams.set('cv-embed', '1');
+		u.searchParams.set('blemmy-pdf', '1');
+		u.searchParams.set('blemmy-embed', '1');
+		const docType = getActiveDocumentType();
+		u.searchParams.set('doc-type', docType);
 		u.searchParams.set('preview', String(Date.now()));
 		openModalIframe(u.pathname + u.search);
 	});
@@ -781,14 +1100,14 @@ function initThemeToggle(): void {
 function buildUploadButton(): HTMLElement {
 	return buildDockButton(h, DOCK_CONTROLS.uploadJson, {
 		id: DOCK_CONTROLS.uploadJson.id,
-		className: 'cv-upload-btn cv-history-btn',
+		className: 'blemmy-upload-btn blemmy-history-btn',
 	});
 }
 
 function buildUploadStatus(): HTMLElement {
 	return h('div', {
-		id:    'cv-upload-status',
-		class: 'cv-upload-status no-print',
+		id:    'blemmy-upload-status',
+		class: 'blemmy-upload-status no-print',
 		hidden: '',
 	});
 }
@@ -796,8 +1115,8 @@ function buildUploadStatus(): HTMLElement {
 function initUploadButton(
 	onUploaded: (data: CVData) => void,
 ): void {
-	const btnEl  = document.getElementById('cv-upload-btn');
-	const status = document.getElementById('cv-upload-status') as HTMLElement | null;
+	const btnEl  = document.getElementById('blemmy-upload-btn');
+	const status = document.getElementById('blemmy-upload-status') as HTMLElement | null;
 	if (!btnEl) { return; }
 	const btn = btnEl; // narrowed non-nullable for closures
 
@@ -812,7 +1131,7 @@ function initUploadButton(
 		if (!status) { return; }
 		status.textContent = msg;
 		status.hidden      = false;
-		status.className   = `cv-upload-status no-print cv-upload-status--${kind}`;
+		status.className   = `blemmy-upload-status no-print blemmy-upload-status--${kind}`;
 	}
 
 	function hideStatus(): void {
@@ -851,7 +1170,7 @@ function initUploadButton(
 		);
 	}
 
-	window.addEventListener('cv-layout-applied', syncLabel);
+	window.addEventListener('blemmy-layout-applied', syncLabel);
 	syncLabel();
 }
 
@@ -860,48 +1179,65 @@ function initUploadButton(
 function buildEditButton(): HTMLElement {
 	return buildDockButton(h, DOCK_CONTROLS.editMode, {
 		id: DOCK_CONTROLS.editMode.id,
-		className: 'cv-edit-btn',
+		className: 'blemmy-edit-btn',
 		pressed: 'false',
 	});
 }
+
+let lastUnifiedPanelSig: string | null = null;
 
 function syncUnifiedPanelState(): void {
 	const html = document.documentElement;
 	const isDesktop = window.matchMedia('(min-width: 901px)').matches;
 	const chatOpen = Boolean(
-		document.getElementById('cv-chat-panel')
-		&& !document.getElementById('cv-chat-panel')?.hasAttribute('hidden'),
+		document.getElementById('blemmy-chat-panel')
+		&& !document.getElementById('blemmy-chat-panel')?.hasAttribute('hidden'),
 	);
 	const reviewOpen = Boolean(
 		document.getElementById('blemmy-review-panel')
 		&& !document.getElementById('blemmy-review-panel')?.hasAttribute('hidden'),
 	);
-	const editOpen = Boolean(
-		document.getElementById('cv-edit-panel')
-		&& (
-			document.documentElement.classList.contains('cv-edit-mode')
-			|| document.documentElement.classList.contains('blemmy-edit-mode')
-		),
+	const editingShell = document.querySelector(
+		'.blemmy-shell[data-blemmy-editing="true"]',
 	);
+	const editOpen = Boolean(
+		document.getElementById('blemmy-edit-panel')
+			&& document.documentElement.classList.contains('blemmy-edit-mode'),
+	) || Boolean(editingShell);
 	const anyOpen = chatOpen || reviewOpen || editOpen;
-	html.classList.toggle('cv-panel-open', anyOpen);
-	html.classList.toggle('cv-panel-desktop', anyOpen && isDesktop);
-	html.classList.toggle('cv-panel-mobile', anyOpen && !isDesktop);
+	html.classList.toggle('blemmy-panel-open', anyOpen);
+	html.classList.toggle('blemmy-panel-desktop', anyOpen && isDesktop);
+	html.classList.toggle('blemmy-panel-mobile', anyOpen && !isDesktop);
 	html.classList.remove(
-		'cv-panel-kind-chat',
-		'cv-panel-kind-review',
-		'cv-panel-kind-edit',
+		'blemmy-panel-kind-chat',
+		'blemmy-panel-kind-review',
+		'blemmy-panel-kind-edit',
 	);
 	if (reviewOpen) {
-		html.classList.add('cv-panel-kind-review');
-		return;
+		html.classList.add('blemmy-panel-kind-review');
+	} else if (chatOpen) {
+		html.classList.add('blemmy-panel-kind-chat');
+	} else if (editOpen) {
+		html.classList.add('blemmy-panel-kind-edit');
 	}
-	if (chatOpen) {
-		html.classList.add('cv-panel-kind-chat');
-		return;
-	}
-	if (editOpen) {
-		html.classList.add('cv-panel-kind-edit');
+	const sig = [
+		Number(anyOpen),
+		Number(isDesktop),
+		Number(reviewOpen),
+		Number(chatOpen),
+		Number(editOpen),
+	].join('|');
+	if (lastUnifiedPanelSig !== sig) {
+		lastUnifiedPanelSig = sig;
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				window.dispatchEvent(
+					new CustomEvent('blemmy-ui-viewport-changed', {
+						detail: { source: 'panel-state' },
+					}),
+				);
+			});
+		});
 	}
 }
 
@@ -913,21 +1249,21 @@ function initResponsiveDockMode(
 	let rafScheduled = false;
 	const syncDock = (dock: HTMLElement): void => {
 		if (mobileMq.matches) {
-			dock.classList.add('cv-ui-dock--compact', 'cv-ui-dock--peek');
+			dock.classList.add('blemmy-ui-dock--compact', 'blemmy-ui-dock--peek');
 			return;
 		}
 		dock.classList.remove(
-			'cv-ui-dock--peek',
-			'cv-ui-dock--expanded',
+			'blemmy-ui-dock--peek',
+			'blemmy-ui-dock--expanded',
 		);
-		if (dock.classList.contains('cv-ui-dock--compact')) {
-			dock.classList.remove('cv-ui-dock--compact');
+		if (dock.classList.contains('blemmy-ui-dock--compact')) {
+			dock.classList.remove('blemmy-ui-dock--compact');
 		}
 		requestAnimationFrame(() => {
 			const needsCompact = dock.scrollWidth > dock.clientWidth + 1;
-			const hasCompact = dock.classList.contains('cv-ui-dock--compact');
+			const hasCompact = dock.classList.contains('blemmy-ui-dock--compact');
 			if (needsCompact !== hasCompact) {
-				dock.classList.toggle('cv-ui-dock--compact', needsCompact);
+				dock.classList.toggle('blemmy-ui-dock--compact', needsCompact);
 			}
 		});
 	};
@@ -947,7 +1283,7 @@ function initResponsiveDockMode(
 	sync();
 	window.addEventListener('resize', sync);
 	window.visualViewport?.addEventListener('resize', sync);
-	window.addEventListener('cv-layout-applied', sync);
+	window.addEventListener('blemmy-layout-applied', sync);
 	const observer = new MutationObserver(() => { sync(); });
 	observer.observe(leftDock, { subtree: true, childList: true });
 	observer.observe(rightDock, { subtree: true, childList: true });
@@ -959,8 +1295,8 @@ function initNarrowDockPeek(
 	leftDock: HTMLElement,
 	rightDock: HTMLElement,
 ): void {
-	const leftHandle = document.getElementById('cv-ui-dock-left-handle');
-	const rightHandle = document.getElementById('cv-ui-dock-right-handle');
+	const leftHandle = document.getElementById('blemmy-ui-dock-left-handle');
+	const rightHandle = document.getElementById('blemmy-ui-dock-right-handle');
 	if (!(leftHandle instanceof HTMLElement) || !(rightHandle instanceof HTMLElement)) {
 		return;
 	}
@@ -980,7 +1316,7 @@ function initNarrowDockPeek(
 		},
 	], {
 		isEnabled: () => mq.matches,
-		openClass: 'cv-ui-dock--expanded',
+		openClass: 'blemmy-ui-dock--expanded',
 	});
 	const onMq = (): void => {
 		if (!mq.matches) { controller.closeAll(); }
@@ -994,6 +1330,67 @@ function initNarrowDockPeek(
 
 function initNarrowUtilityBar(): void {
 	const mq = window.matchMedia('(max-width: 760px)');
+	const moreActionsBase = [
+		{
+			id: 'debug-layout',
+			label: 'Debug',
+			icon: DOCK_CONTROLS.debugLayout.icon,
+			targetId: DOCK_CONTROLS.debugLayout.id,
+		},
+		{
+			id: 'theme',
+			label: 'Theme',
+			icon: DOCK_CONTROLS.theme.icon,
+			targetId: DOCK_CONTROLS.theme.id,
+		},
+		{
+			id: 'cloud',
+			label: 'Cloud',
+			icon: DOCK_CONTROLS.cloud.icon,
+			targetId: DOCK_CONTROLS.cloud.id,
+		},
+		{
+			id: 'layout',
+			label: 'Layout',
+			icon: DOCK_CONTROLS.layoutPreferences.icon,
+			targetId: DOCK_CONTROLS.layoutPreferences.id,
+		},
+		{
+			id: 'upload-json',
+			label: 'Upload JSON',
+			icon: DOCK_CONTROLS.uploadJson.icon,
+			targetId: DOCK_CONTROLS.uploadJson.id,
+		},
+		{
+			id: 'download-json',
+			label: 'Download JSON',
+			icon: DOCK_CONTROLS.downloadJson.icon,
+			targetId: DOCK_CONTROLS.downloadJson.id,
+		},
+		{
+			id: 'export-html',
+			label: 'Export HTML',
+			icon: DOCK_CONTROLS.exportHtml.icon,
+			targetId: DOCK_CONTROLS.exportHtml.id,
+		},
+		{
+			id: 'print-pdf',
+			label: 'Print / PDF',
+			icon: DOCK_CONTROLS.printPdf.icon,
+			targetId: DOCK_CONTROLS.printPdf.id,
+		},
+	] as const;
+	const moreActions = import.meta.env.DEV
+		? [
+			...moreActionsBase,
+			{
+				id: 'dev-console-help',
+				label: 'Console',
+				icon: DOCK_CONTROLS.devConsoleHelp.icon,
+				targetId: DOCK_CONTROLS.devConsoleHelp.id,
+			},
+		]
+		: [...moreActionsBase];
 	const utility = initMobileUtilityBar({
 		isEnabled: () => mq.matches,
 		primaryActions: [
@@ -1016,62 +1413,13 @@ function initNarrowUtilityBar(): void {
 				targetId: DOCK_CONTROLS.chat.id,
 			},
 		],
-		moreActions: [
-			{
-				id: 'debug-layout',
-				label: 'Debug',
-				icon: DOCK_CONTROLS.debugLayout.icon,
-				targetId: DOCK_CONTROLS.debugLayout.id,
-			},
-			{
-				id: 'theme',
-				label: 'Theme',
-				icon: DOCK_CONTROLS.theme.icon,
-				targetId: DOCK_CONTROLS.theme.id,
-			},
-			{
-				id: 'cloud',
-				label: 'Cloud',
-				icon: DOCK_CONTROLS.cloud.icon,
-				targetId: DOCK_CONTROLS.cloud.id,
-			},
-			{
-				id: 'layout',
-				label: 'Layout',
-				icon: DOCK_CONTROLS.layoutPreferences.icon,
-				targetId: DOCK_CONTROLS.layoutPreferences.id,
-			},
-			{
-				id: 'upload-json',
-				label: 'Upload JSON',
-				icon: DOCK_CONTROLS.uploadJson.icon,
-				targetId: DOCK_CONTROLS.uploadJson.id,
-			},
-			{
-				id: 'download-json',
-				label: 'Download JSON',
-				icon: DOCK_CONTROLS.downloadJson.icon,
-				targetId: DOCK_CONTROLS.downloadJson.id,
-			},
-			{
-				id: 'export-html',
-				label: 'Export HTML',
-				icon: DOCK_CONTROLS.exportHtml.icon,
-				targetId: DOCK_CONTROLS.exportHtml.id,
-			},
-			{
-				id: 'print-pdf',
-				label: 'Print / PDF',
-				icon: DOCK_CONTROLS.printPdf.icon,
-				targetId: DOCK_CONTROLS.printPdf.id,
-			},
-		],
+		moreActions,
 	});
 	const sync = (): void => { utility.sync(); };
 	sync();
 	window.addEventListener('resize', sync);
 	window.visualViewport?.addEventListener('resize', sync);
-	window.addEventListener('cv-layout-applied', sync);
+	window.addEventListener('blemmy-layout-applied', sync);
 	if (typeof mq.addEventListener === 'function') {
 		mq.addEventListener('change', sync);
 	} else {
@@ -1084,8 +1432,8 @@ function initUnifiedPanelState(): void {
 	const sync = (): void => { syncUnifiedPanelState(); };
 	window.addEventListener('resize', sync);
 	window.visualViewport?.addEventListener('resize', sync);
-	window.addEventListener('cv-layout-applied', sync);
-	window.addEventListener('cv-view-mode-changed', sync);
+	window.addEventListener('blemmy-layout-applied', sync);
+	window.addEventListener('blemmy-view-mode-changed', sync);
 	const observer = new MutationObserver(() => { sync(); });
 	observer.observe(document.body, {
 		subtree: true,
@@ -1097,27 +1445,27 @@ function initUnifiedPanelState(): void {
 
 function buildHistoryControls(): HTMLElement {
 	return h('div', {
-		id:    'cv-history-controls',
-		class: 'cv-history-controls no-print',
+		id:    'blemmy-history-controls',
+		class: 'blemmy-history-controls no-print',
 	},
 		buildDockButton(h, DOCK_CONTROLS.undo, {
 			id: DOCK_CONTROLS.undo.id,
-			className: 'cv-history-btn',
+			className: 'blemmy-history-btn',
 		}),
 		buildDockButton(h, DOCK_CONTROLS.redo, {
 			id: DOCK_CONTROLS.redo.id,
-			className: 'cv-history-btn',
+			className: 'blemmy-history-btn',
 		}),
 		buildDockButton(h, DOCK_CONTROLS.resetDraft, {
 			id: DOCK_CONTROLS.resetDraft.id,
-			className: 'cv-history-btn cv-history-btn--danger',
+			className: 'blemmy-history-btn blemmy-history-btn--danger',
 		}),
 	);
 }
 
 function initHistoryControls(): void {
-	const undoBtn = document.getElementById('cv-undo-btn') as HTMLButtonElement | null;
-	const redoBtn = document.getElementById('cv-redo-btn') as HTMLButtonElement | null;
+	const undoBtn = document.getElementById('blemmy-undo-btn') as HTMLButtonElement | null;
+	const redoBtn = document.getElementById('blemmy-redo-btn') as HTMLButtonElement | null;
 	if (!undoBtn || !redoBtn) { return; }
 	const undo = undoBtn;
 	const redo = redoBtn;
@@ -1129,28 +1477,28 @@ function initHistoryControls(): void {
 
 	undo.addEventListener('click', () => { window.cvUndo?.(); });
 	redo.addEventListener('click', () => { window.cvRedo?.(); });
-	window.addEventListener('cv-history-changed', syncState as EventListener);
+	window.addEventListener('blemmy-history-changed', syncState as EventListener);
 	syncState();
 }
 
 function initChangeHighlighter(): void {
 	const pop = h('div', {
-		id:     'cv-ai-compare-popover',
-		class:  'cv-ai-compare-popover no-print',
+		id:     'blemmy-ai-compare-popover',
+		class:  'blemmy-ai-compare-popover no-print',
 		hidden: '',
 	});
 	pop.appendChild(
-		h('div', { class: 'cv-ai-compare-popover__col' },
+		h('div', { class: 'blemmy-ai-compare-popover__col' },
 			h('div', {
-				id: 'cv-ai-compare-label',
-				class: 'cv-ai-compare-popover__label',
+				id: 'blemmy-ai-compare-label',
+				class: 'blemmy-ai-compare-popover__label',
 			}, 'Previous value'),
-			h('div', { id: 'cv-ai-compare-before', class: 'cv-ai-compare-popover__text' }),
+			h('div', { id: 'blemmy-ai-compare-before', class: 'blemmy-ai-compare-popover__text' }),
 		),
 	);
 	document.body.appendChild(pop);
-	const labelEl = pop.querySelector('#cv-ai-compare-label') as HTMLElement | null;
-	const beforeEl = pop.querySelector('#cv-ai-compare-before') as HTMLElement | null;
+	const labelEl = pop.querySelector('#blemmy-ai-compare-label') as HTMLElement | null;
+	const beforeEl = pop.querySelector('#blemmy-ai-compare-before') as HTMLElement | null;
 
 	function hidePopover(): void {
 		pop.hidden = true;
@@ -1171,9 +1519,9 @@ function initChangeHighlighter(): void {
 			? 'Proposed value'
 			: 'Previous value';
 		const cs = window.getComputedStyle(target);
-		pop.style.setProperty('--cv-ai-compare-font-size', cs.fontSize);
-		pop.style.setProperty('--cv-ai-compare-line-height', cs.lineHeight);
-		pop.style.setProperty('--cv-ai-compare-font-family', cs.fontFamily);
+		pop.style.setProperty('--blemmy-ai-compare-font-size', cs.fontSize);
+		pop.style.setProperty('--blemmy-ai-compare-line-height', cs.lineHeight);
+		pop.style.setProperty('--blemmy-ai-compare-font-family', cs.fontFamily);
 		const r = target.getBoundingClientRect();
 		const panelW = 340;
 		const gap = 12;
@@ -1194,7 +1542,7 @@ function initChangeHighlighter(): void {
 	document.addEventListener('mouseover', (e) => {
 		const t = e.target;
 		const changed = t instanceof Element
-			? t.closest<HTMLElement>('.cv-ai-changed')
+			? t.closest<HTMLElement>('.blemmy-ai-changed')
 			: null;
 		if (!changed) {
 			hidePopover();
@@ -1205,15 +1553,15 @@ function initChangeHighlighter(): void {
 	document.addEventListener('mousemove', (e) => {
 		const t = e.target;
 		const changed = t instanceof Element
-			? t.closest<HTMLElement>('.cv-ai-changed')
+			? t.closest<HTMLElement>('.blemmy-ai-changed')
 			: null;
 		if (changed) { return; }
 		hidePopover();
 	});
 	document.addEventListener('mouseout', (e) => {
 		const to = (e.relatedTarget as HTMLElement | null);
-		if (to?.closest('#cv-ai-compare-popover')) { return; }
-		if (to?.closest('.cv-ai-changed')) { return; }
+		if (to?.closest('#blemmy-ai-compare-popover')) { return; }
+		if (to?.closest('.blemmy-ai-changed')) { return; }
 		hidePopover();
 	});
 	window.addEventListener('mouseout', (e) => {
@@ -1225,13 +1573,13 @@ function initChangeHighlighter(): void {
 	document.addEventListener('scroll', hidePopover, true);
 	document.addEventListener('pointerdown', hidePopover, true);
 	window.addEventListener('blur', hidePopover);
-	window.addEventListener('cv-layout-applied', hidePopover);
+	window.addEventListener('blemmy-layout-applied', hidePopover);
 
 	function clearBadges(): void {
 		hidePopover();
-		document.querySelectorAll('.cv-ai-undo-btn').forEach((n) => n.remove());
-		document.querySelectorAll<HTMLElement>('.cv-ai-changed').forEach((el) => {
-			el.classList.remove('cv-ai-changed');
+		document.querySelectorAll('.blemmy-ai-undo-btn').forEach((n) => n.remove());
+		document.querySelectorAll<HTMLElement>('.blemmy-ai-changed').forEach((el) => {
+			el.classList.remove('blemmy-ai-changed');
 			el.removeAttribute('title');
 			delete el.dataset.aiBefore;
 			delete el.dataset.aiAfter;
@@ -1256,11 +1604,11 @@ function initChangeHighlighter(): void {
 			fieldPath === changePath ||
 			fieldPath.startsWith(changePath + '.')
 		);
-		if (!canUndoFromHere || el.querySelector('.cv-ai-undo-btn')) { return; }
+		if (!canUndoFromHere || el.querySelector('.blemmy-ai-undo-btn')) { return; }
 		if (window.getComputedStyle(el).display === 'none') { return; }
 		const btn = document.createElement('button');
 		btn.type = 'button';
-		btn.className = 'cv-ai-undo-btn no-print';
+		btn.className = 'blemmy-ai-undo-btn no-print';
 		const ch = latestChanges.find((c) => c.path === changePath);
 		const isReverted = ch?.state === 'reverted';
 		btn.textContent = isReverted ? 'Redo' : 'Undo';
@@ -1284,7 +1632,7 @@ function initChangeHighlighter(): void {
 			if (!path) { return; }
 			for (const c of latestChanges) {
 				if (!isFieldAffected(path, c.path)) { continue; }
-				el.classList.add('cv-ai-changed');
+				el.classList.add('blemmy-ai-changed');
 				el.dataset.aiBefore = c.before;
 				el.dataset.aiAfter  = c.after;
 				el.dataset.aiState  = c.state;
@@ -1294,45 +1642,45 @@ function initChangeHighlighter(): void {
 		});
 	}
 
-	window.addEventListener('cv-last-changes', (e) => {
+	window.addEventListener('blemmy-last-changes', (e) => {
 		latestChanges = (e as CustomEvent<LastChangeDetail>).detail?.changes ?? [];
 		applyHighlights();
 	});
-	window.addEventListener('cv-layout-applied', applyHighlights);
+	window.addEventListener('blemmy-layout-applied', applyHighlights);
 }
 
 function buildRecentChangesPanel(): HTMLElement {
 	return h('div', {
-		id:    'cv-recent-changes',
-		class: 'cv-recent-changes no-print',
+		id:    'blemmy-recent-changes',
+		class: 'blemmy-recent-changes no-print',
 		hidden: '',
 	},
-		h('div', { class: 'cv-recent-changes__head' },
-			h('span', { id: 'cv-recent-changes-title' }, 'Recent AI changes'),
+		h('div', { class: 'blemmy-recent-changes__head' },
+			h('span', { id: 'blemmy-recent-changes-title' }, 'Recent AI changes'),
 			h('button', {
-				id: 'cv-recent-changes-toggle',
-				class: 'cv-recent-changes__toggle',
+				id: 'blemmy-recent-changes-toggle',
+				class: 'blemmy-recent-changes__toggle',
 				type: 'button',
 				'aria-expanded': 'true',
 				title: 'Collapse recent changes',
 			}, '−'),
 		),
-		h('div', { id: 'cv-recent-changes-list', class: 'cv-recent-changes__list' }),
+		h('div', { id: 'blemmy-recent-changes-list', class: 'blemmy-recent-changes__list' }),
 	);
 }
 
 function initRecentChangesPanel(): void {
-	const panel = document.getElementById('cv-recent-changes') as HTMLElement | null;
-	const list  = document.getElementById('cv-recent-changes-list') as HTMLElement | null;
-	const title = document.getElementById('cv-recent-changes-title') as HTMLElement | null;
-	const toggle = document.getElementById('cv-recent-changes-toggle') as
+	const panel = document.getElementById('blemmy-recent-changes') as HTMLElement | null;
+	const list  = document.getElementById('blemmy-recent-changes-list') as HTMLElement | null;
+	const title = document.getElementById('blemmy-recent-changes-title') as HTMLElement | null;
+	const toggle = document.getElementById('blemmy-recent-changes-toggle') as
 		HTMLButtonElement | null;
 	if (!panel || !list || !title || !toggle) { return; }
 	const panelEl = panel;
 	const listEl  = list;
 	const titleEl = title;
 	const toggleEl = toggle;
-	const COLLAPSE_KEY = 'cv-recent-changes-collapsed';
+	const COLLAPSE_KEY = 'blemmy-recent-changes-collapsed';
 	let collapsed = false;
 	try { collapsed = localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { /* ignore */ }
 
@@ -1370,15 +1718,15 @@ function initRecentChangesPanel(): void {
 		titleEl.textContent = `Recent AI changes (${changes.length})`;
 		syncCollapsedUi();
 		changes.slice(0, 8).forEach((c) => {
-			const row = h('div', { class: 'cv-recent-changes__item' },
-				h('div', { class: 'cv-recent-changes__path' }, c.path),
-				h('div', { class: 'cv-recent-changes__delta' },
-					h('span', { class: 'cv-recent-changes__before', title: c.before }, `Before: ${clip(c.before)}`),
-					h('span', { class: 'cv-recent-changes__after', title: c.after }, `After: ${clip(c.after)}`),
+			const row = h('div', { class: 'blemmy-recent-changes__item' },
+				h('div', { class: 'blemmy-recent-changes__path' }, c.path),
+				h('div', { class: 'blemmy-recent-changes__delta' },
+					h('span', { class: 'blemmy-recent-changes__before', title: c.before }, `Before: ${clip(c.before)}`),
+					h('span', { class: 'blemmy-recent-changes__after', title: c.after }, `After: ${clip(c.after)}`),
 				),
 			);
 			const btn = h('button', {
-				class: 'cv-recent-changes__undo',
+				class: 'blemmy-recent-changes__undo',
 				type:  'button',
 				title: c.state === 'reverted'
 					? `Redo ${c.path}`
@@ -1390,7 +1738,7 @@ function initRecentChangesPanel(): void {
 		});
 	}
 
-	window.addEventListener('cv-last-changes', (e) => {
+	window.addEventListener('blemmy-last-changes', (e) => {
 		const detail = (e as CustomEvent<LastChangeDetail>).detail;
 		render(detail?.changes ?? []);
 	});
@@ -1398,68 +1746,68 @@ function initRecentChangesPanel(): void {
 
 function buildEditToolbar(): HTMLElement {
 	return h('div', {
-		id:     'cv-edit-toolbar',
-		class:  'cv-edit-toolbar no-print',
+		id:     'blemmy-edit-toolbar',
+		class:  'blemmy-edit-toolbar no-print',
 		hidden: '',
 	},
-		h('span', { class: 'cv-edit-toolbar__hint' },
+		h('span', { class: 'blemmy-edit-toolbar__hint' },
 			'Click any text to edit  ·  Drag work items to reorder  ·  Click portrait to replace',
 		),
 	);
 }
 
-function initCloudSyncDrawer(remount: (data: CVData) => void): {
-	onDataChange: (data: CVData) => void;
+function initCloudSyncDrawer(): {
+	onDataChange: (data: StoredDocumentData) => void;
 	cloudTrigger: HTMLButtonElement;
 } {
 	const drawer = h('div', {
-		id:           'cv-cloud-drawer',
-		class:        'cv-side-panel cv-cloud-drawer cv-docked-popover no-print',
+		id:           'blemmy-cloud-drawer',
+		class:        'blemmy-side-panel blemmy-cloud-drawer blemmy-docked-popover no-print',
 		hidden:       '',
 		'aria-label': 'Cloud sync',
 	});
-	const inner = h('div', { class: 'cv-cloud-drawer__inner cv-prefs-inner' });
+	const inner = h('div', { class: 'blemmy-cloud-drawer__inner blemmy-prefs-inner' });
 	const tabAuth = h('button', {
 		type:              'button',
 		role:              'tab',
-		id:                'cv-cloud-tab-auth',
-		class:             'cv-cloud-drawer__seg cv-cloud-drawer__seg--active',
+		id:                'blemmy-cloud-tab-auth',
+		class:             'blemmy-cloud-drawer__seg blemmy-cloud-drawer__seg--active',
 		'aria-selected':   'true',
-		'aria-controls':   'cv-cloud-pane-auth',
+		'aria-controls':   'blemmy-cloud-pane-auth',
 	}, 'Account') as HTMLButtonElement;
 	const tabDocs = h('button', {
 		type:              'button',
 		role:              'tab',
-		id:                'cv-cloud-tab-docs',
-		class:             'cv-cloud-drawer__seg',
+		id:                'blemmy-cloud-tab-docs',
+		class:             'blemmy-cloud-drawer__seg',
 		'aria-selected':   'false',
-		'aria-controls':   'cv-cloud-pane-docs',
+		'aria-controls':   'blemmy-cloud-pane-docs',
 	}, 'Documents') as HTMLButtonElement;
 	const tabToggle = h('div', {
-		class:        'cv-cloud-drawer__seg-wrap',
+		class:        'blemmy-cloud-drawer__seg-wrap',
 		role:         'tablist',
 		'aria-label': 'Cloud sections',
 	}, tabAuth, tabDocs);
 	const syncChip = h('span', {
-		id: 'cv-cloud-sync-chip', class: 'cv-cloud-drawer__sync', hidden: '',
+		id: 'blemmy-cloud-sync-chip', class: 'blemmy-cloud-drawer__sync', hidden: '',
 	});
-	const tabRow = h('div', { class: 'cv-cloud-drawer__tabrow', hidden: '' }, tabToggle, syncChip);
+	const tabRow = h('div', { class: 'blemmy-cloud-drawer__tabrow', hidden: '' }, tabToggle, syncChip);
 	const paneAuth = h('div', {
-		id:                'cv-cloud-pane-auth',
-		class:             'cv-cloud-drawer__pane',
+		id:                'blemmy-cloud-pane-auth',
+		class:             'blemmy-cloud-drawer__pane',
 		role:              'tabpanel',
-		'aria-labelledby': 'cv-cloud-tab-auth',
+		'aria-labelledby': 'blemmy-cloud-tab-auth',
 	});
 	const paneDocs = h('div', {
-		id:                'cv-cloud-pane-docs',
-		class:             'cv-cloud-drawer__pane',
+		id:                'blemmy-cloud-pane-docs',
+		class:             'blemmy-cloud-drawer__pane',
 		role:              'tabpanel',
 		hidden:            '',
-		'aria-labelledby': 'cv-cloud-tab-docs',
+		'aria-labelledby': 'blemmy-cloud-tab-docs',
 	});
 
 	inner.append(
-		h('p', { class: 'cv-prefs-heading' }, 'Cloud'),
+		h('p', { class: 'blemmy-prefs-heading' }, 'Cloud'),
 		tabRow,
 		paneAuth,
 		paneDocs,
@@ -1469,10 +1817,10 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 
 	const cloudTrigger = buildDockButton(h, DOCK_CONTROLS.cloud, {
 		id: DOCK_CONTROLS.cloud.id,
-		className: 'cv-cloud-dock-trigger cv-history-btn',
+		className: 'blemmy-cloud-dock-trigger blemmy-history-btn',
 		extraAttrs: {
 			'aria-expanded': 'false',
-			'aria-controls': 'cv-cloud-drawer',
+			'aria-controls': 'blemmy-cloud-drawer',
 		},
 	});
 	if (!CLOUD_ENABLED) {
@@ -1505,7 +1853,7 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 		}
 	});
 
-	const docApi = initDocumentPanel(remount, {
+	const docApi = initDocumentPanel({
 		mount: paneDocs,
 		closeDrawer,
 		setSyncIndicator,
@@ -1518,9 +1866,9 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 	function activateTab(which: 'auth' | 'docs'): void {
 		if (which === 'docs' && !cloudAuthed) { return; }
 		const authOn = which === 'auth';
-		tabAuth.classList.toggle('cv-cloud-drawer__seg--active', authOn);
+		tabAuth.classList.toggle('blemmy-cloud-drawer__seg--active', authOn);
 		tabAuth.setAttribute('aria-selected', String(authOn));
-		tabDocs.classList.toggle('cv-cloud-drawer__seg--active', !authOn);
+		tabDocs.classList.toggle('blemmy-cloud-drawer__seg--active', !authOn);
 		tabDocs.setAttribute('aria-selected', String(!authOn));
 		paneAuth.toggleAttribute('hidden', !authOn);
 		paneDocs.toggleAttribute('hidden', authOn);
@@ -1541,7 +1889,7 @@ function initCloudSyncDrawer(remount: (data: CVData) => void): {
 	popover = initDockedPopover({
 		panel: drawer,
 		trigger: cloudTrigger,
-		openClass: 'cv-cloud-dock-trigger--open',
+		openClass: 'blemmy-cloud-dock-trigger--open',
 		group: 'left-docked-popovers',
 		marginPx: 12,
 		onOpen: () => { drawerOpen = true; },
@@ -1565,40 +1913,40 @@ export function initUIComponents(
 	remount: (data: CVData) => void = () => { /* noop if not provided */ },
 ): void {
 	const leftAnchor = h('div', {
-		id:    'cv-ui-dock-left-anchor',
-		class: 'cv-ui-dock-anchor cv-ui-dock-anchor--left no-print',
+		id:    'blemmy-ui-dock-left-anchor',
+		class: 'blemmy-ui-dock-anchor blemmy-ui-dock-anchor--left no-print',
 	});
-	const leftDock = h('div', { id: 'cv-ui-dock-left', class: 'cv-ui-dock no-print' });
-	const leftZoomShell = h('div', { class: 'cv-ui-dock__zoom-shell' });
+	const leftDock = h('div', { id: 'blemmy-ui-dock-left', class: 'blemmy-ui-dock no-print' });
+	const leftZoomShell = h('div', { class: 'blemmy-ui-dock__zoom-shell' });
 	const leftRail = h('div', {
-		id:    'cv-ui-dock-left-rail',
-		class: 'cv-ui-dock__rail',
+		id:    'blemmy-ui-dock-left-rail',
+		class: 'blemmy-ui-dock__rail',
 	});
 	const leftHandle = h('button', {
 		type:            'button',
-		id:              'cv-ui-dock-left-handle',
-		class:           'cv-ui-dock__handle cv-ui-dock__handle--left no-print',
+		id:              'blemmy-ui-dock-left-handle',
+		class:           'blemmy-ui-dock__handle blemmy-ui-dock__handle--left no-print',
 		'aria-expanded': 'false',
 		'aria-label':    'Open or close left tool strip',
-		'aria-controls': 'cv-ui-dock-left',
+		'aria-controls': 'blemmy-ui-dock-left',
 	});
 	const rightAnchor = h('div', {
-		id:    'cv-ui-dock-right-anchor',
-		class: 'cv-ui-dock-anchor cv-ui-dock-anchor--right no-print',
+		id:    'blemmy-ui-dock-right-anchor',
+		class: 'blemmy-ui-dock-anchor blemmy-ui-dock-anchor--right no-print',
 	});
-	const rightDock = h('div', { id: 'cv-ui-dock-right', class: 'cv-ui-dock no-print' });
-	const rightZoomShell = h('div', { class: 'cv-ui-dock__zoom-shell' });
+	const rightDock = h('div', { id: 'blemmy-ui-dock-right', class: 'blemmy-ui-dock no-print' });
+	const rightZoomShell = h('div', { class: 'blemmy-ui-dock__zoom-shell' });
 	const rightRail = h('div', {
-		id:    'cv-ui-dock-right-rail',
-		class: 'cv-ui-dock__rail',
+		id:    'blemmy-ui-dock-right-rail',
+		class: 'blemmy-ui-dock__rail',
 	});
 	const rightHandle = h('button', {
 		type:            'button',
-		id:              'cv-ui-dock-right-handle',
-		class:           'cv-ui-dock__handle cv-ui-dock__handle--right no-print',
+		id:              'blemmy-ui-dock-right-handle',
+		class:           'blemmy-ui-dock__handle blemmy-ui-dock__handle--right no-print',
 		'aria-expanded': 'false',
 		'aria-label':    'Open or close right tool strip',
-		'aria-controls': 'cv-ui-dock-right',
+		'aria-controls': 'blemmy-ui-dock-right',
 	});
 	leftZoomShell.appendChild(leftRail);
 	rightZoomShell.appendChild(rightRail);
@@ -1612,29 +1960,28 @@ export function initUIComponents(
 	// Layout status + debug toggle
 	document.body.appendChild(buildLayoutStatus());
 	rightRail.appendChild(buildDebugToggle());
+	if (import.meta.env.DEV) {
+		const devHelp = buildDevConsoleHelpPanel();
+		document.body.appendChild(devHelp.panel);
+		rightRail.appendChild(devHelp.trigger);
+	}
 
-	// Candidate selector (content is inside #cv-shell, script wired here)
+	// Candidate selector (content inside #blemmy-doc-shell, script wired here)
 
 	// Preferences panel + trigger
 	const { panel, trigger } = buildPreferencesPanel();
 	document.body.appendChild(panel);
 	leftRail.appendChild(trigger);
 
-	const docPanelApi = initCloudSyncDrawer(remount);
+	const docPanelApi = initCloudSyncDrawer();
 
-	// Upload/Download JSON + status
+	// Upload + export menu (JSON / HTML) + status
 	const uploadBtn = buildUploadButton();
-	const dlBtn = buildDockButton(h, DOCK_CONTROLS.downloadJson, {
-		id: DOCK_CONTROLS.downloadJson.id,
-		className: 'cv-download-json-btn cv-history-btn',
-	});
-	const htmlExportBtn = buildDockButton(h, DOCK_CONTROLS.exportHtml, {
-		id: DOCK_CONTROLS.exportHtml.id,
-		className: 'blemmy-export-html-btn cv-history-btn',
-	});
+	const exportMenu = buildExportMenu(h);
 	leftRail.appendChild(uploadBtn);
-	leftRail.appendChild(dlBtn);
-	leftRail.appendChild(htmlExportBtn);
+	leftRail.appendChild(exportMenu.root);
+	const dlBtn = exportMenu.downloadJsonBtn;
+	const htmlExportBtn = exportMenu.exportHtmlBtn;
 	document.body.appendChild(buildUploadStatus());
 
 	// Edit button + history controls
@@ -1643,26 +1990,35 @@ export function initUIComponents(
 
 	// v2.2 Review panel + overlay
 	const reviewInst = initReviewPanel({
-		getReview: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__?.review,
-		setReview: (r: CVReview) => {
-			const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-			if (d) { d.review = r; }
+		getReview: () => {
+			const d = getActiveDocumentData();
+			return isLikelyCvData(d) ? d.review : undefined;
 		},
-		getData: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__,
+		setReview: (r: CVReview) => {
+			const d = getActiveDocumentData();
+			if (isLikelyCvData(d)) {
+				d.review = r;
+			}
+		},
+		getData: () => {
+			const d = getActiveDocumentData();
+			return isLikelyCvData(d) ? d : undefined;
+		},
 	});
 	document.body.appendChild(reviewInst.panel);
 	rightRail.appendChild(reviewInst.toggle);
 	initReviewOverlay((path) => { reviewInst.open(path); });
-	window.addEventListener('cv-layout-applied', () => {
-		const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-		if (d?.review) { updateOverlay(d.review); }
+	window.addEventListener('blemmy-layout-applied', () => {
+		const d = getActiveDocumentData();
+		if (isLikelyCvData(d) && d.review) {
+			updateOverlay(d.review);
+		}
 	});
 	(window as Window & { __blemmyApplyReviewOps__?: typeof applyCommentOps }).__blemmyApplyReviewOps__ = applyCommentOps;
 	(window as Window & { __blemmySyncReview__?: (r: CVReview) => void }).__blemmySyncReview__ = (r) => {
 		reviewInst.syncReview(r);
 		updateOverlay(r);
 	};
-	const shellEl = document.getElementById('cv-shell');
 	function toContentPath(raw: string): ContentPath {
 		const parts = raw.split('.');
 		let out = '';
@@ -1691,10 +2047,12 @@ export function initUIComponents(
 		if (eduField) { return toContentPath(eduField).replace(/(\.\w+)+$/, '') as ContentPath; }
 		return null;
 	}
-	shellEl?.addEventListener('click', (event) => {
-		if (!document.documentElement.classList.contains('blemmy-review-mode')) { return; }
+	document.body.addEventListener('click', (event) => {
+		if (!document.documentElement.classList.contains('blemmy-review-mode')) {
+			return;
+		}
 		const target = event.target as HTMLElement | null;
-		if (!target) { return; }
+		if (!target?.closest('.blemmy-shell')) { return; }
 		const path = resolveClickedPath(target);
 		if (!path) { return; }
 		event.preventDefault();
@@ -1709,7 +2067,7 @@ export function initUIComponents(
 	// Theme toggle, chat, cloud — circular dock controls grouped together
 	rightRail.appendChild(buildThemeToggle());
 
-	const { panel: chatPanel, toggle: chatTrigger } = initChatPanel(remount);
+	const { panel: chatPanel, toggle: chatTrigger } = initChatPanel();
 	document.body.appendChild(chatPanel);
 	rightRail.appendChild(chatTrigger);
 	rightRail.appendChild(docPanelApi.cloudTrigger);
@@ -1727,7 +2085,7 @@ export function initUIComponents(
 
 	const sideFlow = initDockedSidePanelFlow({
 		getPanels: () => {
-			const ids = ['cv-edit-panel', 'blemmy-review-panel', 'cv-chat-panel'];
+			const ids = ['blemmy-edit-panel', 'blemmy-review-panel', 'blemmy-chat-panel'];
 			return ids
 				.map((id) => document.getElementById(id))
 				.filter((el): el is HTMLElement => el instanceof HTMLElement);
@@ -1736,6 +2094,9 @@ export function initUIComponents(
 
 	// ── Wire up event listeners ───────────────────────────────────────────────
 	initDebugToggle();
+	if (import.meta.env.DEV) {
+		initDevConsoleHelpPopover();
+	}
 	initPreferencesPanel();
 	initCandidateSelector();
 	initPrintButton();
@@ -1746,18 +2107,15 @@ export function initUIComponents(
 
 	// Download JSON action
 	dlBtn.addEventListener('click', () => {
-		const state = window as Window & {
-			__ACTIVE_DOC_TYPE__?: 'cv' | 'letter';
-			__CV_DATA__?: CVData;
-			__LETTER_DATA__?: unknown;
-		};
-		const activeType = state.__ACTIVE_DOC_TYPE__ ?? 'cv';
-		const cvData = state.__CV_DATA__;
-		const letterData = state.__LETTER_DATA__;
-		const payload = activeType === 'letter'
-			? letterData
-			: (cvData ? stripPortraitForJsonExport(cvData) : null);
-		if (!payload || typeof payload !== 'object') { return; }
+		const activeType = getActiveDocumentType();
+		const raw = getActiveDocumentData();
+		if (!raw || typeof raw !== 'object') {
+			return;
+		}
+		const payload =
+			activeType === 'cv' && isLikelyCvData(raw)
+				? stripPortraitForJsonExport(raw)
+				: raw;
 		const forFile = {
 			docType: activeType,
 			...(payload as unknown as Record<string, unknown>),
@@ -1770,7 +2128,7 @@ export function initUIComponents(
 		a.href     = url;
 		a.download = activeType === 'letter'
 			? 'letter-content.json'
-			: 'cv-content.json';
+			: 'blemmy-content.json';
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -1790,24 +2148,24 @@ export function initUIComponents(
 	});
 
 	// Edit mode — toggle button + toolbar
-	let editInstance: (EditModeInstance | GenericEditModeInstance) | null = null;
+	let editInstance: GenericEditModeInstance | null = null;
 	// Track whether edit mode was active before a remount
 	let editWasActive = false;
 
-	const editBtn = document.getElementById('cv-edit-btn');
-	const resetDraftBtn = document.getElementById('cv-reset-draft-btn');
+	const editBtn = document.getElementById('blemmy-edit-btn');
+	const resetDraftBtn = document.getElementById('blemmy-reset-draft-btn');
 
 	function setEditActive(on: boolean): void {
 		if (!editBtn) { return; }
 		editBtn.setAttribute('aria-pressed', String(on));
 		editBtn.textContent = on ? 'Editing' : 'Edit';
-		editBtn.classList.toggle('cv-edit-btn--active', on);
+		editBtn.classList.toggle('blemmy-edit-btn--active', on);
 	}
 
 	function closeChatPanelIfOpen(): void {
-		const panel = document.getElementById('cv-chat-panel');
+		const panel = document.getElementById('blemmy-chat-panel');
 		if (!(panel instanceof HTMLElement) || panel.hidden) { return; }
-		const triggerEl = document.getElementById('cv-chat-trigger');
+		const triggerEl = document.getElementById('blemmy-chat-trigger');
 		if (triggerEl instanceof HTMLElement) { triggerEl.click(); }
 	}
 
@@ -1817,8 +2175,13 @@ export function initUIComponents(
 		editInstance = null;
 		editWasActive = false;
 		setEditActive(false);
-		dispatchDockedPanelClose('cv-edit-panel');
+		dispatchDockedPanelClose('blemmy-edit-panel');
 	}
+
+	window.addEventListener(BLEMMY_RESET_BUNDLED_UI_EVENT, () => {
+		closeEditPanelIfOpen();
+		sideFlow.sync();
+	});
 
 	window.addEventListener(CHAT_OPEN_EVENT, () => {
 		reviewInst.close();
@@ -1834,70 +2197,46 @@ export function initUIComponents(
 		const panelId = (event as CustomEvent<{ panelId: RightDockedPanelId }>)
 			.detail?.panelId;
 		if (!panelId) { return; }
-		if (panelId !== 'cv-chat-panel') { closeChatPanelIfOpen(); }
+		if (panelId !== 'blemmy-chat-panel') { closeChatPanelIfOpen(); }
 		if (panelId !== 'blemmy-review-panel') { reviewInst.close(); }
-		if (panelId !== 'cv-edit-panel') { closeEditPanelIfOpen(); }
+		if (panelId !== 'blemmy-edit-panel') { closeEditPanelIfOpen(); }
 		sideFlow.sync();
 	});
 
 	function activateEdit(): void {
-		const win = window as Window & {
-			__CV_DATA__?: CVData;
-			__LETTER_DATA__?: LetterData;
-			__ACTIVE_DOC_TYPE__?: string;
-		};
-		const activeDocType = win.__ACTIVE_DOC_TYPE__ ?? 'cv';
-
-		if (activeDocType === 'letter') {
-			const base = win.__LETTER_DATA__;
-			if (!base) { return; }
-			const draftKey = 'blemmy-letter-draft';
-			const letterSpec = getDocTypeSpec('letter');
-			if (!letterSpec) { return; }
-			const data = loadGenericDraft<LetterData>(draftKey) ?? base;
-			editInstance = activateGenericEdit(
-				data,
-				'letter-shell',
-				draftKey,
-				letterSpec,
-				(newData) => {
-					editWasActive = true;
-					win.__LETTER_DATA__ = newData as LetterData;
-					editInstance?.deactivate();
-					editInstance = null;
-					setEditActive(false);
-					const switchFn = (window as Window & {
-						__blemmySwitchToLetter__?: (d: LetterData) => void;
-					}).__blemmySwitchToLetter__;
-					switchFn?.(newData as LetterData);
-				},
-				(updatedData) => {
-					win.__LETTER_DATA__ = updatedData as LetterData;
-				},
-			);
-		} else {
-			const base = win.__CV_DATA__;
-			if (!base) { return; }
-			const data = loadDraft() ?? base;
-			editInstance = activateEditMode(
-				data,
-				(newData) => {
-					editWasActive = true;
-					win.__CV_DATA__ = newData;
-					editInstance?.deactivate();
-					editInstance = null;
-					setEditActive(false);
-					remount(newData);
-					docPanelApi.onDataChange(newData);
-				},
-				(updatedData) => {
-					docPanelApi.onDataChange(updatedData);
-				},
-			);
+		const activeDocType = getActiveDocumentType();
+		const base = getActiveDocumentData();
+		if (base == null) {
+			return;
 		}
+		const spec = getDocTypeSpec(activeDocType);
+		if (!spec) {
+			return;
+		}
+		const draftKey = `blemmy-doc-draft-${activeDocType}`;
+		const data = loadGenericDraft<unknown>(draftKey) ?? base;
+		editInstance = activateGenericEdit(
+			data,
+			BLEMMY_DOC_SHELL_ID,
+			draftKey,
+			spec,
+			(newData) => {
+				editWasActive = true;
+				editInstance?.deactivate();
+				editInstance = null;
+				setEditActive(false);
+				commitDocumentEditFromUi(newData, true);
+				docPanelApi.onDataChange(newData as StoredDocumentData);
+			},
+			(updatedData) => {
+				window.__blemmyDocument__ = updatedData;
+				getRuntimeHandler(activeDocType).persistLocal?.(updatedData);
+				docPanelApi.onDataChange(updatedData as StoredDocumentData);
+			},
+		);
 
 		setEditActive(true);
-		dispatchDockedPanelOpen('cv-edit-panel');
+		dispatchDockedPanelOpen('blemmy-edit-panel');
 		closeChatPanelIfOpen();
 		reviewInst.close();
 		sideFlow.sync();
@@ -1909,7 +2248,7 @@ export function initUIComponents(
 			editInstance = null;
 			editWasActive = false;
 			setEditActive(false);
-			dispatchDockedPanelClose('cv-edit-panel');
+			dispatchDockedPanelClose('blemmy-edit-panel');
 			sideFlow.sync();
 			return;
 		}
@@ -1917,37 +2256,28 @@ export function initUIComponents(
 	});
 
 	resetDraftBtn?.addEventListener('click', () => {
-		const activeDocType2 = (window as Window & {
-			__ACTIVE_DOC_TYPE__?: string;
-		}).__ACTIVE_DOC_TYPE__ ?? 'cv';
-		const confirmMsg = activeDocType2 === 'letter'
-			? 'Reset local draft edits to the currently loaded letter?'
-			: 'Reset local draft edits and portrait to the currently loaded CV?';
-		if (!window.confirm(confirmMsg)) { return; }
-		if (activeDocType2 === 'letter') {
-			clearDraftByKey('blemmy-letter-draft');
-			editInstance?.deactivate();
-			editInstance = null;
-			editWasActive = false;
-			setEditActive(false);
-			const switchFn = (window as Window & {
-				__blemmySwitchToLetter__?: (d: LetterData) => void;
-			}).__blemmySwitchToLetter__;
-			const base = (window as Window & { __LETTER_DATA__?: LetterData })
-				.__LETTER_DATA__;
-			if (base) { switchFn?.(base); }
-		} else {
-			const cvInst = editInstance as EditModeInstance | null;
-			cvInst?.clearDraft();
-			cvInst?.clearPortrait?.();
-			editWasActive = false;
-			const base = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-			if (base) { remount(base); }
+		const activeDocType2 = getActiveDocumentType();
+		const spec = getDocTypeSpec(activeDocType2);
+		const label = spec?.label ?? 'document';
+		if (!window.confirm(
+			`Reset local draft edits to the currently loaded ${label}?`,
+		)) {
+			return;
+		}
+		clearDraftByKey(`blemmy-doc-draft-${activeDocType2}`);
+		editInstance?.clearDraft();
+		editInstance?.deactivate();
+		editInstance = null;
+		editWasActive = false;
+		setEditActive(false);
+		const base = getActiveDocumentData();
+		if (base != null) {
+			window.__blemmyRemountDocument__?.(base, activeDocType2);
 		}
 	});
 
 	// After a remount (visibility change), auto-reactivate edit mode
-	window.addEventListener('cv-layout-applied', () => {
+	window.addEventListener('blemmy-layout-applied', () => {
 		if (editWasActive && !editInstance) {
 			editWasActive = false;
 			activateEdit();
@@ -1959,26 +2289,35 @@ export function initUIComponents(
 
 export function initSharedReviewComponents(autoOpen = false): void {
 	const leftDock = h('div', {
-		id: 'cv-share-review-dock',
-		class: 'cv-ui-dock no-print',
+		id: 'blemmy-share-review-dock',
+		class: 'blemmy-ui-dock no-print',
 	});
 	document.body.appendChild(leftDock);
 	const reviewInst = initReviewPanel({
-		getReview: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__?.review,
-		setReview: (r: CVReview) => {
-			const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-			if (d) { d.review = r; }
+		getReview: () => {
+			const d = getActiveDocumentData();
+			return isLikelyCvData(d) ? d.review : undefined;
 		},
-		getData: () => (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__,
+		setReview: (r: CVReview) => {
+			const d = getActiveDocumentData();
+			if (isLikelyCvData(d)) {
+				d.review = r;
+			}
+		},
+		getData: () => {
+			const d = getActiveDocumentData();
+			return isLikelyCvData(d) ? d : undefined;
+		},
 	});
 	document.body.appendChild(reviewInst.panel);
 	leftDock.appendChild(reviewInst.toggle);
 	initReviewOverlay((path) => { reviewInst.open(path); });
-	window.addEventListener('cv-layout-applied', () => {
-		const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-		if (d?.review) { updateOverlay(d.review); }
+	window.addEventListener('blemmy-layout-applied', () => {
+		const d = getActiveDocumentData();
+		if (isLikelyCvData(d) && d.review) {
+			updateOverlay(d.review);
+		}
 	});
-	const shellEl = document.getElementById('cv-shell');
 	function toContentPath(raw: string): ContentPath {
 		const parts = raw.split('.');
 		let out = '';
@@ -2009,19 +2348,21 @@ export function initSharedReviewComponents(autoOpen = false): void {
 		}
 		return null;
 	}
-	shellEl?.addEventListener('click', (event) => {
-		if (!document.documentElement.classList.contains('blemmy-review-mode')) { return; }
+	document.body.addEventListener('click', (event) => {
+		if (!document.documentElement.classList.contains('blemmy-review-mode')) {
+			return;
+		}
 		const target = event.target as HTMLElement | null;
-		if (!target) { return; }
+		if (!target?.closest('.blemmy-shell')) { return; }
 		const path = resolveClickedPath(target);
 		if (!path) { return; }
 		event.preventDefault();
 		reviewInst.open(path);
 	});
-	const d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;
-	if (d?.review) {
-		reviewInst.syncReview(d.review);
-		updateOverlay(d.review);
+	const d0 = getActiveDocumentData();
+	if (isLikelyCvData(d0) && d0.review) {
+		reviewInst.syncReview(d0.review);
+		updateOverlay(d0.review);
 	}
 	if (autoOpen) { reviewInst.open(); }
 	initUnifiedPanelState();

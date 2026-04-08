@@ -1,0 +1,61 @@
+/**
+ * Scoped layout for <blemmy-doc> without html.blemmy-share-readonly.
+ * Host element receives --blemmy-paper-scale from attachBlemmyEmbedPaperScale().
+ *
+ * While a embed is mounted, html gets .blemmy-doc-embed-typography so rem-based
+ * document tokens match print preview / PDF (see blemmy-print-surface.css).
+ */
+
+html.blemmy-doc-embed-typography {
+	font-size:   10pt !important;
+	line-height: 1.4 !important;
+}
+
+blemmy-doc.blemmy-doc-embed {
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	max-width: 100%;
+}
+
+blemmy-doc.blemmy-doc-embed .blemmy-ui-deck {
+	display: none !important;
+}
+
+blemmy-doc.blemmy-doc-embed .blemmy-paper-stage {
+	width: 210mm;
+	max-width: 210mm;
+	margin: 0 auto;
+	zoom: var(--blemmy-paper-scale, 1);
+}
+
+blemmy-doc.blemmy-doc-embed #blemmy-doc-root {
+	width: auto;
+	max-width: none;
+	margin: 0;
+	zoom: 1;
+}
+
+blemmy-doc.blemmy-doc-embed #blemmy-doc-shell {
+	width: 210mm;
+	max-width: 210mm;
+	margin: 0;
+}
+
+@supports not (zoom: 1) {
+	blemmy-doc.blemmy-doc-embed .blemmy-paper-stage {
+		transform: scale(var(--blemmy-paper-scale, 1));
+		transform-origin: top center;
+	}
+}
+
+blemmy-doc.blemmy-doc-embed .blemmy-doc-embed__status {
+	font-family: system-ui, sans-serif;
+	font-size: 0.85rem;
+	color: #555;
+	padding: 0.5rem 0;
+}
+
+blemmy-doc.blemmy-doc-embed .blemmy-doc-embed__status--error {
+	color: #b91c1c;
+}

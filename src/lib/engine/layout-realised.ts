@@ -3,8 +3,8 @@
  *
  * Generic realised layout — capture and apply for any document type.
  *
- * NOTE: cv-layout-snapshot.ts is retained for backward compatibility with
- * cloud documents that store CVLayoutSnapshot. New documents use RealisedLayout.
+ * NOTE: migrateSnapshot() maps stored CVLayoutSnapshot-shaped payloads into
+ * RealisedLayout. Live DOM and datasets use the blemmy vocabulary only.
  */
 
 import type { DocumentTypeSpec, RealisedLayout } from '@cv/document-type-spec';
@@ -20,41 +20,49 @@ import {
 // ─── CV legacy DOM (renderer still uses pre-zone IDs) ───────────────────────
 
 const CV_SECTION_ELEMENT_IDS: Record<string, string> = {
-	skills:    'cv-rebalance-skills',
-	languages: 'cv-rebalance-languages',
-	interests: 'cv-rebalance-interests',
-	profile:   'cv-rebalance-profile',
-	education: 'cv-education',
+	skills:    'blemmy-rebalance-skills',
+	languages: 'blemmy-rebalance-languages',
+	interests: 'blemmy-rebalance-interests',
+	profile:   'blemmy-rebalance-profile',
+	education: 'blemmy-education',
 };
 
-function resolveSectionElementId(domPrefix: string, sectionId: string): string {
-	if (domPrefix === 'cv' && CV_SECTION_ELEMENT_IDS[sectionId]) {
+function resolveSectionElementId(
+	docType: string,
+	domPrefix: string,
+	sectionId: string,
+): string {
+	if (docType === 'cv' && CV_SECTION_ELEMENT_IDS[sectionId]) {
 		return CV_SECTION_ELEMENT_IDS[sectionId];
 	}
 	return sectionElementId(domPrefix, sectionId);
 }
 
-function legacyVariantZoneEl(domPrefix: string, zoneId: string): HTMLElement | null {
-	if (domPrefix === 'cv' && zoneId === 'header') {
-		return document.getElementById('cv-zone-header')
-			?? document.getElementById('cv-page-1-masthead');
+function legacyVariantZoneEl(
+	docType: string,
+	domPrefix: string,
+	zoneId: string,
+): HTMLElement | null {
+	if (docType === 'cv' && zoneId === 'header') {
+		return document.getElementById('blemmy-zone-header')
+			?? document.getElementById('blemmy-page-1-masthead');
 	}
 	return document.getElementById(zoneElementId(domPrefix, zoneId));
 }
 
-function legacyZoneHostEl(domPrefix: string, zoneId: string): HTMLElement | null {
-	if (domPrefix !== 'cv') {
+function legacyZoneHostEl(docType: string, domPrefix: string, zoneId: string): HTMLElement | null {
+	if (docType !== 'cv') {
 		return document.getElementById(zoneElementId(domPrefix, zoneId));
 	}
 	switch (zoneId) {
 		case 'sidebar':
-			return document.getElementById('cv-sidebar-1');
+			return document.getElementById('blemmy-sidebar-1');
 		case 'footer':
-			return document.getElementById('cv-page-1-body-footer');
+			return document.getElementById('blemmy-page-1-body-footer');
 		case 'main-body':
-			return document.getElementById('cv-main-1');
+			return document.getElementById('blemmy-main-1');
 		case 'header':
-			return document.getElementById('cv-page-1-masthead');
+			return document.getElementById('blemmy-page-1-masthead');
 		default:
 			return document.getElementById(zoneElementId(domPrefix, zoneId));
 	}
@@ -69,7 +77,7 @@ export function captureRealisedLayout(spec: DocumentTypeSpec): RealisedLayout | 
 	const card = document.getElementById(`${spec.domPrefix}-card`);
 	if (!(card instanceof HTMLElement)) { return null; }
 
-	const pagesRaw = card.dataset.blemmyPages ?? card.dataset.cvPages;
+	const pagesRaw = card.dataset.blemmyLayoutPages ?? card.dataset.blemmyPages;
 	const pages = pagesRaw ? parseInt(pagesRaw, 10) : 1;
 
 	const zoneWidths: Record<string, number> = {};
@@ -77,7 +85,7 @@ export function captureRealisedLayout(spec: DocumentTypeSpec): RealisedLayout | 
 		const cssVar = `--blemmy-zone-${rz.id}-mm`;
 		const raw    = card.style.getPropertyValue(cssVar).trim() ||
 			(rz.id === 'sidebar'
-				? card.style.getPropertyValue('--cv-sidebar-width-override').trim()
+				? card.style.getPropertyValue('--blemmy-sidebar-width-override').trim()
 				: '');
 		const mm = parseFloat(raw.replace('mm', ''));
 		if (Number.isFinite(mm)) { zoneWidths[rz.id] = mm; }
@@ -87,7 +95,9 @@ export function captureRealisedLayout(spec: DocumentTypeSpec): RealisedLayout | 
 	for (const vz of variantZones(spec.zones)) {
 		const attrKey = `blemmyVariant${capitalize(vz.id)}`;
 		const val     = (card.dataset as Record<string, string | undefined>)[attrKey] ??
-			(vz.id === 'header' ? card.dataset.cvMastheadMode : undefined);
+			(vz.id === 'header'
+				? card.dataset.blemmyLayoutHeaderVariant
+				: undefined);
 		if (val) { zoneVariants[vz.id] = val; }
 	}
 
@@ -151,8 +161,8 @@ export function applyRealisedLayout(
 	const isSinglePage = layout.pages === 1;
 	card.classList.toggle(`${p}-single-page`, isSinglePage);
 	card.dataset.blemmyPages = String(layout.pages);
-	card.dataset.cvPages = String(layout.pages);
-	card.dataset.cvDisposition = isSinglePage ? 'single-page' : 'two-page';
+	card.dataset.blemmyLayoutPages = String(layout.pages);
+	card.dataset.blemmyLayoutDisposition = isSinglePage ? 'single-page' : 'two-page';
 
 	const page2 = document.getElementById(`${p}-page-2`);
 	if (page2 instanceof HTMLElement) {
@@ -164,29 +174,31 @@ export function applyRealisedLayout(
 		if (mm === undefined) { continue; }
 		card.style.setProperty(`--blemmy-zone-${rz.id}-mm`, `${mm}mm`);
 		if (rz.id === 'sidebar') {
-			card.style.setProperty('--cv-sidebar-width-override', `${mm}mm`);
-			card.dataset.cvSidebarMm = String(Math.round(mm));
+			card.style.setProperty('--blemmy-sidebar-width-override', `${mm}mm`);
+			card.dataset.blemmyLayoutSidebarMm = String(Math.round(mm));
 		}
 	}
 
 	for (const vz of variantZones(spec.zones)) {
 		const variantId = layout.zoneVariants[vz.id] ?? defaultVariant(vz) ?? '';
-		const zoneEl    = legacyVariantZoneEl(p, vz.id);
+		const zoneEl    = legacyVariantZoneEl(spec.docType, p, vz.id);
 		if (zoneEl instanceof HTMLElement) {
 			zoneEl.dataset.blemmyVariant = variantId;
 		}
 		const attrKey = `blemmyVariant${capitalize(vz.id)}`;
 		(card.dataset as Record<string, string>)[attrKey] = variantId;
 		if (vz.id === 'header') {
-			card.dataset.cvMastheadMode = variantId;
-			applyLegacyMastheadMode(variantId, p);
+			card.dataset.blemmyLayoutHeaderVariant = variantId;
+			applyLegacyMastheadMode(variantId, spec.docType);
 		}
 	}
 
 	for (const sec of spec.movableSections) {
 		const zoneId = layout.sectionPlacements[sec.id] ?? sec.defaultZone;
-		const secEl  = document.getElementById(resolveSectionElementId(p, sec.id));
-		const targetEl = legacyZoneHostEl(p, zoneId);
+		const secEl  = document.getElementById(
+			resolveSectionElementId(spec.docType, p, sec.id),
+		);
+		const targetEl = legacyZoneHostEl(spec.docType, p, zoneId);
 		if (secEl instanceof HTMLElement && targetEl instanceof HTMLElement) {
 			targetEl.appendChild(secEl);
 		}
@@ -200,13 +212,13 @@ export function applyRealisedLayout(
 		const attrKey = `blemmySplit${capitalize(cs.id)}`;
 		(card.dataset as Record<string, string>)[attrKey] = String(splitAt);
 		if (cs.id === 'work') {
-			card.dataset.cvSplit = String(splitAt);
-			applyLegacyWorkSplit(splitAt, p);
+			card.dataset.blemmyLayoutWorkSplit = String(splitAt);
+			applyLegacyWorkSplit(splitAt, spec.docType);
 		}
 	}
 
-	card.setAttribute('data-cv-layout-ready', 'true');
-	window.dispatchEvent(new Event('cv-layout-applied'));
+	card.setAttribute('data-blemmy-layout-ready', 'true');
+	window.dispatchEvent(new Event('blemmy-layout-applied'));
 	return true;
 }
 
@@ -259,27 +271,27 @@ function capitalize(s: string): string {
 }
 
 function readLegacySections(card: HTMLElement): Record<string, string> | null {
-	const raw = card.dataset.cvSections;
+	const raw = card.dataset.blemmyLayoutSections;
 	if (!raw) { return null; }
 	try { return JSON.parse(raw) as Record<string, string>; }
 	catch { return null; }
 }
 
-function applyLegacyMastheadMode(mode: string, domPrefix: string): void {
-	if (domPrefix !== 'cv') { return; }
-	const masthead    = document.getElementById('cv-zone-header') ??
-		document.getElementById('cv-page-1-masthead');
-	const profileCol  = document.getElementById('cv-zone-header-profile') ??
-		document.getElementById('cv-masthead-profile-col');
-	const profile     = document.getElementById('cv-section-profile') ??
-		document.getElementById('cv-rebalance-profile');
-	const mastheadRight = document.getElementById('cv-zone-header-right') ??
-		document.getElementById('cv-masthead-right');
-	const main1       = document.getElementById('cv-zone-main-body') ??
-		document.getElementById('cv-main-1');
+function applyLegacyMastheadMode(mode: string, docType: string): void {
+	if (docType !== 'cv') { return; }
+	const masthead    = document.getElementById('blemmy-zone-header') ??
+		document.getElementById('blemmy-page-1-masthead');
+	const profileCol  = document.getElementById('blemmy-zone-header-profile') ??
+		document.getElementById('blemmy-masthead-profile-col');
+	const profile     = document.getElementById('blemmy-section-profile') ??
+		document.getElementById('blemmy-rebalance-profile');
+	const mastheadRight = document.getElementById('blemmy-zone-header-right') ??
+		document.getElementById('blemmy-masthead-right');
+	const main1       = document.getElementById('blemmy-zone-main-body') ??
+		document.getElementById('blemmy-main-1');
 
 	if (!masthead) { return; }
-	masthead.classList.remove('cv-masthead-collapsed');
+	masthead.classList.remove('blemmy-masthead-collapsed');
 
 	if (profile && profileCol && !profileCol.contains(profile)) {
 		profileCol.appendChild(profile);
@@ -289,7 +301,7 @@ function applyLegacyMastheadMode(mode: string, domPrefix: string): void {
 	}
 
 	if (mode === 'compact' || mode === 'profile-sidebar-meta') {
-		const hb = masthead.querySelector('.cv-header-block');
+		const hb = masthead.querySelector('.blemmy-header-block');
 		if (hb && mastheadRight) { hb.appendChild(mastheadRight); }
 		return;
 	}
@@ -298,18 +310,18 @@ function applyLegacyMastheadMode(mode: string, domPrefix: string): void {
 		return;
 	}
 	if (mode === 'strip' || mode === 'classic') {
-		masthead.classList.add('cv-masthead-collapsed');
-		const hb = masthead.querySelector('.cv-header-block');
+		masthead.classList.add('blemmy-masthead-collapsed');
+		const hb = masthead.querySelector('.blemmy-header-block');
 		if (hb && mastheadRight) { hb.appendChild(mastheadRight); }
 		if (profile && main1) { main1.insertBefore(profile, main1.firstChild); }
 	}
 }
 
-function applyLegacyWorkSplit(splitAt: number, domPrefix: string): void {
-	if (domPrefix !== 'cv') { return; }
-	const main1 = document.getElementById('cv-zone-main-body') ??
-		document.getElementById('cv-main-1');
-	const main2 = document.getElementById('cv-main-2');
+function applyLegacyWorkSplit(splitAt: number, docType: string): void {
+	if (docType !== 'cv') { return; }
+	const main1 = document.getElementById('blemmy-zone-main-body') ??
+		document.getElementById('blemmy-main-1');
+	const main2 = document.getElementById('blemmy-main-2');
 	if (!main1 || !main2) { return; }
 
 	const wrappers = Array.from(

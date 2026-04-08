@@ -153,7 +153,7 @@ console.log('\nBlemmy v2.2 review mode patch\n');
 			'\tdocument.body.appendChild(reviewInst.panel);\n' +
 			'\tleftDock.appendChild(reviewInst.toggle);\n' +
 			'\tinitReviewOverlay((path) => { reviewInst.open(path); });\n' +
-			'\twindow.addEventListener(\'cv-layout-applied\', () => {\n' +
+			'\twindow.addEventListener(\'blemmy-layout-applied\', () => {\n' +
 			'\t\tconst d = (window as Window & { __CV_DATA__?: CVData }).__CV_DATA__;\n' +
 			'\t\tif (d?.review) { updateOverlay(d.review); }\n' +
 			'\t});\n' +

@@ -1,10 +1,10 @@
 /* ─── Blemmy style panel ─────────────────────────────────────────────────────
    Injected by: src/renderer/style-panel.ts
-   Lives inside #cv-prefs-panel / .cv-prefs-inner
+   Lives inside #blemmy-prefs-panel / .blemmy-prefs-inner
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* Divider between layout prefs and style section */
-.cv-prefs-divider {
+.blemmy-prefs-divider {
 	border: none;
 	border-top: 1px solid var(--color-ink-border);
 	margin: 0.75rem 0 0.5rem;
@@ -16,7 +16,7 @@
 	gap:            0.6rem;
 }
 
-.blemmy-style-section .cv-prefs-heading {
+.blemmy-style-section .blemmy-prefs-heading {
 	margin-bottom: 0.1rem;
 }
 

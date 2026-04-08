@@ -105,12 +105,12 @@
 }
 
 /* Review mode: subtle hover state on all annotatable CV elements */
-.blemmy-review-mode .cv-shell .experience-block:hover,
-.blemmy-review-mode .cv-shell .edu-block:hover,
-.blemmy-review-mode .cv-shell .highlight-list li:hover,
-.blemmy-review-mode .cv-shell .cv-name:hover,
-.blemmy-review-mode .cv-shell .masthead-label:hover,
-.blemmy-review-mode .cv-shell [data-blemmy-field]:hover {
+.blemmy-review-mode .blemmy-shell .experience-block:hover,
+.blemmy-review-mode .blemmy-shell .edu-block:hover,
+.blemmy-review-mode .blemmy-shell .highlight-list li:hover,
+.blemmy-review-mode .blemmy-shell .blemmy-name:hover,
+.blemmy-review-mode .blemmy-shell .masthead-label:hover,
+.blemmy-review-mode .blemmy-shell [data-blemmy-field]:hover {
 	background:     rgba(217, 119, 6, 0.06);
 	border-radius:  2px;
 	cursor:         cell;
@@ -122,14 +122,23 @@
 	position:       fixed;
 	top:            0;
 	right:          0;
-	width:          var(--cv-panel-w, 344px);
-	height:         100vh;
-	background:     var(--color-ink-bg);
+	bottom:         0;
+	width:          var(--blemmy-panel-w, 344px);
+	height:         auto;
+	background:     var(--color-paper, #fff);
 	border-left:    1px solid var(--color-ink-border);
+	box-shadow:     -4px 0 20px rgba(0, 0, 0, 0.06);
 	display:        flex;
 	flex-direction: column;
 	z-index:        200;
 	overflow:       hidden;
+	font-family:    'DM Sans', sans-serif;
+}
+
+.dark .blemmy-review-panel {
+	background:   #111;
+	border-color: #2a2a2a;
+	box-shadow:   -4px 0 20px rgba(0, 0, 0, 0.35);
 }
 
 .blemmy-review-panel[hidden] {
@@ -138,21 +147,21 @@
 
 /* Match chat/edit behavior on wider screens: side drawer shifts CV shell. */
 @media screen and (min-width: 901px) {
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) {
-		--cv-main-review-scale: min(1, calc((100vw - 344px - 2rem) / 794));
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) {
+		--blemmy-main-review-scale: min(1, calc((100vw - 344px - 2rem) / 794));
 		padding-right: 344px !important;
 		box-sizing: border-box;
 		overflow-x: hidden;
 	}
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) #cv-root,
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-shell,
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-ui-deck {
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) #blemmy-doc-root,
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-shell,
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-ui-deck {
 		width: 100% !important;
 		max-width: min(900px, calc(100vw - 344px - 2rem)) !important;
 		box-sizing: border-box;
 	}
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-shell,
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .cv-ui-deck {
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-shell,
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-ui-deck {
 		margin-inline: auto !important;
 		min-width: 0 !important;
 	}
@@ -160,46 +169,33 @@
 	 * Print preview is fixed 210mm by design. Match share-view strategy:
 	 * scale the fixed-width stage instead of forcing fluid child widths.
 	 */
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#cv-shell.cv-print-preview {
-		zoom: var(--cv-main-review-scale);
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	.blemmy-shell.blemmy-print-preview {
+		zoom: var(--blemmy-main-review-scale);
 		transform-origin: top center;
 	}
 	@supports not (zoom: 1) {
-		html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-		#cv-shell.cv-print-preview {
-			transform: scale(var(--cv-main-review-scale));
+		html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+		.blemmy-shell.blemmy-print-preview {
+			transform: scale(var(--blemmy-main-review-scale));
 			transform-origin: top center;
 		}
 	}
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#cv-shell:not(.cv-print-preview) #cv-card {
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-card,
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page,
+	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
+	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page .blemmy-grid {
 		width: 100% !important;
 		max-width: 100% !important;
 		min-width: 0 !important;
 		box-sizing: border-box;
 		overflow-x: clip;
-	}
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#cv-shell:not(.cv-print-preview) #cv-page-1,
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#cv-shell:not(.cv-print-preview) #cv-page-2 {
-		width: 100% !important;
-		max-width: 100% !important;
-		min-width: 0 !important;
-		box-sizing: border-box;
-		overflow-x: clip;
-	}
-	html:not(.cv-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#cv-shell:not(.cv-print-preview) .cv-page .cv-grid {
-		width: 100% !important;
-		max-width: 100% !important;
-		min-width: 0 !important;
-		box-sizing: border-box;
 	}
 }
 
-html.cv-share-readonly #cv-share-review-dock {
+html.blemmy-share-readonly #blemmy-share-review-dock {
 	position: fixed;
 	left: 1rem;
 	bottom: 1rem;
@@ -207,12 +203,12 @@ html.cv-share-readonly #cv-share-review-dock {
 }
 
 @media screen and (min-width: 901px) {
-	html.cv-share-readonly body:has(#blemmy-review-panel:not([hidden])) {
+	html.blemmy-share-readonly body:has(#blemmy-review-panel:not([hidden])) {
 		padding-right: 344px !important;
 		box-sizing: border-box;
 	}
-	html.cv-share-readonly body:has(#blemmy-review-panel:not([hidden]))
-	.cv-paper-stage {
+	html.blemmy-share-readonly body:has(#blemmy-review-panel:not([hidden]))
+	.blemmy-paper-stage {
 		margin-left: auto;
 		margin-right: auto;
 	}
@@ -220,11 +216,11 @@ html.cv-share-readonly #cv-share-review-dock {
 
 @media screen and (max-width: 900px) {
 	html {
-		--cv-review-panel-h: var(--cv-panel-h-mobile, min(48dvh, 20rem));
+		--blemmy-review-panel-h: var(--blemmy-panel-h-mobile, min(48dvh, 20rem));
 	}
 	.blemmy-review-panel {
 		width: 100vw;
-		height: var(--cv-review-panel-h);
+		height: var(--blemmy-review-panel-h);
 		top: auto;
 		bottom: 0;
 		right: 0;
@@ -232,10 +228,10 @@ html.cv-share-readonly #cv-share-review-dock {
 		border-left: none;
 		border-top: 1px solid var(--color-ink-border);
 	}
-	body:has(#blemmy-review-panel:not([hidden])) .cv-shell {
+	body:has(#blemmy-review-panel:not([hidden])) .blemmy-shell {
 		margin-right: 0 !important;
 	}
-	html.cv-share-readonly #cv-share-review-dock {
+	html.blemmy-share-readonly #blemmy-share-review-dock {
 		bottom: 0.6rem;
 		left: 0.6rem;
 	}
