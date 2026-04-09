@@ -298,6 +298,54 @@ function initDevConsoleHelpPopover(): void {
 /** Debug overlays stay under dock chrome (z-index 220). */
 const LAYOUT_DEBUG_OVERLAY_Z = 80;
 
+/** Above dock shells / popovers so the export menu is not covered. */
+const EXPORT_MENU_Z = 10060;
+
+/**
+ * Dock `.blemmy-ui-dock__zoom-shell` uses overflow auto/hidden, which clips an
+ * absolutely positioned dropdown above the trigger. Fixed viewport coords
+ * escape that clipping.
+ */
+function positionExportMenuPanel(
+	trigger: HTMLButtonElement,
+	panel: HTMLElement,
+): void {
+	if (panel.hidden) {
+		return;
+	}
+	const gap = 8;
+	const r = trigger.getBoundingClientRect();
+	const pw = panel.offsetWidth;
+	const ph = panel.offsetHeight;
+	let left = r.right - pw;
+	left = Math.min(
+		Math.max(gap, left),
+		window.innerWidth - gap - pw,
+	);
+	let top = r.top - ph - gap;
+	if (top < gap) {
+		top = r.bottom + gap;
+	}
+	if (top + ph > window.innerHeight - gap) {
+		top = Math.max(gap, window.innerHeight - gap - ph);
+	}
+	panel.style.position = 'fixed';
+	panel.style.left     = `${Math.round(left)}px`;
+	panel.style.top      = `${Math.round(top)}px`;
+	panel.style.right    = 'auto';
+	panel.style.bottom   = 'auto';
+	panel.style.zIndex   = String(EXPORT_MENU_Z);
+}
+
+function clearExportMenuPanelPosition(panel: HTMLElement): void {
+	panel.style.removeProperty('position');
+	panel.style.removeProperty('left');
+	panel.style.removeProperty('top');
+	panel.style.removeProperty('right');
+	panel.style.removeProperty('bottom');
+	panel.style.removeProperty('z-index');
+}
+
 function buildExportMenu(hCreate: typeof h): {
 	root: HTMLElement;
 	downloadJsonBtn: HTMLButtonElement;
@@ -333,11 +381,20 @@ function buildExportMenu(hCreate: typeof h): {
 	root.append(trigger, panel);
 	function close(): void {
 		panel.hidden = true;
+		clearExportMenuPanelPosition(panel);
 		trigger.setAttribute('aria-expanded', 'false');
 	}
 	function open(): void {
 		panel.hidden = false;
 		trigger.setAttribute('aria-expanded', 'true');
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				positionExportMenuPanel(trigger, panel);
+			});
+		});
+	}
+	function onResizeOrScroll(): void {
+		positionExportMenuPanel(trigger, panel);
 	}
 	trigger.addEventListener('click', (ev) => {
 		ev.stopPropagation();
@@ -352,6 +409,8 @@ function buildExportMenu(hCreate: typeof h): {
 	document.addEventListener('keydown', (ev) => {
 		if (ev.key === 'Escape') { close(); }
 	});
+	window.addEventListener('resize', onResizeOrScroll);
+	window.addEventListener('scroll', onResizeOrScroll, true);
 	return { root, downloadJsonBtn, exportHtmlBtn };
 }
 
@@ -1208,18 +1267,6 @@ function syncUnifiedPanelState(): void {
 	html.classList.toggle('blemmy-panel-open', anyOpen);
 	html.classList.toggle('blemmy-panel-desktop', anyOpen && isDesktop);
 	html.classList.toggle('blemmy-panel-mobile', anyOpen && !isDesktop);
-	html.classList.remove(
-		'blemmy-panel-kind-chat',
-		'blemmy-panel-kind-review',
-		'blemmy-panel-kind-edit',
-	);
-	if (reviewOpen) {
-		html.classList.add('blemmy-panel-kind-review');
-	} else if (chatOpen) {
-		html.classList.add('blemmy-panel-kind-chat');
-	} else if (editOpen) {
-		html.classList.add('blemmy-panel-kind-edit');
-	}
 	const sig = [
 		Number(anyOpen),
 		Number(isDesktop),

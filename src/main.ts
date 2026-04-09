@@ -34,6 +34,7 @@ import {
 	BLEMMY_APP_SESSION_STATE_KEY,
 	LEGACY_CV_APP_SESSION_STATE_KEY,
 } from '@lib/blemmy-storage-keys';
+import { closeDocument } from '@lib/document-sync';
 import {
 	hasUploadedData,
 	isLikelyCvData,
@@ -52,7 +53,6 @@ import {
 	loadPortraitLocalCache,
 	savePortraitLocalCache,
 } from '@lib/profile-portrait';
-import { applyReviewWidthClamp } from '@lib/review-layout-clamp';
 import { syncFilterBar }                from '@renderer/profile-renderer';
 import type { CVData }                  from '@cv/cv';
 
@@ -165,40 +165,6 @@ function isShareReviewModeEnabled(): boolean {
 	}
 }
 
-function setupMainReviewWidthClamp(): void {
-	const mq = window.matchMedia('(min-width: 901px)');
-	let lastOverflowSig = '';
-	const apply = (): void => {
-		const report = applyReviewWidthClamp(document, mq.matches);
-		if (report.applied && report.overflowPx > 0) {
-			const sig = `${report.shellWidth}:${report.cardWidth}`;
-			if (sig !== lastOverflowSig) {
-				lastOverflowSig = sig;
-				console.warn('[review-layout] overflow detected', {
-					shellWidth: report.shellWidth,
-					cardWidth: report.cardWidth,
-					overflowPx: report.overflowPx,
-				});
-			}
-		}
-	};
-	apply();
-	window.addEventListener('resize', apply);
-	window.visualViewport?.addEventListener('resize', apply);
-	window.addEventListener('blemmy-layout-applied', apply);
-	window.addEventListener('blemmy-view-mode-changed', apply);
-	const observer = new MutationObserver(() => { apply(); });
-	observer.observe(document.body, {
-		subtree: true,
-		attributes: true,
-		attributeFilter: ['hidden', 'class'],
-	});
-	observer.observe(document.documentElement, {
-		attributes: true,
-		attributeFilter: ['class'],
-	});
-}
-
 /**
  * Layout runs at paper CSS px width; fit uses --blemmy-paper-scale + stage zoom/transform.
  * `blemmy-layout-applied` can precede a committed frame (fonts, probes), so we refit
@@ -219,14 +185,15 @@ function schedulePaperStageRefit(apply: () => void): void {
 
 function setupPaperStageScale(readonlyMode: boolean): void {
 	const baseW = Math.round((210 / 25.4) * 96);
-	let moTimer: number | null = null;
+	let moRaf: number | null = null;
 	const apply = (): void => {
 		const shell = activeDocShellEl();
 		if (!shell?.isConnected) {
 			return;
 		}
 		const html = document.documentElement;
-		const innerW = window.innerWidth;
+		const vv = window.visualViewport;
+		const layoutViewportW = Math.max(1, Math.floor(vv?.width ?? window.innerWidth));
 		const isDesktop = window.matchMedia('(min-width: 901px)').matches;
 		const shareReviewPanel = document.getElementById('blemmy-review-panel');
 		const shareReviewOpen = Boolean(
@@ -235,23 +202,34 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 			!shareReviewPanel.hasAttribute('hidden'),
 		);
 		/*
-		 * Match html.blemmy-panel-open.blemmy-panel-desktop + body padding-right — not
-		 * only .blemmy-side-panel visibility (edit panel has no [hidden] while open).
+		 * Prefer html.blemmy-panel-open (synced in ui-components). Also detect any
+		 * open unified dock panel in the DOM — same idea as legacy
+		 * `.cv-side-panel:not([hidden])`, so we still reserve width if classes lag
+		 * or edit mode only toggles data-blemmy-editing / panel mount.
 		 */
-		const unifiedDesktopPanel =
+		const classDesktopPanel =
 			html.classList.contains('blemmy-panel-open') &&
 			html.classList.contains('blemmy-panel-desktop');
+		const domUnifiedDockOpen =
+			isDesktop &&
+			document.querySelector('.blemmy-unified-side-panel:not([hidden])') != null;
+		const effectiveDesktopSidePanel = classDesktopPanel || domUnifiedDockOpen;
 		const panelWStr = getComputedStyle(html).getPropertyValue('--blemmy-panel-w')
 			.trim();
 		const panelWPx = Number.parseFloat(panelWStr) || 344;
 		const reserveRight =
-			isDesktop && (unifiedDesktopPanel || shareReviewOpen) ? panelWPx : 0;
+			isDesktop && (effectiveDesktopSidePanel || shareReviewOpen)
+				? panelWPx
+				: 0;
 		const horizPad = isDesktop ? 12 : 32;
 		/*
 		 * documentElement.clientWidth ignores body padding-right, so cap width
-		 * using innerWidth minus the same panel reserve as global.css.
+		 * using layout viewport width minus the same panel reserve as global.css.
 		 */
-		const columnBudget = Math.max(1, Math.floor(innerW - reserveRight - horizPad));
+		const columnBudget = Math.max(
+			1,
+			Math.floor(layoutViewportW - reserveRight - horizPad),
+		);
 		const docRoot = activeDocRootEl();
 		const rawRoot =
 			docRoot instanceof HTMLElement && docRoot.clientWidth > 0
@@ -266,17 +244,12 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 		const hasFixedPaperStage = readonlyMode ||
 			Boolean(shell.classList.contains('blemmy-print-preview'));
 		/*
-		 * Desktop edit/assistant: global.css zooms .blemmy-shell print preview. Keep
-		 * stage/scaler zoom at 1 so we do not compound two scales.
+		 * Single uniform scale (legacy behaviour): fit fixed paper width (210mm →
+		 * baseW px) into the column — including when a right rail is open
+		 * (reserveRight). Apply via .blemmy-paper-stage zoom only; do not squeeze
+		 * inner card width with max-width clamps (that reflows and breaks aspect).
 		 */
-		const shellCssSidePanelZoom =
-			unifiedDesktopPanel &&
-			!html.classList.contains('blemmy-panel-kind-review');
-		const scale = hasFixedPaperStage
-			? shellCssSidePanelZoom
-				? 1
-				: Math.min(availableW / baseW, 1)
-			: 1;
+		const scale = hasFixedPaperStage ? Math.min(availableW / baseW, 1) : 1;
 		document.documentElement.style.setProperty(
 			'--blemmy-paper-scale',
 			String(scale),
@@ -385,14 +358,20 @@ function setupPaperStageScale(readonlyMode: boolean): void {
 	window.addEventListener('blemmy-layout-applied', () => {
 		schedulePaperStageRefit(apply);
 	});
+	window.addEventListener('blemmy-ui-viewport-changed', () => {
+		schedulePaperStageRefit(apply);
+	});
+	window.addEventListener('blemmy-view-mode-changed', () => {
+		schedulePaperStageRefit(apply);
+	});
 	const observer = new MutationObserver(() => {
-		if (moTimer != null) {
-			window.clearTimeout(moTimer);
+		if (moRaf != null) {
+			window.cancelAnimationFrame(moRaf);
 		}
-		moTimer = window.setTimeout(() => {
-			moTimer = null;
+		moRaf = window.requestAnimationFrame(() => {
+			moRaf = null;
 			apply();
-		}, 48);
+		});
 	});
 	observer.observe(document.body, {
 		subtree: true,
@@ -568,7 +547,33 @@ function mountAboutUi(sharedMode: boolean): void {
 	const body = document.createElement('div');
 	body.className = 'blemmy-about-modal__body';
 	body.append(...aboutBodyNodes());
-	panel.append(title, body, closeBtn);
+	panel.append(title, body);
+	if (!sharedMode) {
+		const tools = document.createElement('div');
+		tools.className = 'blemmy-about-modal__tools';
+		const toolsHint = document.createElement('p');
+		toolsHint.className = 'blemmy-about-modal__tools-hint';
+		toolsHint.textContent =
+			'If cleared storage came back after closing the tab, the page ' +
+			'had already saved the open document. Reset here loads the ' +
+			'bundled demo and clears related storage.';
+		const resetBtn = document.createElement('button');
+		resetBtn.type = 'button';
+		resetBtn.className = 'blemmy-about-modal__reset';
+		resetBtn.textContent = 'Reset to bundled demo';
+		resetBtn.addEventListener('click', () => {
+			const ok = window.confirm(
+				'Clear local session, uploads, chat source, and cloud ' +
+					'active document link, then load the bundled demo CV?',
+			);
+			if (!ok) { return; }
+			resetToBundledDefaultsInApp();
+			close();
+		});
+		tools.append(toolsHint, resetBtn);
+		panel.append(tools);
+	}
+	panel.append(closeBtn);
 	overlay.append(panel);
 	document.body.appendChild(overlay);
 
@@ -884,6 +889,7 @@ function remountBlemmyDocument(rawData: unknown, documentType: string): void {
 /** DevTools / dock: same data path as upload → remount, without full reload. */
 function resetToBundledDefaultsInApp(): void {
 	prepareBundledDefaultsResetUi();
+	closeDocument();
 	resetBundledDocumentCaches();
 	clearDocumentEditHistory();
 	remountBlemmyDocument(loadCvData(), FALLBACK_DOCUMENT_TYPE_ID);
@@ -1208,7 +1214,6 @@ async function boot(): Promise<void> {
 		});
 		bootstrapOAuthFromUrl();
 		initUIComponents((data) => { applyData(data, true); });
-		setupMainReviewWidthClamp();
 		dispatchHistoryChanged();
 		dispatchLastChanges();
 		window.addEventListener('beforeunload', () => {

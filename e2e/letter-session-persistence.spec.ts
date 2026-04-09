@@ -14,6 +14,7 @@ const letterDemoPath = join(
 async function waitForLayoutReady(page: import('@playwright/test').Page): Promise<void> {
 	await page.waitForFunction(
 		() => document.getElementById('blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
+		undefined,
 		{ timeout: 60_000 },
 	);
 }
@@ -24,6 +25,7 @@ async function waitForDocumentRendered(
 	await page.waitForFunction(
 		() => Boolean(document.getElementById('blemmy-doc-shell'))
 			&& Boolean(document.getElementById('blemmy-card')),
+		undefined,
 		{ timeout: 60_000 },
 	);
 }

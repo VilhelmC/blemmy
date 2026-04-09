@@ -179,8 +179,12 @@ function validateWork(raw: unknown, idx: number): CVWork {
 	};
 }
 
-/** Allowed skill category keys in JSON (stable field paths / DOM ids). */
-const SKILL_CATEGORY_KEY_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+/**
+ * Skill category object keys become `skills.<key>.<index>` paths; dots would
+ * break path parsing. Otherwise allow human-readable labels (e.g. from the
+ * assistant): letter-first, then alnum / underscore / space / hyphen.
+ */
+const SKILL_CATEGORY_KEY_RE = /^[a-zA-Z][a-zA-Z0-9_ \-]*$/;
 
 function validateSkills(raw: unknown): CVSkills {
 	if (raw == null) {
@@ -190,9 +194,9 @@ function validateSkills(raw: unknown): CVSkills {
 	const out: CVSkills = {};
 	for (const k of Object.keys(o)) {
 		assert(
-			SKILL_CATEGORY_KEY_RE.test(k),
+			!k.includes('.') && SKILL_CATEGORY_KEY_RE.test(k),
 			`invalid skill category key "${k}" — ` +
-				'use letter-first alphanumeric or underscore',
+				'use a letter-first label (no dots); alnum, underscore, space, or hyphen',
 			`skills.${k}`,
 		);
 		out[k] = assertStringArray(o[k], `skills.${k}`);

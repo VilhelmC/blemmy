@@ -30,6 +30,13 @@ import {
 	BLEMMY_DOC_ROOT_ID,
 	BLEMMY_DOC_SHELL_ID,
 } from '@lib/blemmy-dom-ids';
+import {
+	isIndexHidden,
+	mergeHiddenBuckets,
+	skillCategoryHiddenPath,
+	workHighlightHiddenPath,
+	educationHighlightHiddenPath,
+} from '@lib/blemmy-hidden-indices';
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -89,14 +96,18 @@ function hiddenHighlightSet(
 	vis: Required<CVVisibility>,
 	workIdx: number,
 ): Set<number> {
-	return new Set(vis.hiddenWorkHighlights[String(workIdx)] ?? []);
+	return new Set(
+		mergeHiddenBuckets(vis)[workHighlightHiddenPath(workIdx)] ?? [],
+	);
 }
 
 function hiddenEducationHighlightSet(
 	vis: Required<CVVisibility>,
 	eduIdx: number,
 ): Set<number> {
-	return new Set(vis.hiddenEducationHighlights[String(eduIdx)] ?? []);
+	return new Set(
+		mergeHiddenBuckets(vis)[educationHighlightHiddenPath(eduIdx)] ?? [],
+	);
 }
 
 function renderWorkItem(
@@ -108,6 +119,8 @@ function renderWorkItem(
 		class:                   'experience-block',
 		'data-blemmy-drag-group': 'work',
 		'data-blemmy-drag-idx':   String(idx),
+		'data-blemmy-array-path': 'work',
+		'data-blemmy-array-index': String(idx),
 		draggable:               'false', // editor enables this
 	});
 
@@ -138,6 +151,8 @@ function renderWorkItem(
 		const { lead, body }   = parseHighlight(highlight);
 		const li               = document.createElement('li');
 		li.dataset.blemmyField = `work.${idx}.highlights.${hi}`;
+		li.dataset.blemmyArrayPath = workHighlightHiddenPath(idx);
+		li.dataset.blemmyArrayIndex = String(hi);
 		if (lead) {
 			li.appendChild(h('strong', { class: 'highlight-lead' }, lead + ':'));
 			li.appendChild(document.createTextNode(' ' + body));
@@ -170,7 +185,7 @@ function renderWorkPool(
 	// We use the original index (i) as data-work-index so editor field paths
 	// stay stable even when items are hidden. The engine sorts by this index.
 	work.forEach((entry, i) => {
-		if (vis.hiddenWork.includes(i)) { return; }
+		if (isIndexHidden(vis, 'work', i)) { return; }
 		const wrapper = document.createElement('div');
 		wrapper.dataset.workIndex = String(i);
 		wrapper.appendChild(
@@ -192,7 +207,11 @@ function renderEducationItem(
 	const p    = `education.${idx}`;
 	const block = h('div', {
 		class:                   'education-block',
+		'data-blemmy-drag-group': 'education',
+		'data-blemmy-drag-idx':   String(idx),
 		'data-blemmy-education-idx': String(idx),
+		'data-blemmy-array-path': 'education',
+		'data-blemmy-array-index': String(idx),
 	});
 
 	const degreeRow = h('div', { class: 'edu-degree-row' },
@@ -219,6 +238,8 @@ function renderEducationItem(
 		const { lead, body } = parseHighlight(highlight);
 		const li             = document.createElement('li');
 		li.dataset.blemmyField = `education.${idx}.highlights.${hi}`;
+		li.dataset.blemmyArrayPath = educationHighlightHiddenPath(idx);
+		li.dataset.blemmyArrayIndex = String(hi);
 		if (lead) {
 			li.appendChild(h('strong', { class: 'highlight-lead' }, lead + ':'));
 			li.appendChild(document.createTextNode(' ' + body));
@@ -245,8 +266,9 @@ function skillCategoryLabelFromKey(key: string): string {
 function renderSkillsBlock(
 	skills: CVSkills,
 	categoryOrder: string[],
-	hiddenSkillItems: Record<string, number[]>,
+	vis: Required<CVVisibility>,
 ): HTMLElement {
+	const merged = mergeHiddenBuckets(vis);
 	const wrapper = h('div', { class: 'skills-wrapper' });
 	for (let ci = 0; ci < categoryOrder.length; ci++) {
 		const catKey = categoryOrder[ci];
@@ -260,8 +282,10 @@ function renderSkillsBlock(
 			),
 		);
 		catEl.dataset.skillCategory = catKey;
+		catEl.dataset.blemmyOrderPath = 'visibility.skillsOrder';
+		catEl.dataset.blemmyOrderId = catKey;
 		const tags = h('div', { class: 'skill-tags' });
-		const hiddenSi = new Set(hiddenSkillItems[catKey] ?? []);
+		const hiddenSi = new Set(merged[skillCategoryHiddenPath(catKey)] ?? []);
 		for (let si = 0; si < items.length; si++) {
 			if (hiddenSi.has(si)) {
 				continue;
@@ -269,6 +293,8 @@ function renderSkillsBlock(
 			tags.appendChild(h('span', {
 				class:           'skill-tag',
 				'data-blemmy-field': `skills.${catKey}.${si}`,
+				'data-blemmy-array-path': skillCategoryHiddenPath(catKey),
+				'data-blemmy-array-index': String(si),
 			}, items[si]));
 		}
 		if (!tags.firstChild) {
@@ -285,8 +311,9 @@ function renderSkillsBlock(
 
 function renderLanguageList(
 	languages: CVLanguage[],
-	hiddenLang: Set<number>,
+	vis: Required<CVVisibility>,
 ): HTMLElement {
+	const hiddenLang = new Set(mergeHiddenBuckets(vis).languages ?? []);
 	const ul = h('ul', { class: 'language-list' });
 	for (let i = 0; i < languages.length; i++) {
 		if (hiddenLang.has(i)) {
@@ -297,6 +324,8 @@ function renderLanguageList(
 			h('li', {
 				class:                  'language-item',
 				'data-blemmy-language-idx': String(i),
+				'data-blemmy-array-path': 'languages',
+				'data-blemmy-array-index': String(i),
 			},
 			h('span', { class: 'language-name',    'data-blemmy-field': `languages.${i}.language` }, lang.language),
 			h('span', { class: 'language-fluency', 'data-blemmy-field': `languages.${i}.fluency`  }, lang.fluency),
@@ -377,7 +406,7 @@ function renderPortraitCell(basics: CVBasics): HTMLElement {
 		width:            '160',
 		height:           '200',
 		fetchpriority:    'high',
-		'data-blemmy-field':  'portrait',
+		'data-blemmy-field':  'basics.portraitDataUrl',
 	});
 
 	return h('div', { id: 'blemmy-p1-portrait-cell', class: 'blemmy-p1-portrait-cell' },
@@ -402,6 +431,7 @@ function renderMasthead(basics: CVBasics, hiddenSections: string[]): HTMLElement
 	const profileDiv = h('div', {
 		id:               'blemmy-rebalance-profile',
 		'data-section-id': 'profile',
+		'data-blemmy-section': 'profile',
 	},
 		h('span', { class: 'section-label' }, 'Profile'),
 		summaryEl,
@@ -435,7 +465,7 @@ function renderPage1WithVisibility(
 	const { hiddenEducation: hiddenEdu, hiddenSections: hiddenSects } = vis;
 	const visibleWorkIdx = cv.work
 		.map((_, i) => i)
-		.filter((i) => !vis.hiddenWork.includes(i));
+		.filter((i) => !isIndexHidden(vis, 'work', i));
 	const page1WorkIdx = visibleWorkIdx.slice(0, 2);
 
 	const topBand = h('div', { class: 'blemmy-p1-top-band' },
@@ -515,7 +545,7 @@ function renderPage2WithVisibility(
 	const hiddenSects = vis.hiddenSections as string[];
 	const visibleWorkIdx = cv.work
 		.map((_, i) => i)
-		.filter((i) => !vis.hiddenWork.includes(i));
+		.filter((i) => !isIndexHidden(vis, 'work', i));
 	const page2WorkIdx = visibleWorkIdx.slice(2);
 
 	function sectionDiv(
@@ -523,7 +553,13 @@ function renderPage2WithVisibility(
 		sectionId: string,
 		...children: HTMLElement[]
 	): HTMLElement {
-		const el = h('div', { id, 'data-section-id': sectionId }, ...children);
+		const el = h('div', {
+			id,
+			'data-section-id': sectionId,
+			'data-blemmy-section': sectionId,
+			'data-blemmy-order-path': 'visibility.sidebarOrder',
+			'data-blemmy-order-id': sectionId,
+		}, ...children);
 		if (hiddenSects.includes(sectionId)) {
 			el.style.display  = 'none';
 			el.dataset.hidden = 'true';
@@ -536,12 +572,12 @@ function renderPage2WithVisibility(
 		renderSkillsBlock(
 			cv.skills,
 			vis.skillsOrder ?? Object.keys(cv.skills),
-			vis.hiddenSkillItems,
+			vis,
 		),
 	);
 	const langDiv = sectionDiv('blemmy-rebalance-languages', 'languages',
 		h('span', { class: 'section-label' }, 'Languages'),
-		renderLanguageList(cv.languages, new Set(vis.hiddenLanguages)),
+		renderLanguageList(cv.languages, vis),
 	);
 	const intDiv = sectionDiv('blemmy-rebalance-interests', 'interests',
 		h('span', { class: 'section-label' }, 'Interests'),

@@ -131,6 +131,7 @@ export async function waitForCvLayoutReady(page: Page): Promise<void> {
 		() =>
 			document.getElementById('blemmy-card')?.getAttribute('data-blemmy-layout-ready') ===
 			'true',
+		undefined,
 		{ timeout: 60_000 },
 	);
 	await page.waitForTimeout(250);

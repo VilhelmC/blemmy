@@ -145,55 +145,11 @@
 	display: none !important;
 }
 
-/* Match chat/edit behavior on wider screens: side drawer shifts CV shell. */
-@media screen and (min-width: 901px) {
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) {
-		--blemmy-main-review-scale: min(1, calc((100vw - 344px - 2rem) / 794));
-		padding-right: 344px !important;
-		box-sizing: border-box;
-		overflow-x: hidden;
-	}
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) #blemmy-doc-root,
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-shell,
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-ui-deck {
-		width: 100% !important;
-		max-width: min(900px, calc(100vw - 344px - 2rem)) !important;
-		box-sizing: border-box;
-	}
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-shell,
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden])) .blemmy-ui-deck {
-		margin-inline: auto !important;
-		min-width: 0 !important;
-	}
-	/*
-	 * Print preview is fixed 210mm by design. Match share-view strategy:
-	 * scale the fixed-width stage instead of forcing fluid child widths.
-	 */
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	.blemmy-shell.blemmy-print-preview {
-		zoom: var(--blemmy-main-review-scale);
-		transform-origin: top center;
-	}
-	@supports not (zoom: 1) {
-		html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-		.blemmy-shell.blemmy-print-preview {
-			transform: scale(var(--blemmy-main-review-scale));
-			transform-origin: top center;
-		}
-	}
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-card,
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page,
-	html:not(.blemmy-share-readonly) body:has(#blemmy-review-panel:not([hidden]))
-	#blemmy-doc-shell:not(.blemmy-print-preview) .blemmy-page .blemmy-grid {
-		width: 100% !important;
-		max-width: 100% !important;
-		min-width: 0 !important;
-		box-sizing: border-box;
-		overflow-x: clip;
-	}
-}
+/*
+ * Desktop paper column + shell zoom when the review rail is open are handled by
+ * global.css (html.blemmy-panel-open.blemmy-panel-desktop) — same as assistant
+ * and edit. Share-readonly layout overrides stay below.
+ */
 
 html.blemmy-share-readonly #blemmy-share-review-dock {
 	position: fixed;

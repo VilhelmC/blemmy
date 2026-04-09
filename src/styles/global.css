@@ -2298,7 +2298,7 @@ html.blemmy-published-embed .blemmy-share-banner {
 @media screen {
 	/* Subtle highlight on hover so fields are discoverable */
 	:is(html.blemmy-edit-mode, html.blemmy-edit-mode)
-		[data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
+		[data-blemmy-field]:not(img):hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 1px;
 		cursor:         text;
@@ -2923,8 +2923,18 @@ html.blemmy-published-embed .blemmy-share-banner {
 	}
 
 	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop #blemmy-doc-root,
-	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-shell,
 	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop .blemmy-ui-deck {
+		width: 100% !important;
+		max-width: min(900px, calc(100vw - var(--blemmy-panel-w) - 2rem)) !important;
+		box-sizing: border-box;
+	}
+
+	/*
+	 * Print-preview shell stays 210mm wide in layout; narrowing it here reflows
+	 * the CV instead of letting .blemmy-paper-stage zoom shrink uniformly.
+	 */
+	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
+	.blemmy-shell:not(.blemmy-print-preview) {
 		width: 100% !important;
 		max-width: min(900px, calc(100vw - var(--blemmy-panel-w) - 2rem)) !important;
 		box-sizing: border-box;
@@ -2949,49 +2959,10 @@ html.blemmy-published-embed .blemmy-share-banner {
 	}
 
 	/*
-	 * Paper stage wraps #blemmy-doc-root; when a right panel is open, cap stage width
-	 * to the same column as #blemmy-doc-root so scaled print preview is not clipped.
+	 * Paper fit when a rail is open: JS sets --blemmy-paper-scale + zoom on
+	 * .blemmy-paper-stage (uniform scale). Do not add a second zoom on .blemmy-shell
+	 * or width-clamp card/pages — that reflows content instead of scaling.
 	 */
-	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop
-	.blemmy-paper-stage:has(.blemmy-shell.blemmy-print-preview) {
-		max-width: min(
-			var(--blemmy-paper-width, 794px),
-			calc(100vw - var(--blemmy-panel-w) - 2rem)
-		) !important;
-		box-sizing: border-box;
-	}
-
-	/*
-	 * Print preview: .blemmy-card / pages stay 210mm wide. Review-mode.css zooms
-	 * #blemmy-doc-shell when the review drawer is open; do the same for assistant + edit
-	 * so inner paper never overflows a correctly-sized shell (not .blemmy-panel-
-	 * kind-review — that path is already handled in review-mode.css).
-	 */
-	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
-		.blemmy-panel-kind-review
-	) {
-		--blemmy-main-side-panel-scale: min(
-			1,
-			calc((100vw - var(--blemmy-panel-w) - 2rem) / 794)
-		);
-	}
-	html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
-		.blemmy-panel-kind-review
-	)
-	.blemmy-shell.blemmy-print-preview {
-		zoom: var(--blemmy-main-side-panel-scale);
-		transform-origin: top center;
-	}
-	@supports not (zoom: 1) {
-		html:not(.blemmy-share-readonly).blemmy-panel-open.blemmy-panel-desktop:not(
-			.blemmy-panel-kind-review
-		)
-		.blemmy-shell.blemmy-print-preview {
-			zoom: unset;
-			transform: scale(var(--blemmy-main-side-panel-scale));
-			transform-origin: top center;
-		}
-	}
 
 	.blemmy-side-panel {
 		position: fixed;
@@ -5409,6 +5380,38 @@ html.blemmy-published-embed .blemmy-share-banner {
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		cursor: pointer;
+	}
+
+	.blemmy-about-modal__tools {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-top: 0.65rem;
+		padding-top: 0.55rem;
+		border-top: 1px solid var(--color-ink-border);
+	}
+
+	.blemmy-about-modal__tools-hint {
+		margin: 0;
+		font-size: 0.64rem;
+		line-height: 1.45;
+		color: var(--color-ink-muted);
+	}
+
+	.blemmy-about-modal__reset {
+		align-self: flex-start;
+		padding: 0.3rem 0.55rem;
+		border: 1px solid var(--color-warn-border, #a85);
+		background: rgba(180, 90, 70, 0.08);
+		color: var(--color-ink-dark);
+		border-radius: 4px;
+		font-size: 0.66rem;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+	}
+
+	.blemmy-about-modal__reset:hover {
+		background: rgba(180, 90, 70, 0.14);
 	}
 
 	.blemmy-about-arch {

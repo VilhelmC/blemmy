@@ -12,8 +12,8 @@
 
 @media screen {
 	/* Hover outline on any editable field */
-	html.blemmy-edit-mode [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover,
-	html.blemmy-edit-mode      [data-blemmy-field]:not([data-blemmy-field="portrait"]):hover {
+	html.blemmy-edit-mode [data-blemmy-field]:not(img):hover,
+	html.blemmy-edit-mode      [data-blemmy-field]:not(img):hover {
 		outline:        1px dashed rgba(26, 60, 64, 0.35);
 		outline-offset: 1px;
 		cursor:         text;

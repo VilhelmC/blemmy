@@ -36,6 +36,12 @@ import {
 	clearPortraitLocalCache,
 } from '@lib/profile-portrait';
 import { DOCKED_SIDE_PANEL_CLASS } from '@renderer/docked-side-panels';
+import {
+	enableHandleDragReorderForAllGroups,
+	injectHiddenItemsPanel,
+	injectListItemChrome,
+	injectOrderListChrome,
+} from '@renderer/blemmy-edit-chrome-inject';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -44,6 +50,7 @@ const FIELD_ATTR        = 'data-blemmy-field';
 const DRAG_GROUP_ATTR   = 'data-blemmy-drag-group';
 const DRAG_IDX_ATTR     = 'data-blemmy-drag-idx';
 const SECTION_ATTR      = 'data-blemmy-section';
+const ORDER_PATH_ATTR   = 'data-blemmy-order-path';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -366,129 +373,6 @@ function enableImageUploads(
 	return () => { for (const fn of cleanups) { fn(); } };
 }
 
-// ─── Drag-to-reorder ─────────────────────────────────────────────────────────
-
-/**
- * Enables drag-to-reorder for any elements marked with:
- *   data-blemmy-drag-group="groupName"
- *   data-blemmy-drag-idx="N"
- *
- * On drop, the array at the path corresponding to groupName is reordered
- * and remount() is called. The group name is a dot-path into the data
- * object (e.g. "work" for data.work, "body" for data.body).
- */
-function enableDragReorder(
-	shell:    HTMLElement,
-	data:     unknown,
-	onChange: (data: unknown) => void,
-	remount:  (data: unknown) => void,
-): () => void {
-	let dragGroup: string | null = null;
-	let dragIdx:   number | null = null;
-
-	const marker = document.createElement('div');
-	marker.className = 'blemmy-drag-marker';
-	marker.hidden    = true;
-	marker.setAttribute('aria-hidden', 'true');
-	document.body.appendChild(marker);
-
-	function getItem(target: EventTarget | null): HTMLElement | null {
-		if (!(target instanceof HTMLElement)) { return null; }
-		return target.closest<HTMLElement>(`[${DRAG_IDX_ATTR}]`);
-	}
-
-	function showMarker(block: HTMLElement, before: boolean): void {
-		const rect = block.getBoundingClientRect();
-		const top  = before ? rect.top : rect.bottom;
-		marker.style.left  = `${Math.round(rect.left)}px`;
-		marker.style.width = `${Math.round(rect.width)}px`;
-		marker.style.top   = `${Math.round(top)}px`;
-		marker.hidden = false;
-	}
-
-	function handleDragStart(e: DragEvent): void {
-		const item = getItem(e.target);
-		if (!item) { return; }
-		dragGroup = item.getAttribute(DRAG_GROUP_ATTR);
-		dragIdx   = parseInt(item.getAttribute(DRAG_IDX_ATTR) ?? '-1', 10);
-		item.classList.add('blemmy-drag-source');
-		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = 'move';
-			e.dataTransfer.setData('text/plain', String(dragIdx));
-		}
-	}
-
-	function handleDragOver(e: DragEvent): void {
-		e.preventDefault();
-		if (dragIdx === null) { return; }
-		const item = getItem(document.elementFromPoint(e.clientX, e.clientY))
-			?? getItem(e.target);
-		if (!item) { marker.hidden = true; return; }
-		const overIdx    = parseInt(item.getAttribute(DRAG_IDX_ATTR) ?? '-1', 10);
-		const rect       = item.getBoundingClientRect();
-		const insertBefore = e.clientY < rect.top + rect.height / 2;
-		if (overIdx !== dragIdx) { showMarker(item, insertBefore); }
-	}
-
-	function handleDrop(e: DragEvent): void {
-		e.preventDefault();
-		marker.hidden = true;
-		if (dragIdx === null || dragGroup === null) { return; }
-		const item = getItem(document.elementFromPoint(e.clientX, e.clientY))
-			?? getItem(e.target);
-		if (!item) { return; }
-		const overIdx      = parseInt(item.getAttribute(DRAG_IDX_ATTR) ?? '-1', 10);
-		const rect         = item.getBoundingClientRect();
-		const insertBefore = e.clientY < rect.top + rect.height / 2;
-		if (overIdx === dragIdx) { return; }
-
-		const arr = getAtPath(data, dragGroup);
-		if (!Array.isArray(arr)) { return; }
-
-		const moved = arr.splice(dragIdx, 1)[0];
-		let insertAt = insertBefore
-			? (dragIdx < overIdx ? overIdx - 1 : overIdx)
-			: (dragIdx <= overIdx ? overIdx : overIdx + 1);
-		insertAt = Math.max(0, Math.min(insertAt, arr.length));
-		arr.splice(insertAt, 0, moved);
-
-		onChange(data);
-		remount(data);
-	}
-
-	function handleDragEnd(e: DragEvent): void {
-		marker.hidden = true;
-		dragIdx   = null;
-		dragGroup = null;
-		shell.querySelectorAll<HTMLElement>(`[${DRAG_IDX_ATTR}]`).forEach((el) => {
-			el.classList.remove('blemmy-drag-source');
-			el.setAttribute('draggable', 'true');
-		});
-		void e;
-	}
-
-	// Make all drag items draggable
-	shell.querySelectorAll<HTMLElement>(`[${DRAG_IDX_ATTR}]`).forEach((el) => {
-		el.setAttribute('draggable', 'true');
-	});
-
-	shell.addEventListener('dragstart', handleDragStart);
-	shell.addEventListener('dragover',  handleDragOver);
-	shell.addEventListener('drop',      handleDrop);
-	shell.addEventListener('dragend',   handleDragEnd);
-
-	return () => {
-		marker.remove();
-		shell.removeEventListener('dragstart', handleDragStart);
-		shell.removeEventListener('dragover',  handleDragOver);
-		shell.removeEventListener('drop',      handleDrop);
-		shell.removeEventListener('dragend',   handleDragEnd);
-		shell.querySelectorAll<HTMLElement>(`[${DRAG_IDX_ATTR}]`).forEach((el) => {
-			el.setAttribute('draggable', 'false');
-		});
-	};
-}
-
 // ─── Tag editing ──────────────────────────────────────────────────────────────
 
 /**
@@ -647,6 +531,9 @@ function injectSectionToggles(
 	const injected: HTMLElement[] = [];
 
 	document.querySelectorAll<HTMLElement>(`[${SECTION_ATTR}]`).forEach((sectionEl) => {
+		if (sectionEl.hasAttribute(ORDER_PATH_ATTR)) {
+			return;
+		}
 		const sectionId = sectionEl.getAttribute(SECTION_ATTR);
 		if (!sectionId) { return; }
 
@@ -765,6 +652,22 @@ export function activateEditMode(
 		handleRemount,
 	);
 
+	const cleanupListChrome = injectListItemChrome(
+		workingData,
+		handleDataChange,
+		handleRemount,
+	);
+	const cleanupOrderChrome = injectOrderListChrome(
+		workingData,
+		handleDataChange,
+		handleRemount,
+	);
+	const cleanupHiddenPanel = injectHiddenItemsPanel(
+		workingData,
+		handleDataChange,
+		handleRemount,
+	);
+
 	// ── Contenteditable ───────────────────────────────────────────────────────
 	const cleanupCE = enableContentEditable(shell, workingData, handleDataChange);
 
@@ -776,8 +679,8 @@ export function activateEditMode(
 		handleRemount,
 	);
 
-	// ── Drag reorder ──────────────────────────────────────────────────────────
-	const cleanupDrag = enableDragReorder(
+	// ── Drag reorder (handle-based; one interaction per drag-group) ──────────
+	const cleanupDrag = enableHandleDragReorderForAllGroups(
 		shell,
 		workingData,
 		handleDataChange,
@@ -793,6 +696,9 @@ export function activateEditMode(
 		cleanupImages();
 		cleanupDrag();
 		cleanupTags();
+		cleanupListChrome();
+		cleanupOrderChrome();
+		cleanupHiddenPanel();
 		cleanupSections();
 		shell.removeAttribute(EDIT_ACTIVE_ATTR);
 		document.documentElement.classList.remove('blemmy-edit-mode');

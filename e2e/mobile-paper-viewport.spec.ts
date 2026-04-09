@@ -5,6 +5,7 @@ import { expect, test } from './test-base';
 async function waitForPaperStable(page: Page): Promise<void> {
 	await page.waitForFunction(
 		() => document.getElementById('blemmy-card')?.getAttribute('data-blemmy-layout-ready') === 'true',
+		undefined,
 		{ timeout: 60_000 },
 	);
 	await page.waitForTimeout(250);

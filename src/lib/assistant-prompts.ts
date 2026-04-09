@@ -491,7 +491,7 @@ Guidelines for generating the JSON:
 - **basics.summary**: Write 2–4 sentences, first-person, outcome-focused. Bridge between their background and what makes them distinctive.
 - **work**: Extract all roles. Write highlight bullets in "Lead: Body" format — lead is a 1–3 word skill/outcome noun, body is a concrete sentence with result if possible.
 - **education**: Extract all qualifications. Include score only if explicitly mentioned.
-- **skills**: Object whose keys are category names (snake_case identifiers) and values are string arrays. Group logically (e.g. technical, design, leadership); infer from context.
+- **skills**: Object whose keys are category names (start with a letter; may use spaces or hyphens; no dots in the key) and values are string arrays. Group logically (e.g. technical, design, leadership); infer from context.
 - **languages**: Include only if mentioned. Use standard fluency levels: Native, Fluent, Professional Working Proficiency, Conversational, Basic.
 - **tags**: Add 2–4 lowercase thematic tags to each work and education entry based on the nature of the role (e.g. "research", "finance", "design", "technical", "strategy", "academic", "communication").
 - **meta**: Set lastUpdated to today's date, version to "1.0", language to "en" (or detected language).

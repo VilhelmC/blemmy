@@ -503,6 +503,21 @@ async function signInWithOAuthProvider(
 			}
 			return win?.location.origin ?? '';
 		})();
+		if (import.meta.env.DEV && envOrigin && win?.location?.origin) {
+			let fixed = '';
+			try {
+				fixed = new URL(envOrigin).origin;
+			} catch { /* noop */ }
+			if (fixed && fixed !== win.location.origin) {
+				console.warn(
+					'[blemmy-auth] VITE_OAUTH_REDIRECT_ORIGIN is ' + fixed +
+						' but this tab is ' + win.location.origin +
+						'. The OAuth popup will open that origin after Google/GitHub —' +
+						' it must be running (e.g. npm run dev), or remove' +
+						' VITE_OAUTH_REDIRECT_ORIGIN to use this tab’s origin.',
+				);
+			}
+		}
 		const redirectTo = `${origin}${path}`;
 		const sb = getClient();
 		const fullRedirect = import.meta.env.VITE_OAUTH_USE_FULL_REDIRECT === 'true';

@@ -67,7 +67,8 @@ export interface CVWork {
 
 /**
  * Skill groups are dynamic: each top-level key in `skills` is a category whose
- * value is a string array. Keys use `[a-zA-Z][a-zA-Z0-9_]*` (see validateSkills).
+ * value is a string array. Keys must not contain `.` (field paths); otherwise
+ * `[a-zA-Z][a-zA-Z0-9_ -]*` (see validateSkills).
  */
 export type CVSkills = Record<string, string[]>;
 
@@ -115,6 +116,11 @@ export type CVSidebarSectionId =
  * Hidden items remain in the JSON — they can be restored via the editor.
  */
 export interface CVVisibility {
+	/**
+	 * Unified slash-path hide buckets (see `blemmy-hidden-indices.ts`).
+	 * When present alongside legacy fields, readers merge both.
+	 */
+	hiddenIndices?: Record<string, number[]>;
 	/** Indices into the `work` array that are hidden from layout. */
 	hiddenWork?:      number[];
 	/** Indices into the `education` array that are hidden from layout. */

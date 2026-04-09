@@ -1411,9 +1411,15 @@ export function initLayoutEngine(documentSpec: EngineDocumentSpec): () => void {
 	window.addEventListener(PREFS_CHANGED_EVENT, handlePrefsChanged);
 	window.addEventListener(ALTERNATIVE_SELECTED_EVENT, handleAlternativeSelected);
 
-	// Run once immediately; fonts-ready reruns for final measurements.
-	requestLayout();
-	document.fonts.ready.then(() => { requestLayout(); });
+	// Defer first layout until webfonts settle when they are still loading,
+	// so we avoid a full candidate search on fallback metrics.
+	if (document.fonts.status === 'loading') {
+		document.fonts.ready.then(() => {
+			requestLayout();
+		});
+	} else {
+		requestLayout();
+	}
 	window.addEventListener('resize', scheduleLayout);
 
 	// Return a cleanup function for re-render scenarios (main.ts)

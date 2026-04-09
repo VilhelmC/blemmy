@@ -38,6 +38,15 @@ describe('validateCvData skills (dynamic categories)', () => {
 		expect(cv.skills.strategic).toEqual(['A']);
 	});
 
+	it('allows space and hyphen in category keys (assistant-friendly labels)', () => {
+		const cv = validateCvData({
+			...base,
+			skills: { 'Design Software': ['Figma'], 'Open-Source': ['Git'] },
+		});
+		expect(cv.skills['Design Software']).toEqual(['Figma']);
+		expect(cv.skills['Open-Source']).toEqual(['Git']);
+	});
+
 	it('defaults missing skills to an empty object', () => {
 		const raw = { ...base } as Record<string, unknown>;
 		delete raw.skills;
@@ -50,6 +59,12 @@ describe('validateCvData skills (dynamic categories)', () => {
 			validateCvData({
 				...base,
 				skills: { '9bad': [] },
+			}),
+		).toThrow(CvValidationError);
+		expect(() =>
+			validateCvData({
+				...base,
+				skills: { 'has.dot': [] },
 			}),
 		).toThrow(CvValidationError);
 	});

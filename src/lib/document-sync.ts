@@ -1,5 +1,6 @@
 import {
 	CLOUD_ENABLED,
+	clearActiveDocumentId,
 	loadActiveDocumentId,
 	saveActiveDocumentId,
 	saveVersion,
@@ -90,6 +91,7 @@ export function closeDocument(): void {
 	if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 	pendingData = null;
 	pendingDocType = null;
+	clearActiveDocumentId();
 	setState({
 		status: 'idle',
 		documentId: null,

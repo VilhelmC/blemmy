@@ -25,6 +25,10 @@
  */
 
 import type { CVData, CVVisibility } from '@cv/cv';
+import {
+	denormalizeMergedHidden,
+	mergeHiddenBuckets,
+} from '@lib/blemmy-hidden-indices';
 import { hashCvForAudit, layoutAuditLog } from '@lib/engine/layout-audit';
 
 function cloneHiddenIndexMap(
@@ -91,79 +95,71 @@ export function resolveFilteredVisibility(
 	data:          CVData,
 	activeFilters: string[],
 ): Required<CVVisibility> {
-	const manual: Required<CVVisibility> = {
-		hiddenWork:           [...(data.visibility?.hiddenWork      ?? [])],
-		hiddenEducation:      [...(data.visibility?.hiddenEducation ?? [])],
-		hiddenSections:       [...(data.visibility?.hiddenSections  ?? [])],
-		sidebarOrder:         [...(data.visibility?.sidebarOrder ?? ['skills', 'languages', 'interests'])],
-		skillsOrder:          [
+	const merged: Record<string, number[]> = {
+		...mergeHiddenBuckets(data.visibility),
+	};
+
+	if (activeFilters.length > 0) {
+		const filters = activeFilters.map((f) => f.toLowerCase().trim());
+
+		const workH = new Set(merged.work ?? []);
+		for (let i = 0; i < data.work.length; i++) {
+			if (workH.has(i)) { continue; }
+			const tags = data.work[i].tags ?? [];
+			if (
+				tags.length > 0 &&
+				!tags.some((t) => filters.includes(t.toLowerCase().trim()))
+			) {
+				workH.add(i);
+			}
+		}
+		merged.work = [...workH].sort((a, b) => a - b);
+		if (merged.work.length === 0) { delete merged.work; }
+
+		const eduH = new Set(merged.education ?? []);
+		for (let i = 0; i < data.education.length; i++) {
+			if (eduH.has(i)) { continue; }
+			const tags = data.education[i].tags ?? [];
+			if (
+				tags.length > 0 &&
+				!tags.some((t) => filters.includes(t.toLowerCase().trim()))
+			) {
+				eduH.add(i);
+			}
+		}
+		merged.education = [...eduH].sort((a, b) => a - b);
+		if (merged.education.length === 0) { delete merged.education; }
+	}
+
+	layoutAuditLog('filter-resolve', {
+		filters: activeFilters.length,
+		cvHash: hashCvForAudit(data),
+		hiddenWork: merged.work?.length ?? 0,
+		hiddenEducation: merged.education?.length ?? 0,
+	});
+
+	const denorm  = denormalizeMergedHidden(merged);
+	const sidebar = data.visibility?.sidebarOrder ?? [
+		'skills',
+		'languages',
+		'interests',
+	];
+	return {
+		hiddenWork: denorm.hiddenWork ?? [],
+		hiddenEducation: denorm.hiddenEducation ?? [],
+		hiddenSections: [...(data.visibility?.hiddenSections ?? [])],
+		sidebarOrder: [...sidebar],
+		skillsOrder: [
 			...(data.visibility?.skillsOrder ?? Object.keys(data.skills)),
 		],
-		hiddenWorkHighlights: cloneHiddenIndexMap(
-			data.visibility?.hiddenWorkHighlights,
-		),
-		hiddenSkillItems:     cloneHiddenIndexMap(
-			data.visibility?.hiddenSkillItems,
-		),
+		hiddenWorkHighlights: cloneHiddenIndexMap(denorm.hiddenWorkHighlights),
+		hiddenSkillItems: cloneHiddenIndexMap(denorm.hiddenSkillItems),
 		hiddenEducationHighlights: cloneHiddenIndexMap(
-			data.visibility?.hiddenEducationHighlights,
+			denorm.hiddenEducationHighlights,
 		),
-		hiddenLanguages: [
-			...(data.visibility?.hiddenLanguages ?? []),
-		],
+		hiddenLanguages: [...(denorm.hiddenLanguages ?? [])],
+		hiddenIndices: merged,
 	};
-
-	// No active filters → return manual visibility as-is
-	if (activeFilters.length === 0) {
-		layoutAuditLog('filter-resolve', {
-			filters: 0,
-			cvHash: hashCvForAudit(data),
-			hiddenWork: manual.hiddenWork.length,
-			hiddenEducation: manual.hiddenEducation.length,
-		});
-		return manual;
-	}
-
-	const filters = activeFilters.map((f) => f.toLowerCase().trim());
-
-	// Work items: hide if has tags but none match
-	const filteredWork: number[] = [];
-	for (let i = 0; i < data.work.length; i++) {
-		if (manual.hiddenWork.includes(i)) { continue; } // already hidden
-		const tags = data.work[i].tags ?? [];
-		if (tags.length > 0 && !tags.some((t) => filters.includes(t.toLowerCase().trim()))) {
-			filteredWork.push(i);
-		}
-	}
-
-	// Education items: hide if has tags but none match
-	const filteredEdu: number[] = [];
-	for (let i = 0; i < data.education.length; i++) {
-		if (manual.hiddenEducation.includes(i)) { continue; }
-		const tags = data.education[i].tags ?? [];
-		if (tags.length > 0 && !tags.some((t) => filters.includes(t.toLowerCase().trim()))) {
-			filteredEdu.push(i);
-		}
-	}
-
-	const merged: Required<CVVisibility> = {
-		hiddenWork:           [...manual.hiddenWork,      ...filteredWork],
-		hiddenEducation:      [...manual.hiddenEducation, ...filteredEdu],
-		hiddenSections:       manual.hiddenSections,
-		sidebarOrder:         manual.sidebarOrder,
-		skillsOrder:          manual.skillsOrder,
-		hiddenWorkHighlights: manual.hiddenWorkHighlights,
-		hiddenSkillItems:          manual.hiddenSkillItems,
-		hiddenEducationHighlights: manual.hiddenEducationHighlights,
-		hiddenLanguages:           manual.hiddenLanguages,
-	};
-	layoutAuditLog('filter-resolve', {
-		filters: filters.length,
-		cvHash: hashCvForAudit(data),
-		hiddenWork: merged.hiddenWork.length,
-		hiddenEducation: merged.hiddenEducation.length,
-	});
-	return merged;
 }
 
 // ─── Filter state helpers ─────────────────────────────────────────────────────
